@@ -211,9 +211,18 @@
     .btn-guide:active { transform: scale(.97); }
 
     /* === 我的礼品与物流：一键折叠 === */
-    .ship-head-row { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
-    .ship-fold-btn { font-size: 12px; font-weight: 700; color: #FF6B5C; background: #FFEAE5; border: 1px solid #FFD9D2; border-radius: 10px; padding: 5px 12px; transition: background .15s ease; }
-    .ship-fold-btn:active { background: #FFD9D2; }
+    .ship-head-row { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; margin-bottom: 14px; }
+    .ship-head-row .block-title { margin: 0; }
+    .ship-fold-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12px; font-weight: 600; color: #FF6B5C;
+      background: #FFF0EC; border: 1px solid #FFD9D2;
+      border-radius: 999px; padding: 4px 10px;
+      transition: background .15s ease;
+    }
+    .ship-fold-btn::after { content: '▲'; font-size: 9px; transition: transform .2s ease; }
+    .ship-head-row.collapsed .ship-fold-btn::after { transform: rotate(180deg); }
+    .ship-fold-btn:active { background: #FFE3DC; }
     .ship-list { transition: opacity .2s ease; }
     .ship-list.collapsed { display: none; }
   </style>
@@ -230,6 +239,6 @@
   <script src="config.js"></script>
   <script src="vendor/supabase.js"></script>
   <script src="js/sb.js"></script>
-  <script src="js/me.js?v=7"></script>
+  <script src="js/me.js?v=8"></script>
 </body>
 </html>

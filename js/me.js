@@ -261,8 +261,8 @@
       </div>
       <div class="me-card">
         <div class="ship-head-row" id="ship-head-row">
-          <div class="block-title" style="margin:0">🚚 我的礼品与物流 <span style="font-size:12px;color:var(--gray);font-weight:normal;margin-left:6px">共 ${SHIPS.length} 件</span></div>
-          <span class="ship-fold-btn" id="ship-fold-btn">折叠</span>
+          <div class="block-title">🚚 我的礼品与物流 <span style="font-size:12px;color:var(--gray);font-weight:normal;margin-left:6px">共 ${SHIPS.length} 件</span></div>
+          <span class="ship-fold-btn" id="ship-fold-btn">收起</span>
         </div>
         <div class="ship-list" id="ship-list">${ships}</div>
       </div>
@@ -299,7 +299,8 @@
     if (shipHeadRow && shipList && shipFoldBtn) {
       shipHeadRow.addEventListener('click', () => {
         shipList.classList.toggle('collapsed');
-        shipFoldBtn.textContent = shipList.classList.contains('collapsed') ? '展开' : '折叠';
+        shipHeadRow.classList.toggle('collapsed');
+        shipFoldBtn.textContent = shipList.classList.contains('collapsed') ? '展开' : '收起';
       });
     }
     // 物流轨迹折叠/展开
