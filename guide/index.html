@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>网拍模特平台图鉴 · 8个平台一次看懂</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --ink:#1f1d1a;--paper:#fbf7f0;--gold:#c2920f;--sage:#5fae7e;--dim:#8a857d;
+}
+html,body{height:100%;
+  background:linear-gradient(165deg,#fff6ea 0%,#ffedf0 42%,#eaf3ff 100%);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  overscroll-behavior-y:none;}
+body{overflow:hidden}
+
+/* ===== 竖向滚动容器 ===== */
+.reel{
+  height:100vh;height:100dvh;overflow-y:scroll;overflow-x:hidden;
+  scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;
+  scroll-behavior:smooth;
+}
+.reel::-webkit-scrollbar{display:none}
+.reel{scrollbar-width:none}
+
+.screen{
+  height:100vh;height:100dvh;scroll-snap-align:start;scroll-snap-stop:always;
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;
+}
+
+/* ===== 封面 ===== */
+.cover{align-items:center;justify-content:center;text-align:center;padding:0 32px}
+.cover-bg{
+  position:absolute;inset:-10%;display:grid;
+  grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);
+  gap:6px;opacity:.16;filter:blur(1px);
+  animation:drift 40s ease-in-out infinite alternate;
+}
+.cover-bg img{width:100%;height:100%;object-fit:cover}
+@keyframes drift{from{transform:scale(1.05) translateY(0)}to{transform:scale(1.15) translateY(-3%)}}
+.cover::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at center,rgba(255,255,255,.4) 0%,rgba(255,255,255,.86) 70%);
+}
+.cover-in{position:relative;z-index:2}
+.cover .eyebrow{
+  font-size:11px;letter-spacing:6px;color:var(--gold);margin-bottom:22px;
+  animation:fadeIn .9s .1s both;
+}
+.cover h1{
+  font-size:38px;font-weight:800;line-height:1.25;letter-spacing:2px;
+  margin-bottom:18px;animation:fadeIn .9s .25s both;
+}
+.cover h1 em{font-style:normal;color:var(--gold);display:block;font-size:44px}
+.cover .lead{
+  font-size:14px;line-height:1.9;color:var(--dim);max-width:320px;margin:0 auto 28px;
+  animation:fadeIn .9s .4s both;text-align:justify;text-align-last:center;
+  letter-spacing:.3px;
+}
+.cover .metrics{
+  display:flex;gap:28px;justify-content:center;margin-bottom:44px;
+  animation:fadeIn .9s .55s both;
+}
+.metric b{display:block;font-size:30px;color:var(--gold);font-weight:800;line-height:1}
+.metric span{font-size:11px;color:var(--dim);letter-spacing:1px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+/* ===== 平台屏 ===== */
+.blur-bg{
+  position:absolute;inset:-40px;background-size:cover;background-position:center;
+  filter:blur(38px) saturate(1.15) brightness(.92);transform:scale(1.1);
+}
+.veil{position:absolute;inset:0;background:linear-gradient(180deg,
+  rgba(255,255,255,.82) 0%,rgba(255,255,255,.28) 28%,rgba(255,255,255,.5) 62%,rgba(255,255,255,.96) 100%)}
+
+.stage{
+  position:relative;z-index:2;flex:1;display:flex;align-items:center;
+  justify-content:center;padding:70px 26px 0;min-height:0;
+}
+.poster{
+  max-height:100%;max-width:100%;width:auto;border-radius:14px;
+  box-shadow:0 24px 60px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.04);
+  animation:rise .8s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes rise{from{opacity:0;transform:translateY(30px) scale(.96)}to{opacity:1;transform:none}}
+
+/* 序号水印 */
+.idx{
+  position:absolute;top:56px;left:20px;z-index:3;
+  font-size:70px;font-weight:900;line-height:1;
+  color:rgba(0,0,0,.05);letter-spacing:-3px;pointer-events:none;
+}
+
+/* 底部信息条 */
+.info{
+  position:relative;z-index:3;padding:20px 24px calc(30px + env(safe-area-inset-bottom));
+  flex-shrink:0;
+}
+.info .kicker{font-size:10px;letter-spacing:4px;color:var(--gold);margin-bottom:7px}
+.info h2{font-size:27px;font-weight:800;letter-spacing:1px;margin-bottom:8px}
+.info .one{font-size:13px;color:rgba(31,29,26,.72);line-height:1.6;margin-bottom:14px}
+.info .row{display:flex;align-items:center;gap:10px}
+.btn{
+  flex:1;height:46px;border:none;border-radius:12px;font-size:14px;font-weight:700;
+  letter-spacing:1px;cursor:pointer;transition:transform .15s,opacity .15s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.btn:active{transform:scale(.97);opacity:.85}
+.btn-main{background:var(--gold);color:#2b2100}
+.btn-ghost{
+  flex:0 0 46px;background:rgba(31,29,26,.06);color:var(--ink);
+  border:1px solid rgba(31,29,26,.12);font-size:18px;
+}
+
+/* ===== 结尾屏 ===== */
+.outro{padding:70px 22px calc(40px + env(safe-area-inset-bottom));justify-content:center}
+.outro h2{font-size:26px;font-weight:800;text-align:center;margin-bottom:6px}
+.outro .sub{font-size:12px;color:var(--dim);text-align:center;margin-bottom:24px;letter-spacing:1px}
+.qgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:0 4px}
+.qcell{text-align:center}
+.qcell img{width:100%;aspect-ratio:1;object-fit:contain;background:#fff;
+  border-radius:10px;padding:4px;display:block;border:1px solid rgba(0,0,0,.05)}
+.qcell span{display:block;font-size:10px;color:var(--dim);margin-top:6px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.outro .tip{
+  font-size:11px;color:var(--dim);text-align:center;margin-top:22px;line-height:1.9;
+  padding-top:18px;border-top:1px solid rgba(31,29,26,.1);
+}
+
+/* ===== 详情抽屉 ===== */
+.mask{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:900;
+  opacity:0;visibility:hidden;transition:.28s;
+}
+.mask.on{opacity:1;visibility:visible}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:901;
+  background:#fffdf8;border-radius:22px 22px 0 0;
+  padding:8px 24px calc(28px + env(safe-area-inset-bottom));
+  transform:translateY(101%);transition:transform .34s cubic-bezier(.3,.9,.3,1);
+  max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+}
+.sheet.on{transform:none}
+.grip{width:38px;height:4px;border-radius:2px;background:rgba(31,29,26,.15);
+  margin:0 auto 20px}
+.sheet .stitle{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.sheet .ic{
+  width:46px;height:46px;border-radius:13px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:19px;font-weight:800;color:#fff;
+}
+.sheet .stitle h3{font-size:20px;font-weight:800}
+.sheet .stitle p{font-size:11px;color:var(--gold);letter-spacing:1px;margin-top:2px}
+.sheet .body{font-size:14px;line-height:1.85;color:rgba(31,29,26,.82);margin-bottom:18px}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:22px}
+.chip{padding:6px 13px;border-radius:9px;font-size:12px;
+  background:rgba(194,146,15,.12);color:var(--gold);border:1px solid rgba(194,146,15,.22)}
+.sheet .qbox{text-align:center;padding-top:16px;border-top:1px solid rgba(31,29,26,.1)}
+.sheet .qbox img{width:220px;height:220px;background:#fff;border-radius:14px;
+  padding:8px;object-fit:contain}
+.sheet .qbox p{font-size:12px;color:var(--dim);margin-top:10px}
+
+/* ===== 右侧进度 ===== */
+.rail{
+  position:fixed;right:9px;top:50%;transform:translateY(-50%);z-index:100;
+  display:flex;flex-direction:column;gap:6px;
+}
+.rail i{width:3px;height:14px;border-radius:2px;background:rgba(31,29,26,.14);
+  transition:.3s;display:block}
+.rail i.on{background:var(--gold);height:24px}
+
+/* ===== 顶栏 ===== */
+.top{
+  position:fixed;top:0;left:0;right:0;z-index:120;
+  padding:calc(13px + env(safe-area-inset-top)) 20px 13px;
+  display:flex;justify-content:space-between;align-items:center;
+  background:linear-gradient(180deg,rgba(255,255,255,.9),transparent);
+  pointer-events:none;
+}
+.top .brand{font-size:12px;letter-spacing:3px;color:var(--gold);font-weight:700}
+.top .pg{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+
+/* ===== 返回按钮 ===== */
+.back{
+  position:fixed;left:14px;top:calc(12px + env(safe-area-inset-top));z-index:200;
+  display:flex;align-items:center;gap:5px;
+  height:34px;padding:0 13px 0 11px;border:none;border-radius:18px;
+  background:rgba(255,255,255,.82);color:var(--ink);
+  font-size:13px;font-weight:600;cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,.12),0 0 0 1px rgba(0,0,0,.04);
+  backdrop-filter:blur(6px);
+}
+.back:active{transform:scale(.96)}
+.back .ar{font-size:16px;line-height:1}
+
+/* ===== 下滑提示 ===== */
+.scroll-cue{
+  position:absolute;bottom:calc(16px + env(safe-area-inset-bottom));
+  left:50%;transform:translateX(-50%);z-index:5;
+  font-size:10px;letter-spacing:2px;color:rgba(31,29,26,.38);
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  animation:bob 1.9s ease-in-out infinite;
+}
+.scroll-cue::after{content:'';width:1px;height:22px;
+  background:linear-gradient(rgba(31,29,26,.4),transparent)}
+@keyframes bob{0%,100%{transform:translateX(-50%) translateY(0);opacity:.55}
+  50%{transform:translateX(-50%) translateY(7px);opacity:1}}
+
+@media (max-height:680px){
+  .cover h1{font-size:31px}.cover h1 em{font-size:36px}
+  .info h2{font-size:23px}.idx{font-size:56px}
+  .stage{padding:62px 30px 0}
+}
+@media (max-width:380px){
+  .qgrid{grid-template-columns:repeat(2,1fr);gap:14px}
+  .qcell img{padding:5px}
+  .sheet .qbox img{width:200px;height:200px}
+}
+</style>
+</head>
+<body>
+
+<button class="back" id="backBtn"><span class="ar">‹</span> 返回福利页</button>
+
+<div class="top">
+  <div class="brand">网拍平台图鉴</div>
+  <div class="pg"><span id="pg">00</span> / 08</div>
+</div>
+
+<div class="rail" id="rail"></div>
+
+<div class="reel" id="reel">
+
+  <!-- 封面 -->
+  <section class="screen cover">
+    <div class="cover-bg">
+      <img src="posters/p1.jpg" alt=""><img src="posters/p2.jpg" alt="">
+      <img src="posters/p3.jpg" alt=""><img src="posters/p4.jpg" alt="">
+      <img src="posters/p5.jpg" alt=""><img src="posters/p6.jpg" alt="">
+      <img src="posters/p7.jpg" alt=""><img src="posters/p8.jpg" alt="">
+    </div>
+    <div class="cover-in">
+      <div class="eyebrow">MODEL PLATFORM GUIDE</div>
+      <h1>网拍模特<em>平台图鉴</em></h1>
+      <p class="lead">8 个主流网拍平台，风格、门槛与模式各异<br>往下滑，一次看懂它们的区别</p>
+      <div class="metrics">
+        <div class="metric"><b>8</b><span>平台</span></div>
+        <div class="metric"><b>0</b><span>入驻费用</span></div>
+        <div class="metric"><b>∞</b><span>时间自由</span></div>
+      </div>
+    </div>
+    <div class="scroll-cue">向上滑动</div>
+  </section>
+
+  <!-- 平台屏由 JS 生成 -->
+
+</div>
+
+<!-- 详情抽屉 -->
+<div class="mask" id="mask"></div>
+<div class="sheet" id="sheet">
+  <div class="grip"></div>
+  <div class="stitle">
+    <div class="ic" id="sIc"></div>
+    <div><h3 id="sName"></h3><p id="sEn"></p></div>
+  </div>
+  <div class="body" id="sBody"></div>
+  <div class="chips" id="sChips"></div>
+  <div class="qbox">
+    <img id="sQr" src="" alt="二维码">
+    <p id="sQrTip"></p>
+  </div>
+</div>
+
+<script>
+const DATA=[
+ {n:'哈喽麻豆',en:'HELLO MODEL',ic:'哈',c:'linear-gradient(135deg,#1a1a2e,#16213e)',
+  one:'暗黑奢华风格，聚焦高颜值模特的试用平台',
+  k:'高颜值 · 试用',
+  d:'哈喽麻豆走的是暗黑奢华路线，视觉上用放大镜创意突出模特形象。品牌方在平台发布商品试用需求，模特申请通过后收到实物，拍摄精美照片提交即可结算佣金。整体调性偏高端，适合形象条件较好、追求品质合作的模特。',
+  f:['高颜值优先','试穿拍照','高额佣金','品牌合作']},
+
+ {n:'爱拍秀',en:'AIPAIXIU',ic:'爱',c:'linear-gradient(135deg,#4fc3f7,#29b6f6)',
+  one:'清新插画风，主打轻松上手的分享式接单',
+  k:'零门槛 · 新手友好',
+  d:'爱拍秀用清新插画风格拉低了参与门槛，核心主张是"试穿试用拍拍照，分享领取高佣金"。界面活泼有趣，流程简单直白，不需要专业摄影基础。适合刚接触网拍、想先试试水的新人。',
+  f:['插画风格','零门槛','分享赚佣','新手友好']},
+
+ {n:'集美麻豆',en:'JIMEI MODEL',ic:'集',c:'linear-gradient(135deg,#ec407a,#d81b60)',
+  one:'社区氛围浓厚，完全免费的入驻模式',
+  k:'免费 · 社区化',
+  d:'集美麻豆用扁平活力的设计语言和五人插画群像，营造出强烈的社区归属感。平台反复强调"零门槛、免费入驻"，粉蓝渐变配色年轻化，鼓励更多女生参与进来。相比单打独斗，这里更像一个互相交流的圈子。',
+  f:['完全免费','零门槛','社区氛围','新手推荐']},
+
+ {n:'麻豆喵',en:'MADOU MIAO',ic:'喵',c:'linear-gradient(135deg,#5c6bc0,#3949ab)',
+  one:'实拍卡片式布局，认证后即可接单',
+  k:'认证 · 高效',
+  d:'麻豆喵采用实拍照片配合卡片式布局，真实感很强。流程是"长按二维码免费入驻 → 申请模特认证 → 通过后接单"。底部悬浮卡片的交互设计操作便捷，整体风格简洁实用，注重效率而非花哨。',
+  f:['免费入驻','认证接单','实拍参考','操作便捷']},
+
+ {n:'猫当模特',err:0,en:'CAT MODEL',ic:'猫',c:'linear-gradient(135deg,#ff7043,#f4511e)',
+  one:'专注商品案例图创作，考验构图能力',
+  k:'创意 · 案例图',
+  d:'猫当模特把重心放在商品案例图的拍摄创作上，标志性视觉是圆形照片墙。平台主张"试穿试用拍美照，分享领取高佣金"，但对照片的创意构图有更高要求。橙色暖调配色亲切温暖，适合有一定审美和拍摄想法的人。',
+  f:['案例拍摄','创意构图','圆形画廊','温暖氛围']},
+
+ {n:'我是麻豆',en:'I AM MODEL 54',ic:'54',c:'linear-gradient(135deg,#2b2b2b,#000)',
+  one:'经典暗黑杂志风，主打碎片时间变现',
+  k:'老牌 · 灵活',
+  d:'我是麻豆（54麻豆）是较早期的平台之一，视觉上走经典暗黑杂志路线，放大镜配红色标签是它的记忆点。口号很直白——"业余时间拍拍照，轻松赚零花钱"，核心卖点就是用碎片时间换收益，不影响本职工作。',
+  f:['杂志质感','时间灵活','零花钱模式','经典老牌']},
+
+ {n:'多彩往拍',en:'DUOCAI WANGPAI',ic:'多',c:'linear-gradient(135deg,#42a5f5,#1e88e5)',
+  one:'三大卖点清晰：轻松出片 · 高佣结算 · 分享种草',
+  k:'高佣 · 种草',
+  d:'多彩往拍定位为"网拍模特招募计划"，三个卖点摆得非常清楚：轻松出片、高佣结算、分享种草。浅色背景配蓝色渐变按钮，设计干净清爽。它明确说明想找的是气质佳、会拍照、爱分享的人，用户画像比其他平台更聚焦。',
+  f:['高佣结算','轻松出片','分享种草','气质优先']},
+
+ {n:'优图麻豆',en:'YOUTU MODEL',ic:'优',c:'linear-gradient(135deg,#66bb6a,#43a047)',
+  one:'一句话定义自己：让你的照片很值钱',
+  k:'寄拍 · 变现',
+  d:'优图麻豆用一句直击人心的话定义自己——"让你的照片很值钱"。亮绿色主色调搭配散落式照片布局，传递活力与价值感。平台聚焦于提升照片的商业变现能力，把每一次快门都当作可以计价的产出。',
+  f:['照片变现','寄拍模式','绿色活力','价值导向']},
+];
+
+const reel=document.getElementById('reel');
+
+// 生成平台屏
+DATA.forEach((p,i)=>{
+  const n=i+1;
+  const s=document.createElement('section');
+  s.className='screen plat';
+  s.innerHTML=`
+    <div class="blur-bg" style="background-image:url(posters/p${n}.jpg)"></div>
+    <div class="veil"></div>
+    <div class="idx">${String(n).padStart(2,'0')}</div>
+    <div class="stage"><img class="poster" src="posters/p${n}.jpg" alt="${p.n}" loading="lazy"></div>
+    <div class="info">
+      <div class="kicker">${p.k}</div>
+      <h2>${p.n}</h2>
+      <div class="one">${p.one}</div>
+      <div class="row">
+        <button class="btn btn-main" data-i="${i}">了解详情 · 看二维码</button>
+        <button class="btn btn-ghost" data-i="${i}">⌄</button>
+      </div>
+    </div>`;
+  reel.appendChild(s);
+});
+
+// 结尾屏
+const out=document.createElement('section');
+out.className='screen outro';
+out.innerHTML=`
+  <h2>全部平台二维码</h2>
+  <div class="sub">长按识别 · 选择适合你的那一个</div>
+  <div class="qgrid">${DATA.map((p,i)=>
+    `<div class="qcell"><img src="qrcodes/qr${i+1}.png" alt="${p.n}"><span>${p.n}</span></div>`).join('')}</div>
+  <div class="tip">
+    以上平台均支持免费入驻，无需缴纳任何费用<br>
+    建议先了解各平台规则，选择 1–2 个适合自己的开始<br>
+    <span style="color:rgba(31,29,26,.35)">图鉴仅作平台信息整理 · 请理性选择</span>
+  </div>`;
+reel.appendChild(out);
+
+// 进度条
+const rail=document.getElementById('rail'),pg=document.getElementById('pg');
+const screens=[...document.querySelectorAll('.screen')];
+screens.forEach(()=>rail.appendChild(document.createElement('i')));
+const bars=[...rail.children];
+
+let tick=false;
+reel.addEventListener('scroll',()=>{
+  if(tick)return;tick=true;
+  requestAnimationFrame(()=>{
+    const i=Math.round(reel.scrollTop/reel.clientHeight);
+    bars.forEach((b,j)=>b.classList.toggle('on',j===i));
+    pg.textContent=String(Math.min(i,8)).padStart(2,'0');
+    tick=false;
+  });
+},{passive:true});
+bars[0].classList.add('on');
+
+// 抽屉
+const mask=document.getElementById('mask'),sheet=document.getElementById('sheet');
+function open(i){
+  const p=DATA[i];
+  sIc.textContent=p.ic;sIc.style.background=p.c;
+  sName.textContent=p.n;sEn.textContent=p.en;
+  sBody.textContent=p.d;
+  sChips.innerHTML=p.f.map(f=>`<span class="chip">${f}</span>`).join('');
+  sQr.src=`qrcodes/qr${i+1}.png`;
+  sQrTip.textContent=`长按识别二维码 → 进入${p.n}`;
+  mask.classList.add('on');sheet.classList.add('on');
+}
+function close(){mask.classList.remove('on');sheet.classList.remove('on')}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button[data-i]');
+  if(b){open(+b.dataset.i);return}
+});
+mask.addEventListener('click',close);
+document.querySelector('.grip').addEventListener('click',close);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+
+// 抽屉下滑关闭
+let sy=0;
+sheet.addEventListener('touchstart',e=>sy=e.touches[0].clientY,{passive:true});
+sheet.addEventListener('touchend',e=>{
+  if(sheet.scrollTop<=0&&e.changedTouches[0].clientY-sy>70)close();
+},{passive:true});
+
+// 返回福利页（携带 token 原路返回）
+(function(){
+  const btn=document.getElementById('backBtn');
+  const t=new URLSearchParams(location.search).get('t');
+  btn.addEventListener('click',()=>{ location.href = '../me.html' + (t ? ('?t='+encodeURIComponent(t)) : ''); });
+})();
+</script>
+</body>
+</html>

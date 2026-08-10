@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>伙伴补给仓 · 低价优质补贴好物</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="deals-wrap">
+    <div class="deals-hero">
+      <div class="badge">补给</div>
+      <h1>伙伴补给仓</h1>
+      <div class="lead">低价优质好物，买来派给伙伴 · 换复购与转介绍。点链接直达拼多多下单，到手价以平台页面为准，手慢无。</div>
+      <div class="supply-stats" id="supply-stats"></div>
+    </div>
+    <div class="deals-body">
+      <div class="deals-filter-label">派发场景</div>
+      <div class="deals-chips" id="scene-chips"></div>
+      <div class="deals-chips" id="deals-chips"></div>
+      <div class="deals-filter-label">价格区间</div>
+      <div class="deals-chips" id="price-chips"></div>
+      <div id="deals-list"><div class="deals-foot">加载中…</div></div>
+    </div>
+    <div class="deals-foot">本页由私域福利官整理 · 价格随平台活动变动，下单前请核对<br>后台「羊毛」模块可投稿 / 管理</div>
+    <div class="supply-bar" id="supply-bar">
+      <div class="sb-info">
+        <div class="sb-count">派发清单 <b id="sb-count">0</b> 件</div>
+        <div class="sb-total">合计 <b id="sb-total">¥0</b></div>
+      </div>
+      <button class="sb-btn" id="sb-copy">一键复制全部购买链接</button>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/sb.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/deals_pub.js"></script>
+</body>
+</html>

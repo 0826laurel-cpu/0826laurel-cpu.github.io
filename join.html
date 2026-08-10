@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>合作模特的专属福利圈 · 福利派送官私域伙伴</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: linear-gradient(160deg, #FFE9E0, #FFF1F3); color: #20232E; }
+    .app { max-width: 430px; margin: 0 auto; min-height: 100vh; padding: 44px 24px; }
+    .card { background: #fff; border-radius: 22px; padding: 24px 20px; box-shadow: 0 10px 30px rgba(255,107,92,.12); margin-bottom: 16px; }
+    .badge { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg,#FF9975,#FF7091); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; margin-bottom: 12px; }
+    h1 { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+    .lead { font-size: 13px; color: #9AA0AD; margin-bottom: 4px; line-height: 1.6; }
+    .block-title { font-size: 15px; font-weight: 700; margin: 18px 0 10px; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12px; color: #9AA0AD; margin-bottom: 6px; }
+    .field input, .field select, .field textarea {
+      width: 100%; border: 1px solid #EDEDF0; border-radius: 12px; padding: 12px;
+      font-size: 14px; outline: none; background: #FAFBFC; font-family: inherit;
+    }
+    .field textarea { height: 64px; resize: none; }
+    .row2 { display: flex; gap: 10px; }
+    .row2 .field { flex: 1; }
+    .btn { width: 100%; background: linear-gradient(135deg,#FF9975,#FF7091); color: #fff; border: none; border-radius: 14px; padding: 14px; font-size: 15px; font-weight: 700; margin-top: 6px; }
+    .btn-line { width: 100%; background: transparent; color: #FF6B5C; border: 1px solid #FFD9D2; border-radius: 14px; padding: 12px; font-size: 14px; font-weight: 600; margin-top: 8px; }
+    .btn-ghost { width: 100%; background: linear-gradient(135deg,#FFEAE5,#FFD9D2); color: #FF6B5C; border: 1px solid #FFB8AC; border-radius: 14px; padding: 12px; font-size: 14px; font-weight: 700; margin-top: 12px; cursor: pointer; transition: all .15s ease; }
+    .btn-ghost:hover { background: linear-gradient(135deg,#FFD9D2,#FFC4B8); }
+    .btn-ghost:active { transform: scale(0.98); }
+    .btn-ghost:disabled { opacity: .6; cursor: not-allowed; }
+    .addr-text { font-size: 13px; line-height: 1.7; color: #20232E; white-space: pre-wrap; word-break: break-all; }
+    .addr-empty { font-size: 13px; color: #9AA0AD; }
+    .ship-item { background: #FAFBFC; border: 1px solid #EDEDF0; border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+    .ship-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; cursor: pointer; user-select: none; }
+    .ship-head .head-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+    .ship-head .toggle-icon { font-size: 10px; color: #9AA0AD; transition: transform .2s ease; flex-shrink: 0; display: inline-block; width: 12px; }
+    .ship-head.collapsed .toggle-icon { transform: rotate(-90deg); }
+    .ship-head:hover .toggle-icon { color: #FF6B5C; }
+    .ship-item .nm { font-size: 14px; font-weight: 700; flex: 1; }
+    .ship-status { display: inline-block; font-size: 11px; font-weight: 600; color: #fff; padding: 3px 10px; border-radius: 12px; flex-shrink: 0; }
+    .track { background: #fff; border: 1px dashed #FFD9D2; border-radius: 12px; padding: 12px; margin: 8px 0 4px; }
+    .track-label { font-size: 11px; color: #FF6B5C; font-weight: 700; margin-bottom: 6px; }
+    .track-row { display: flex; align-items: center; gap: 10px; }
+    .track-no { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: 16px; font-weight: 700; color: #20232E; letter-spacing: 0.5px; flex: 1; word-break: break-all; }
+    .track-copy { background: #FFEAE5; color: #FF6B5C; border: none; border-radius: 10px; padding: 7px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .track-copy:active { background: #FFD9D2; }
+    .track-link { display: inline-block; margin-top: 8px; font-size: 12px; color: #5B7CFA; text-decoration: none; }
+    .track-date { margin-top: 8px; font-size: 11px; color: #9AA0AD; }
+    .track-empty { background: #fff; border: 1px dashed #EDEDF0; border-radius: 12px; padding: 12px; margin: 8px 0; color: #9AA0AD; font-size: 12px; text-align: center; }
+    .carrier-label { font-size: 11px; color: #9AA0AD; margin-top: 4px; }
+    .tl { margin-top: 12px; padding-top: 8px; border-top: 1px solid #EDEDF0; }
+    .tl.collapsed { display: none; }
+    .tl .it { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid #EDEDF0; }
+    .tl .it:last-child { border-bottom: none; }
+    .tl .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: 0 0 auto; }
+    .tl .tt { font-size: 13px; }
+    .tl .ta { font-size: 11px; color: #9AA0AD; margin-top: 2px; }
+    .note { text-align: center; font-size: 11px; color: #b9bcc6; margin-top: 16px; }
+    .err { text-align: center; padding: 60px 16px; }
+    .err .em { font-size: 50px; margin-bottom: 14px; }
+    .tag { display: inline-block; background: #FFEAE5; color: #FF6B5C; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 14px; margin-top: 12px; }
+    .sec-hint { font-size: 12px; color: #C2C5CE; margin: 18px 0 4px; font-weight: 600; }
+    #loading { text-align: center; color: #9AA0AD; font-size: 13px; padding: 60px 0; }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <div id="loading">加载中…</div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/sb.js"></script>
+  <script src="js/join.js"></script>
+</body>
+</html>

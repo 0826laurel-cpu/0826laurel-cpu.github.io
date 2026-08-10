@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>私域伙伴管理 · 后台</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="phone">
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="dots"><i></i><i></i><i></i></span>
+    </div>
+
+    <div class="viewport">
+      <div class="view active" id="view-home"></div>
+      <div class="view" id="view-partners"></div>
+      <div class="view" id="view-gift"></div>
+      <div class="view" id="view-interaction"></div>
+      <div class="view" id="view-me"></div>
+      <div class="view" id="view-wool"></div>
+    </div>
+
+    <div class="tabbar">
+      <div class="pill">
+        <div class="tab on" data-tab="home"><div class="ti"></div><div class="tl">首页</div></div>
+        <div class="tab" data-tab="partners"><div class="ti"></div><div class="tl">伙伴</div></div>
+        <div class="tab" data-tab="gift"><div class="ti"></div><div class="tl">福利</div></div>
+        <div class="tab" data-tab="interaction"><div class="ti"></div><div class="tl">互动</div></div>
+        <div class="tab" data-tab="me"><div class="ti"></div><div class="tl">我的</div></div>
+      <div class="tab" data-tab="wool"><div class="ti"></div><div class="tl">羊毛</div></div>
+      </div>
+    </div>
+
+    <!-- 登录 -->
+    <div class="login hide">
+      <div class="logo">私</div>
+      <h2>私域伙伴管理</h2>
+      <p>登录后可查看与管理所有伙伴资料、礼品与互动</p>
+      <input id="login-pwd" type="password" placeholder="请输入管理密码">
+      <button id="login-btn">登 录</button>
+      <div class="hint">管理密码 000826wasd</div>
+    </div>
+
+    <!-- 详情 -->
+    <div class="overlay" id="ov-detail"><div class="sheet" id="sheet-detail"></div></div>
+    <!-- 新增 -->
+    <div class="overlay" id="ov-add"><div class="sheet" id="sheet-add"></div></div>
+    <!-- 送礼 -->
+    <div class="overlay" id="ov-gift"><div class="sheet" id="sheet-gift"></div></div>
+    <!-- 发货 / 物流 -->
+    <div class="overlay" id="ov-ship"><div class="sheet" id="sheet-ship"></div></div>
+    <!-- 编辑伙伴 -->
+    <div class="overlay" id="ov-edit"><div class="sheet" id="sheet-edit"></div></div>
+    <!-- 添加互动 -->
+    <div class="overlay" id="ov-interact"><div class="sheet" id="sheet-interact"></div></div>
+    <!-- 羊毛情报 / 补贴好物 -->
+    <div class="overlay" id="ov-deal"><div class="sheet" id="sheet-deal"></div></div>
+    <div class="overlay" id="ov-pdd"><div class="sheet" id="sheet-pdd"></div></div>
+    <div class="overlay" id="ov-paste"><div class="sheet" id="sheet-paste"></div></div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/sb.js"></script>
+  <script src="chart.umd.min.js"></script>
+  <script src="js/api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
