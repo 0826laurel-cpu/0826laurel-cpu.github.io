@@ -60,31 +60,76 @@
   // ---------- 视图 1：合并入驻表单 ----------
   function renderForm() {
     document.getElementById('app').innerHTML = `
-      <div class="card">
-        <div class="badge">🎁</div>
+      <!-- Hero 头部 -->
+      <div class="hero">
+        <div class="hero-icon">🎁</div>
         <h1>加入合作模特的专属福利圈</h1>
         <p class="lead">填写收件信息后，发货后礼品信息会在此页面同步，可查询物流等</p>
-
-        <div class="block-title">👤 模特信息</div>
-        <div class="field"><label>模特平台 *</label>
-          <input id="j-platform" placeholder="如：集美、多彩、猫当 等">
+        <div class="hero-tags">
+          <span class="hero-tag"><span class="pulse"></span>福利派送官亲自寄出</span>
+          <span class="hero-tag">🎀 智能物流同步</span>
+          <span class="hero-tag">🔒 隐私受保护</span>
         </div>
-        <div class="field"><label>模特ID *</label><input id="j-id" placeholder="如：beauty_001"></div>
-        <div class="field"><label>微信号 *</label><input id="j-wechat" placeholder="方便我们加你微信"></div>
-        <div class="field"><label>想对我们说的话（选填）</label><textarea id="j-note" placeholder="你的偏好、生日、想要的…"></textarea></div>
+      </div>
 
-        <div class="sec-hint">📦 收货信息（领福利时直接寄出，不用再填第二次）</div>
-        <div class="field"><label>收货人 *</label><input id="a-name" placeholder="你的姓名"></div>
-        <div class="field"><label>收货手机号 *</label><input id="a-phone" placeholder="11 位手机号"></div>
-        <div class="row2">
-          <div class="field"><label>省</label><input id="a-prov" placeholder="如：浙江"></div>
-          <div class="field"><label>市</label><input id="a-city" placeholder="如：杭州"></div>
+      <!-- 模特信息分组 -->
+      <div class="card">
+        <div class="group">
+          <div class="group-head">
+            <span class="g-ico model">👤</span>
+            <h3>模特信息</h3>
+            <span class="opt">仅福利派送官可见</span>
+          </div>
+          <div class="field"><label>模特平台<span class="req">*</span></label>
+            <div class="field-input"><span class="ico">🌐</span><input id="j-platform" placeholder="如：集美、多彩、猫当 等"></div>
+          </div>
+          <div class="field"><label>模特ID<span class="req">*</span></label>
+            <div class="field-input"><span class="ico">🆔</span><input id="j-id" placeholder="如：beauty_001"></div>
+          </div>
+          <div class="field">
+            <label>微信号<span class="req">*</span></label>
+            <div class="group-tip"><span class="ti">💡</span><div><b>方便必要时联系</b>（订单沟通、地址异常、退换等），福利派送官一对一添加，不会打扰。</div></div>
+            <div class="field-input"><span class="ico">💬</span><input id="j-wechat" placeholder="你的微信号，方便我们加你"></div>
+          </div>
+          <div class="field"><label>想对我们的话（选填）</label>
+            <div class="field-input"><span class="ico">✨</span><textarea id="j-note" placeholder="你的偏好、生日、想要的…"></textarea></div>
+          </div>
         </div>
-        <div class="field"><label>区 / 县</label><input id="a-dist" placeholder="如：西湖区"></div>
-        <div class="field"><label>详细地址</label><input id="a-detail" placeholder="街道 / 小区 / 门牌"></div>
+      </div>
 
-        <button class="btn" id="j-submit">提交并领取福利</button>
-        <div class="note">提交即表示同意我们保存以上信息用于福利发放与贴心服务</div>
+      <!-- 收件信息分组 -->
+      <div class="card">
+        <div class="sec-hint">领福利时直接寄出，不用再填第二次</div>
+        <div class="group">
+          <div class="group-head">
+            <span class="g-ico addr">📦</span>
+            <h3>收件信息</h3>
+            <span class="opt">仅用于寄送福利</span>
+          </div>
+          <div class="field"><label>收货人<span class="req">*</span></label>
+            <div class="field-input"><span class="ico">🧑</span><input id="a-name" placeholder="你的姓名"></div>
+          </div>
+          <div class="field"><label>收货手机号<span class="req">*</span></label>
+            <div class="field-input"><span class="ico">📱</span><input id="a-phone" placeholder="11 位手机号"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>省</label>
+              <div class="field-input"><span class="ico">🏙️</span><input id="a-prov" placeholder="如：浙江"></div>
+            </div>
+            <div class="field"><label>市</label>
+              <div class="field-input"><span class="ico">🏙️</span><input id="a-city" placeholder="如：杭州"></div>
+            </div>
+          </div>
+          <div class="field"><label>区 / 县</label>
+            <div class="field-input"><span class="ico">🏘️</span><input id="a-dist" placeholder="如：西湖区"></div>
+          </div>
+          <div class="field"><label>详细地址</label>
+            <div class="field-input"><span class="ico">📍</span><input id="a-detail" placeholder="街道 / 小区 / 门牌"></div>
+          </div>
+        </div>
+
+        <button class="btn" id="j-submit">提交并领取福利 🎁</button>
+        <div class="note">提交即表示同意我们保存以上信息用于福利发放与贴心服务，仅你本人可见</div>
       </div>`;
 
     document.getElementById('j-submit').addEventListener('click', submit);
