@@ -21,9 +21,22 @@ function enterPanel(){
   loadPending();
 }
 
-document.getElementById('pw-btn').addEventListener('click', ()=>{
+document.getElementById('pw-btn').addEventListener('click', async ()=>{
   const pw = document.getElementById('pw').value.trim();
   if (!pw){ toast('请输入密码'); return; }
+  if (!sb){ toast('未连接数据库'); return; }
+
+  const btn = document.getElementById('pw-btn');
+  const oldText = btn.textContent;
+  btn.textContent = '验证中…'; btn.disabled = true;
+
+  const { data, error } = await sb.rpc('admin_check_pw', { p_admin_pw: pw });
+  btn.textContent = oldText; btn.disabled = false;
+
+  if (error || data !== true){
+    toast('密码错误');
+    return;
+  }
   adminPw = pw;
   enterPanel();
 });
