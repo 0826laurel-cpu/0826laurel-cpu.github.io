@@ -206,6 +206,19 @@
   }
 
   // ---------- 视图 2：我的专属页（仪表盘）----------
+  // ---------- 入口：join.html 永远渲染新人入驻表单 ----------
+  // 1) URL 带 ?t=<token> → 已入驻用户，自动跳转到 me.html 自助页（修改地址/看物流都在那里）
+  // 2) 否则渲染空表单（不读 localStorage，避免已填过的人打开链接看到自己旧数据）
+  function init() {
+    const urlToken = new URLSearchParams(location.search).get('t');
+    if (urlToken) {
+      // 已入驻用户访问 join.html：跳转到他自己的自助页
+      location.replace(location.origin + '/me.html?t=' + encodeURIComponent(urlToken));
+      return;
+    }
+    renderForm();
+  }
+
   async function load() {
     if (!TOKEN) { renderForm(); return; }
     if (TOKEN === 'TOKEN' || !UUID_RE.test(TOKEN)) { showErr('链接无效', '链接里的 token 不正确（看到了占位符 "TOKEN" 或格式不对）。请使用你收到的真实专属链接，不要手动修改。'); return; }
@@ -522,4 +535,7 @@
       }, true);
     }
   }
+
+  // 暴露给入口
+  init();
 })();
