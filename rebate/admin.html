@@ -32,6 +32,18 @@
     padding:12px 20px;border-radius:12px;font-size:14px;opacity:0;transition:.3s;pointer-events:none;z-index:99;}
   .toast.show{opacity:1;}
   .ghost{display:block;text-align:center;margin-top:16px;font-size:12px;color:var(--sub);cursor:pointer;}
+  .pending-empty{text-align:center;color:var(--sub);font-size:13px;padding:18px 0;}
+  .pending-item{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;}
+  .pending-top{display:flex;justify-content:space-between;align-items:center;}
+  .pending-order{font-size:13px;font-weight:700;color:var(--ink);word-break:break-all;}
+  .pending-amount{font-size:15px;font-weight:800;color:var(--brand);white-space:nowrap;margin-left:10px;}
+  .pending-meta{font-size:12px;color:var(--sub);margin-top:6px;}
+  .pending-meta span{margin-right:10px;}
+  .pending-badge{display:inline-block;background:#fff5f1;color:var(--brand);font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;}
+  .pending-actions{display:flex;gap:8px;margin-top:10px;}
+  .pending-actions button{flex:1;border:none;border-radius:10px;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn-done{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;}
+  .btn-edit{background:#f7f7f7;color:var(--ink);}
 </style>
 </head>
 <body>
@@ -79,6 +91,11 @@
       </div>
       <button class="submit" id="submit-btn">提交返款记录</button>
       <span class="ghost" id="logout">退出登录</span>
+    </div>
+
+    <div class="block">
+      <h2>⏳ 待返款订单 <span class="pending-badge" id="pending-count">0</span></h2>
+      <div id="pendingList"><div class="pending-empty">正在加载…</div></div>
     </div>
   </div>
 
