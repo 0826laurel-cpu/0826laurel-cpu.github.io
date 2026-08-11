@@ -280,6 +280,15 @@
         <p class="guide-desc">8个主流平台一次看懂</p>
         <a class="btn-guide" href="guide/?t=${TOKEN ? encodeURIComponent(TOKEN) : ''}">查看平台图鉴 →</a>
       </div>
+      <div class="me-card oa-card">
+        <div class="block-title">📣 关注公众号 · 林风户外</div>
+        <p class="oa-desc">更多福利活动、新品预告、户外攻略，第一时间在公众号发布。长按识别下方二维码，关注「林风户外」👇</p>
+        <div class="oa-qr">
+          <img src="img/linfeng-qr.jpg" alt="林风户外公众号二维码" onerror="this.style.display='none';this.parentNode.querySelector('.oa-qr-ph').style.display='flex'">
+          <div class="oa-qr-ph" style="display:none">二维码待上传</div>
+        </div>
+        <div class="oa-tip">微信内长按二维码即可关注</div>
+      </div>
       <div class="note">本页仅你本人可通过专属链接访问 · 信息仅用于福利发放</div>`;
 
     document.getElementById('edit-addr').addEventListener('click', () => {
