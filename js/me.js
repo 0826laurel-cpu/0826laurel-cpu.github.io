@@ -388,7 +388,10 @@
     renderWelfare();
     bindEvents();
     switchTab('home');
-    Api.touchSeen(TOKEN);
+    // 标记已读（非关键副作用，脚本缺失/失败都要保证主流程不崩）
+    if (typeof Api !== 'undefined' && Api && typeof Api.touchSeen === 'function') {
+      try { Api.touchSeen(TOKEN); } catch (e) {}
+    }
   }
 
   async function saveAddr() {
