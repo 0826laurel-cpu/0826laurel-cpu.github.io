@@ -149,7 +149,8 @@ const Api = {
     const { error } = await sb.from('shipments').insert({
       partner_id: b.partnerId, gift_name: b.giftName, carrier: b.carrier || '',
       tracking_no: b.trackingNo || '', phone: b.phone || '', status, logs,
-      product_link: b.productLink || '', product_title: b.productTitle || ''
+      product_link: b.productLink || '', product_title: b.productTitle || '',
+      value: Number(b.value) || 0
     });
     if (error) throw new Error(error.message);
   },

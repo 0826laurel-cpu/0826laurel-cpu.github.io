@@ -452,6 +452,7 @@ function openShip(ship, pid) {
         <input id="sh-phone" maxlength="4" inputmode="numeric" placeholder="选伙伴后自动从收件地址取后四位">
         <div style="font-size:11px;color:var(--gray);margin-top:4px">快递100实时查询需要此字段；如未填则无法同步物流</div>
       </div>
+      <div class="field"><label>礼品价值（元，选填）</label><input id="sh-value" type="number" min="0" step="0.01" placeholder="如：99，用于福利概览累计价值"></div>
       <div class="field"><label>备注 / 首批物流信息</label><textarea id="sh-note" placeholder="如：已揽收，今日发出"></textarea></div>
       <button class="btn-primary" data-act="ship-create">确认发货</button>
       <button class="btn-line" data-act="close" data-ov="ov-ship">取消</button>`;
@@ -1077,7 +1078,8 @@ document.addEventListener('click', async e => {
         partnerId: pid, giftName, carrier: document.getElementById('sh-carrier').value.trim(),
         trackingNo: document.getElementById('sh-no').value.trim(), phone: document.getElementById('sh-phone').value.trim(),
         note: document.getElementById('sh-note').value.trim(),
-        productLink: document.getElementById('sh-link').value.trim()
+        productLink: document.getElementById('sh-link').value.trim(),
+        value: Number(document.getElementById('sh-value').value || 0)
       }) });
       document.getElementById('ov-ship').classList.remove('show');
       toast('已发货 📦'); renderShipments();

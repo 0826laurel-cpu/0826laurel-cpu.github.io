@@ -7,6 +7,7 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const LS_KEY = 'p_token';
   const TOKEN = new URLSearchParams(location.search).get('t') || localStorage.getItem(LS_KEY) || '';
+  const REF = new URLSearchParams(location.search).get('ref') || '';
   const UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 
   const SHIP_STATUS = { pending: '待发货', collected: '已揽收', transit: '运输中', delivering: '派送中', signed: '已签收' };
@@ -71,6 +72,7 @@
           <span class="hero-tag">🔒 隐私受保护</span>
         </div>
       </div>
+      ${REF ? `<div class="ref-banner">🎁 由邀请码 <b>${esc(REF)}</b> 的模特邀请你加入福利圈</div>` : ''}
 
       <!-- 模特信息分组 -->
       <div class="card">
@@ -165,7 +167,8 @@
         p_note: document.getElementById('j-note').value.trim(),
         p_address: address,
         p_platform: platform,
-        p_model_id: modelId
+        p_model_id: modelId,
+        p_invited_by: REF
       });
       if (error) throw new Error(error.message);
       if (!data || !data.ok) throw new Error('提交失败，请稍后重试');

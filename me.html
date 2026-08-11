@@ -225,6 +225,36 @@
     .ship-fold-btn:active { background: #FFE3DC; }
     .ship-list { transition: opacity .2s ease; }
     .ship-list.collapsed { display: none; }
+
+    /* === 专属福利概览 === */
+    .overview-card .ov-grid { display: flex; gap: 10px; margin-top: 12px; }
+    .overview-card .ov { flex: 1; text-align: center; background: linear-gradient(160deg,#FFF7F4,#fff); border: 1px solid #FFE3DC; border-radius: 14px; padding: 14px 6px; }
+    .overview-card .ov .n { font-size: 22px; font-weight: 700; color: #2C2C2A; }
+    .overview-card .ov .l { font-size: 12px; color: #9AA0AD; margin-top: 4px; }
+
+    /* === 每日签到 + 积分商城 === */
+    .checkin-card .ck-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+    .checkin-card .ck-points { font-size: 26px; font-weight: 700; color: #FF6B5C; }
+    .checkin-card .ck-points span { font-size: 13px; font-weight: 400; color: #9AA0AD; }
+    .checkin-card .ck-streak { font-size: 12px; color: #888; margin-top: 2px; }
+    .checkin-card .ck-done { font-size: 13px; font-weight: 600; color: #2BB673; background: #E7F7EE; border: 1px solid #BFE9CF; border-radius: 999px; padding: 8px 14px; }
+    .btn-checkin { font-size: 14px; font-weight: 600; color: #fff; background: linear-gradient(135deg,#FF8A5C,#FF6B5C); border: none; border-radius: 999px; padding: 10px 20px; }
+    .btn-checkin:active { transform: scale(.97); }
+    .checkin-card .redeem-title { font-size: 13px; font-weight: 600; color: #444; margin: 16px 0 8px; }
+    .checkin-card .redeem-list { display: flex; flex-direction: column; gap: 8px; }
+    .checkin-card .rd { display: flex; align-items: center; justify-content: space-between; background: #FAFBFC; border: 1px solid #EEF0F2; border-radius: 12px; padding: 12px 14px; font-size: 14px; color: #2C2C2A; }
+    .checkin-card .rd .rc { font-size: 12px; color: #FF6B5C; font-weight: 600; }
+    .checkin-card .rd:active { background: #F2F3F5; }
+    .checkin-card .ck-tip { font-size: 11px; color: #B4B2A9; margin-top: 12px; line-height: 1.6; }
+
+    /* === 转介绍邀请码 === */
+    .invite-card .invite-desc { font-size: 13px; color: #6B7280; line-height: 1.7; margin: 8px 0 14px; }
+    .invite-card .invite-code-box { display: flex; align-items: center; gap: 10px; background: #FFF7F4; border: 1px dashed #FFD9D2; border-radius: 14px; padding: 12px 14px; }
+    .invite-card .ic-code { font-size: 18px; font-weight: 700; letter-spacing: 1px; color: #FF6B5C; flex: 1; }
+    .btn-copy { font-size: 13px; font-weight: 600; color: #FF6B5C; background: #fff; border: 1px solid #FFD9D2; border-radius: 999px; padding: 8px 14px; }
+    .btn-copy:active { background: #FFEAE5; }
+    .invite-card .invite-stat { font-size: 12px; color: #888; margin-top: 12px; }
+    .invite-card .invite-stat b { color: #FF6B5C; }
   </style>
 </head>
 <body>
@@ -239,6 +269,6 @@
   <script src="config.js"></script>
   <script src="vendor/supabase.js"></script>
   <script src="js/sb.js"></script>
-  <script src="js/me.js?v=11"></script>
+  <script src="js/me.js?v=12"></script>
 </body>
 </html>

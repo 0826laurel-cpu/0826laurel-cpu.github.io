@@ -10,6 +10,7 @@
     return s ? s.status : '';
   }
   let PARTNER = null, SHIPS = [], WALL_FEED = [], WALL_STATS = { total_sent: 0, total_receivers: 0, total_signed: 0 };
+  let INVITE_STATS = { invited_count: 0 };
 
   function fmtTime(ts) {
     if (!ts) return '';
@@ -44,6 +45,7 @@
       status: s.status, logs: s.logs || [],
       trackingAddedAt: s.tracking_added_at,
       productLink: s.product_link || '', productTitle: s.product_title || '',
+      value: Number(s.value) || 0,
       createdAt: s.created_at, updatedAt: s.updated_at
     };
   }
@@ -155,6 +157,11 @@
       const { data: sd, error: e2 } = await sb.rpc('my_shipments', { p_token: TOKEN });
       if (e2) { showErr('加载失败', '物流信息加载失败，请稍后刷新重试。'); return; }
       PARTNER = pd.partner; SHIPS = ((sd && sd.shipments) || []).map(normShip);
+      // 邀请统计：拿到「我邀请了几位好友」，失败不阻断主流程
+      try {
+        const { data: isd, error: e3 } = await sb.rpc('my_invite_stats', { p_token: TOKEN });
+        if (!e3 && isd && isd.ok) INVITE_STATS = isd;
+      } catch (e3) { /* 不影响主流程 */ }
       // 福利社群动态：使用每天自动生成的模拟热闹数据（日期/名字每日更新）
       const wall = generateWallData();
       WALL_FEED = wall.feed;
@@ -230,6 +237,55 @@
         <div class="wall-tip">每一份小礼物，都是我们想离你更近一点 ❤️</div>
       </div>`;
 
+    // ---- 专属福利概览 ----
+    const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+    const monthSigned = SHIPS.filter(s => s.status === 'signed' && (() => { const d = new Date(s.createdAt); return d.getFullYear() === y && d.getMonth() === m; })()).length;
+    const pendingCount = SHIPS.filter(s => s.status !== 'signed').length;
+    const totalValue = SHIPS.filter(s => s.status === 'signed').reduce((a, s) => a + (Number(s.value) || 0), 0);
+    const overviewHtml = `
+      <div class="me-card overview-card">
+        <div class="block-title">📊 我的福利概览</div>
+        <div class="ov-grid">
+          <div class="ov"><div class="n">${monthSigned}</div><div class="l">本月已收</div></div>
+          <div class="ov"><div class="n">${pendingCount}</div><div class="l">待收货</div></div>
+          <div class="ov"><div class="n" style="color:#FF6B5C">¥${totalValue}</div><div class="l">累计福利价值</div></div>
+        </div>
+      </div>`;
+
+    // ---- 每日签到 + 积分商城 ----
+    const checkinHtml = `
+      <div class="me-card checkin-card">
+        <div class="block-title">🪙 每日签到 · 积分兑好礼</div>
+        <div class="ck-row">
+          <div class="ck-info">
+            <div class="ck-points">${PARTNER.points} <span>积分</span></div>
+            <div class="ck-streak">🔥 连续签到 ${PARTNER.checkinStreak} 天</div>
+          </div>
+          ${PARTNER.checkedToday
+            ? '<div class="ck-done">✓ 今日已签</div>'
+            : '<button class="btn-checkin" id="btn-checkin">签到领积分</button>'}
+        </div>
+        <div class="redeem-title">积分好礼</div>
+        <div class="redeem-list">
+          <div class="rd" data-cost="100" data-item="定制礼盒">🎁 定制礼盒<span class="rc">100积分</span></div>
+          <div class="rd" data-cost="200" data-item="暖心保温杯">🥤 暖心保温杯<span class="rc">200积分</span></div>
+          <div class="rd" data-cost="300" data-item="蓝牙音箱">🔊 蓝牙音箱<span class="rc">300积分</span></div>
+        </div>
+        <div class="ck-tip">每天签到得 5 积分，连续签到额外 +2/天（上限+10）；积分可兑换好礼，福利官亲自寄出～</div>
+      </div>`;
+
+    // ---- 转介绍邀请码 ----
+    const inviteHtml = `
+      <div class="me-card invite-card">
+        <div class="block-title">🤝 邀请模特好友</div>
+        <p class="invite-desc">分享你的专属邀请码给想做网拍模特的朋友，TA 成功入驻后，你们各得 <b>10 积分</b>！</p>
+        <div class="invite-code-box">
+          <span class="ic-code">${esc(PARTNER.inviteCode || '—')}</span>
+          <button class="btn-copy" id="btn-copy-invite">复制邀请链接</button>
+        </div>
+        <div class="invite-stat">已成功邀请 <b>${INVITE_STATS.invited_count || 0}</b> 位好友 · 你共有 <b>${PARTNER.points}</b> 积分</div>
+      </div>`;
+
     document.getElementById('app').innerHTML = `
       ${notifyHtml}
       <div class="me-card">
@@ -242,6 +298,9 @@
           </div>
         </div>
       </div>
+      ${overviewHtml}
+      ${checkinHtml}
+      ${inviteHtml}
       <div class="me-card">
         <div class="addr-head">
           <div class="addr-title">收件地址</div>
@@ -320,6 +379,44 @@
         if (!tl) return;
         tl.classList.toggle('collapsed');
         head.classList.toggle('collapsed');
+      });
+    });
+    // 每日签到
+    const btnCheckin = document.getElementById('btn-checkin');
+    if (btnCheckin) {
+      btnCheckin.addEventListener('click', async () => {
+        btnCheckin.disabled = true; btnCheckin.textContent = '签到中…';
+        try {
+          const { data, error } = await sb.rpc('checkin', { p_token: TOKEN });
+          if (error) throw new Error(error.message);
+          if (data && data.checked) { alert('签到成功，获得 ' + data.gained + ' 积分！🔥'); load(); }
+          else if (data && data.already) { load(); }
+          else alert('签到失败，请重试');
+        } catch (e) { alert(e.message || '网络异常'); btnCheckin.disabled = false; btnCheckin.textContent = '签到领积分'; }
+      });
+    }
+    // 复制邀请链接
+    const btnCopyInvite = document.getElementById('btn-copy-invite');
+    if (btnCopyInvite) {
+      btnCopyInvite.addEventListener('click', () => {
+        const link = location.origin + '/join.html?ref=' + encodeURIComponent(PARTNER.inviteCode || '');
+        const flash = () => { btnCopyInvite.textContent = '已复制 ✓'; setTimeout(() => btnCopyInvite.textContent = '复制邀请链接', 1500); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(flash).catch(() => prompt('复制此邀请链接：', link));
+        else prompt('复制此邀请链接：', link);
+      });
+    }
+    // 积分兑换好礼
+    document.querySelectorAll('.rd').forEach(rd => {
+      rd.addEventListener('click', async () => {
+        const cost = Number(rd.dataset.cost), item = rd.dataset.item;
+        if (!confirm('确认用 ' + cost + ' 积分兑换「' + item + '」？\n（兑换后福利官会为你寄出）')) return;
+        rd.style.opacity = '.5';
+        try {
+          const { data, error } = await sb.rpc('redeem_points', { p_token: TOKEN, p_cost: cost, p_item: item });
+          if (error) throw new Error(error.message);
+          if (data && data.ok) { alert('兑换成功 🎁 福利官将为你寄出「' + item + '」'); load(); }
+          else alert((data && data.error) || '兑换失败');
+        } catch (e) { alert(e.message || '网络异常'); rd.style.opacity = '1'; }
       });
     });
     // 标记已读（站内通知）：本次渲染已展示未读横幅，随后更新 last_seen_at，下次访问即不再提示
