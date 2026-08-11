@@ -59,12 +59,11 @@
 
   // ---------- 视图 1：合并入驻表单 ----------
   function renderForm() {
-    const giftOpts = ['', '定制礼盒', '精美小样礼', '电子贺卡', '鲜花礼遇'];
     document.getElementById('app').innerHTML = `
       <div class="card">
         <div class="badge">🎁</div>
         <h1>加入合作模特的专属福利圈</h1>
-        <p class="lead">留下联系方式 + 收货地址，即可进入私域伙伴名单，不定期领取定制小礼品、新品体验与专属优惠～</p>
+        <p class="lead">填写收件信息后，发货后礼品信息会在此页面同步，可查询物流等</p>
 
         <div class="block-title">👤 模特信息</div>
         <div class="field"><label>模特平台 *</label>
@@ -72,9 +71,6 @@
         </div>
         <div class="field"><label>模特ID *</label><input id="j-id" placeholder="如：beauty_001"></div>
         <div class="field"><label>微信号 *</label><input id="j-wechat" placeholder="方便我们加你微信"></div>
-        <div class="field"><label>最想收到的福利</label>
-          <select id="j-gift">${giftOpts.map(o => '<option value="' + o + '">' + (o || '都可以～') + '</option>').join('')}</select>
-        </div>
         <div class="field"><label>想对我们说的话（选填）</label><textarea id="j-note" placeholder="你的偏好、生日、想要的…"></textarea></div>
 
         <div class="sec-hint">📦 收货信息（领福利时直接寄出，不用再填第二次）</div>
@@ -118,7 +114,7 @@
         p_name: name,
         p_wechat: wechat,
         p_phone: aPhone,
-        p_gift: document.getElementById('j-gift').value,
+        p_gift: '',
         p_note: document.getElementById('j-note').value.trim(),
         p_address: address,
         p_platform: platform,
