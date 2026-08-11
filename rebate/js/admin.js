@@ -63,7 +63,7 @@ voucherInput.addEventListener('change', ()=>{
 });
 
 function resetForm(){
-  ['f-code','f-mask','f-order','f-item','f-amount','f-expected'].forEach(id=>setVal(id,''));
+  ['f-code','f-mask','f-model-id','f-order','f-item','f-amount','f-expected'].forEach(id=>setVal(id,''));
   setVal('f-date', new Date().toISOString().slice(0,10));
   setVal('f-status', '已返');
   voucherInput.value = '';
@@ -76,6 +76,7 @@ function resetForm(){
 function fillForm(r, opts={}){
   setVal('f-code', r.model_code);
   setVal('f-mask', r.model_mask);
+  setVal('f-model-id', r.model_id);
   setVal('f-order', r.order_no);
   setVal('f-item', r.item);
   setVal('f-amount', r.amount || '');
@@ -215,6 +216,7 @@ document.getElementById('submit-btn').addEventListener('click', async ()=>{
     p_admin_pw:   adminPw,
     p_model_code: val('f-code'),
     p_model_mask: val('f-mask'),
+    p_model_id:   val('f-model-id'),
     p_order_no:   val('f-order'),
     p_item:       val('f-item'),
     p_amount:     parseFloat(val('f-amount')||'0'),

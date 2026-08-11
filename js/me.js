@@ -10,6 +10,10 @@
     return s ? s.status : '';
   }
   let PARTNER = null, SHIPS = [], WALL_FEED = [], WALL_STATS = { total_sent: 0, total_receivers: 0, total_signed: 0 };
+  let MODEL_REBATES = [];
+  const REBATE_STATUS = { '已返': '已返', '处理中': '处理中', '待返': '待返' };
+  const REBATE_COLOR = { '已返': '#2BB673', '处理中': '#E58A3F', '待返': '#9AA0AD' };
+  const money = n => '¥' + Number(n || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
   let INVITE_STATS = { invited_count: 0 };
 
   function fmtTime(ts) {
@@ -157,6 +161,11 @@
       const { data: sd, error: e2 } = await sb.rpc('my_shipments', { p_token: TOKEN });
       if (e2) { showErr('加载失败', '物流信息加载失败，请稍后刷新重试。'); return; }
       PARTNER = pd.partner; SHIPS = ((sd && sd.shipments) || []).map(normShip);
+      // 返款进度：按专属页编号自动拉取该模特的全部返款（失败不阻断主流程）
+      try {
+        const { data: rbd, error: e4 } = await sb.rpc('get_my_rebates_by_model', { p_model_id: pd.partner.model_id });
+        if (!e4) MODEL_REBATES = rbd || [];
+      } catch (e4) { /* 不影响主流程 */ }
       // 邀请统计：拿到「我邀请了几位好友」，失败不阻断主流程
       try {
         const { data: isd, error: e3 } = await sb.rpc('my_invite_stats', { p_token: TOKEN });
@@ -212,6 +221,31 @@
         <div class="tl${collapseCls}">${logs}</div>
       </div>`;
     }).join('') : '<div style="text-align:center;color:#9AA0AD;font-size:13px;padding:14px">还没有收到礼品发货～</div>';
+
+    // ---- 我的返款进度（按专属页编号自动关联） ----
+    const noRebate = !MODEL_REBATES || !MODEL_REBATES.length;
+    const rebateItems = noRebate ? '' : MODEL_REBATES.map(r => {
+      const st = r.status || '待返';
+      const stColor = REBATE_COLOR[st] || '#9AA0AD';
+      const voucher = (st === '已返' && r.voucher_url)
+        ? `<div class="rebate-voucher"><div class="qv-label">返款凭证</div><img src="${esc(r.voucher_url)}" alt="返款凭证" onclick="openVoucher('${esc(r.voucher_url)}')"></div>`
+        : '';
+      return `<div class="rebate-item">
+        <div class="rebate-top">
+          <span class="rebate-name">${esc(r.item || '任务返款')}</span>
+          <span class="rebate-status" style="background:${stColor}">${esc(st)}</span>
+        </div>
+        <div class="rebate-amount">${money(r.amount)}</div>
+        <div class="rebate-date">返款日期：${esc(r.rebate_date || '—')}</div>
+        <div class="rebate-expected">预计返款：${esc(r.expected_rebate_date || '待定')}</div>
+        ${voucher}
+      </div>`;
+    }).join('');
+    const rebateHtml = `
+      <div class="me-card rebate-card">
+        <div class="block-title">💰 我的返款进度 <span style="font-size:12px;color:var(--gray);font-weight:normal;margin-left:6px">共 ${MODEL_REBATES.length} 笔</span></div>
+        ${noRebate ? '<div class="rebate-empty">还没有返款记录～完成返款任务后，这里会显示你的返款进度与凭证 💸</div>' : rebateItems}
+      </div>`;
 
     const feedHtml = WALL_FEED.length ? WALL_FEED.map(f => {
       const name = f.partner_name || '某位伙伴';
@@ -331,6 +365,7 @@
         </div>
         <div class="ship-list" id="ship-list">${ships}</div>
       </div>
+      ${rebateHtml}
       ${wallHtml}
       ${checkinHtml}
       ${inviteHtml}
@@ -442,6 +477,15 @@
       else alert('保存失败，请重试');
     } catch (e) { alert(e.message || '网络异常，请稍后重试'); }
   }
+
+  // 返款凭证放大查看
+  window.openVoucher = function (url) {
+    const box = document.createElement('div');
+    box.className = 'voucher-lightbox';
+    box.innerHTML = '<img src="' + esc(url) + '" alt="返款凭证">';
+    box.onclick = () => box.remove();
+    document.body.appendChild(box);
+  };
 
   load();
 })();
