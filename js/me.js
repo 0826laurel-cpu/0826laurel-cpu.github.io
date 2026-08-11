@@ -63,12 +63,16 @@
     for (let i = 1; i < len; i++) s += String(Math.floor(rnd() * 10));
     return s;
   }
-  // 福利社群动态：每天自动生成热闹的模拟送礼记录（日期/模特编号每天更新）
+  // 福利社群动态：每天自动生成热闹的模拟送礼记录（日期/模特编号每天更新；累计数字逐日累增）
   function generateWallData() {
     const gifts = ['定制礼盒','暖心保温杯','防晒喷雾','补水面膜','精致手链','香薰蜡烛','便携风扇','零食大礼包','护手霜套装','真丝发圈','眼影盘','口红礼盒','毛绒挂件','国潮帆布袋','蓝牙音箱','颈部按摩仪','收纳盒套装','花茶礼盒','手机支架','桌垫'];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const daySeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+    // 以 2026-08-01 为运营起点，计算累计天数，让顶部统计数字逐日自然累增
+    const startDate = new Date('2026-08-01');
+    startDate.setHours(0, 0, 0, 0);
+    const diffDays = Math.max(0, Math.floor((today - startDate) / 86400000));
     // 每天换一批活跃模特编号（8–12 个，随机六/七/八位），保证“编号每天更新”
     const activeCount = 8 + (daySeed % 5);
     const activeNames = [];
@@ -80,7 +84,7 @@
       gi++;
     }
     const feed = [];
-    let totalSigned = 0;
+    let feedSigned = 0;
     const seenNames = new Set();
     for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
       const d = new Date(today);
@@ -98,15 +102,19 @@
         } else {
           status = (daySeed2 + i) % 6 === 0 ? 'transit' : 'signed';
         }
-        if (status === 'signed') totalSigned++;
+        if (status === 'signed') feedSigned++;
         seenNames.add(name);
         feed.push({ partner_name: name, gift_name: gift, status, created_at: dayTs + i * 3600 * 1000 });
       }
     }
     feed.sort((a, b) => b.created_at - a.created_at);
+    // 顶部统计：基于运营天数累增，同时不低于 feed 实际产生的数量
+    const total_sent = Math.max(feed.length, 28 + diffDays * 2 + (daySeed % 5));
+    const total_receivers = Math.max(seenNames.size, 8 + diffDays + (daySeed % 3));
+    const total_signed = Math.max(feedSigned, 18 + diffDays * 2 + (daySeed % 4));
     return {
       feed,
-      stats: { total_sent: feed.length, total_receivers: seenNames.size, total_signed: totalSigned }
+      stats: { total_sent, total_receivers, total_signed }
     };
   }
   function fmtTrackDate(ts) {
