@@ -347,3 +347,12 @@ body {
 .bar-val { font-size: 10px; color: var(--gray); margin-bottom: 4px; }
 .bar-chart .bar { height: 0; border-radius: 6px 6px 0 0; background: #FFB36B; margin-top: 0; overflow: visible; transition: height .3s ease; }
 .bar-lab { font-size: 10px; color: var(--gray); margin-top: 6px; }
+.inv-group { border-bottom: 1px solid var(--line); }
+.inv-group:last-child { border-bottom: none; }
+.inv-head { cursor: pointer; user-select: none; }
+.inv-head .ops-num { margin-right: 4px; }
+.inv-arrow { font-size: 11px; color: var(--gray); transition: transform .15s ease; flex: 0 0 auto; }
+.inv-body { background: #FAFAFB; border-radius: 10px; margin: 0 0 10px 44px; padding: 6px 12px; }
+.inv-sub { padding: 9px 0; border-bottom: 1px solid var(--line); }
+.inv-sub:last-child { border-bottom: none; }
+.inv-sub .av { width: 30px; height: 30px; border-radius: 15px; font-size: 12px; }

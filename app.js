@@ -44,6 +44,13 @@ function fmtShipDate(ts) {
   return d.toISOString().slice(0, 10);
 }
 function fmtMoney(n) { n = Number(n) || 0; return (Math.round(n * 100) / 100).toString(); }
+function fmtDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
 
 // 兼容层：把旧的 /api/... 路径映射到新的 Supabase Api（渲染逻辑无需改动）
 async function api(path, opts = {}) {
@@ -299,19 +306,38 @@ function renderOps() {
     </div>
     <div class="ops-extra">当前全站积分余额合计：<b style="color:#FF6B5C">${totalPoints}</b> 分</div>`;
 
-  // 邀请排行榜 TOP10
-  const codeToName = {}; ps.forEach(p => { if (p.inviteCode) codeToName[p.inviteCode] = p.name; });
+  // 邀请排行榜 TOP10（含被邀请人明细）
+  const codeToName = {}; ps.forEach(p => { if (p.inviteCode) codeToName[p.inviteCode] = { name: p.name, wechat: p.wechat || '', phone: p.phone || '' }; });
   const invMap = {};
-  ps.forEach(p => { if (p.invitedBy) invMap[p.invitedBy] = (invMap[p.invitedBy] || 0) + 1; });
-  const invRank = Object.keys(invMap).map(code => ({ code, name: codeToName[code] || code, cnt: invMap[code] }))
-    .sort((a, b) => b.cnt - a.cnt).slice(0, 10);
-  const invHtml = invRank.length ? invRank.map((r, i) => `
-    <div class="ops-row">
-      <div class="ops-rank">${i + 1}</div>
-      <div class="av" style="background:${avColor('', r.name)}">${esc((r.name || '?').slice(0, 1))}</div>
-      <div class="ops-main"><div class="ops-nm">${esc(r.name)} <span class="ops-code">${esc(r.code)}</span></div></div>
-      <div class="ops-num">${r.cnt} <span>人</span></div>
-    </div>`).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有人通过邀请码入驻，分享你的福利页试试 🤝</div>`;
+  ps.forEach(p => { if (p.invitedBy) { (invMap[p.invitedBy] ||= []).push(p); } });
+  const invRank = Object.keys(invMap).map(code => {
+    const invitees = invMap[code];
+    const inviter = codeToName[code] || { name: code };
+    return { code, name: inviter.name, cnt: invitees.length, invitees };
+  }).sort((a, b) => b.cnt - a.cnt).slice(0, 10);
+  const invHtml = invRank.length ? invRank.map((r, i) => {
+    const bodyId = 'inv-body-' + i;
+    const subs = r.invitees.map(inv => `
+      <div class="ops-row inv-sub">
+        <div class="av" style="background:${avColor(inv.tier, inv.name)}">${esc((inv.name || '?').slice(0, 1))}</div>
+        <div class="ops-main">
+          <div class="ops-nm">${esc(inv.name)}</div>
+          <div class="ops-sub">${esc(inv.wechat || inv.phone || '—')}</div>
+        </div>
+        <div class="ops-time">${fmtDate(inv.createdAt)}</div>
+      </div>`).join('');
+    return `
+    <div class="inv-group">
+      <div class="ops-row inv-head" data-act="toggle-inv" data-body="${bodyId}">
+        <div class="ops-rank">${i + 1}</div>
+        <div class="av" style="background:${avColor('', r.name)}">${esc((r.name || '?').slice(0, 1))}</div>
+        <div class="ops-main"><div class="ops-nm">${esc(r.name)} <span class="ops-code">${esc(r.code)}</span></div></div>
+        <div class="ops-num">${r.cnt} <span>人</span></div>
+        <div class="inv-arrow">▶</div>
+      </div>
+      <div class="inv-body" id="${bodyId}" style="display:none">${subs}</div>
+    </div>`;
+  }).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有人通过邀请码入驻，分享你的福利页试试 🤝</div>`;
 
   // 最近兑换记录
   const idToName = {}; ps.forEach(p => { idToName[p.id] = p.name; });
@@ -352,6 +378,17 @@ function renderOps() {
     <div class="card">${invHtml}</div>
     <div class="sec-title">最近积分兑换</div>
     <div class="card">${redeemHtml}</div>`;
+
+  // 邀请排行榜展开/收起被邀请人明细
+  document.querySelectorAll('[data-act="toggle-inv"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const body = document.getElementById(el.dataset.body);
+      if (!body) return;
+      const isOpen = body.style.display !== 'none';
+      body.style.display = isOpen ? 'none' : 'block';
+      el.querySelector('.inv-arrow').textContent = isOpen ? '▶' : '▼';
+    });
+  });
 }
 
 // ---------- 伙伴 ----------
@@ -440,7 +477,16 @@ function renderPartners() {
     </div>
     ${cards}`;
   const si = document.getElementById('search-input');
-  if (si) si.addEventListener('input', e => { searchQ = e.target.value; renderPartners(); });
+  if (si) {
+    // 输入过程中不重新渲染，避免 input 被重建失焦；按回车或失焦时触发搜索
+    si.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { searchQ = e.target.value.trim(); renderPartners(); }
+    });
+    si.addEventListener('blur', e => {
+      const v = e.target.value.trim();
+      if (v !== searchQ) { searchQ = v; renderPartners(); }
+    });
+  }
 }
 
 // ---------- 福利 ----------
