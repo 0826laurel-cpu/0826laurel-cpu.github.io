@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>模特返款公示台</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <h1>模特返款公示台</h1>
+    <p>每一笔返款，实时公开透明 · 仅展示脱敏信息</p>
+    <span class="live"><span class="dot"></span>实时公示中</span>
+  </div>
+
+  <div class="block">
+    <h2>🔍 我是模特，查我的返款</h2>
+    <div class="q-box">
+      <input id="q-input" type="text" placeholder="输入订单号 或 专属查询码" autocomplete="off">
+      <button id="q-btn">查询</button>
+    </div>
+    <div class="hint">提示：订单号或查询码由对接人提供给你，仅你能查到自己的明细。</div>
+    <div id="queryResult"></div>
+  </div>
+
+  <div class="stats" id="stats">
+    <div class="stat"><div class="num" id="s-amount">¥0</div><div class="lbl">累计返款金额</div></div>
+    <div class="stat"><div class="num" id="s-count">0</div><div class="lbl">已结算笔数</div></div>
+    <div class="stat"><div class="num" id="s-model">0</div><div class="lbl">合作模特人数</div></div>
+    <div class="stat"><div class="num" id="s-month">¥0</div><div class="lbl">本月返款</div></div>
+  </div>
+
+  <div class="block">
+    <h2>🔥 实时返款动态 <span class="tag">脱敏</span></h2>
+    <div class="feed-wrap"><div class="feed-track" id="feed"></div></div>
+  </div>
+
+  <div class="block">
+    <h2>🏆 返款达人榜 <span class="tag">脱敏</span></h2>
+    <div id="leaderboard"></div>
+  </div>
+
+  <div class="foot">
+    本页所有公开数据均已脱敏处理，不含任何个人订单与身份信息。<br>
+    明细仅本人凭专属码可见，请妥善保管你的查询码。
+  </div>
+  <a class="link-admin" href="admin.html">合作对接人入口 ›</a>
+  <a class="link-admin" href="/">‹ 返回私域管理台</a>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

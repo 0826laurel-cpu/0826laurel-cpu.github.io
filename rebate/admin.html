@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>返款录入 · 合作对接人</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .admin-wrap{max-width:480px;margin:0 auto;padding:18px 14px;}
+  .gate{background:#fff;border-radius:18px;padding:26px 18px;box-shadow:var(--shadow);text-align:center;margin-top:30px;}
+  .gate h2{margin:0 0 6px;font-size:18px;}
+  .gate p{color:var(--sub);font-size:13px;margin:0 0 16px;}
+  .gate input{border:1.5px solid var(--line);border-radius:12px;padding:13px;width:100%;font-size:15px;outline:none;margin-bottom:12px;}
+  .gate input:focus{border-color:var(--brand);}
+  .gate button{width:100%;border:none;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;
+    border-radius:12px;padding:13px;font-size:16px;font-weight:700;}
+  .panel{display:none;}
+  .fld{margin-bottom:13px;}
+  .fld label{display:block;font-size:13px;color:var(--ink);margin-bottom:5px;font-weight:600;}
+  .fld input,.fld select{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px;font-size:15px;outline:none;background:#fff;}
+  .fld input:focus,.fld select:focus{border-color:var(--brand);}
+  .row2{display:flex;gap:10px;}
+  .row2 .fld{flex:1;}
+  .submit{width:100%;border:none;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;
+    border-radius:12px;padding:14px;font-size:16px;font-weight:700;margin-top:6px;}
+  .toast{position:fixed;left:50%;top:30%;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;
+    padding:12px 20px;border-radius:12px;font-size:14px;opacity:0;transition:.3s;pointer-events:none;z-index:99;}
+  .toast.show{opacity:1;}
+  .ghost{display:block;text-align:center;margin-top:16px;font-size:12px;color:var(--sub);cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="admin-wrap">
+
+  <div class="gate" id="gate">
+    <h2>🔐 合作对接人验证</h2>
+    <p>请输入后台密码以录入返款记录</p>
+    <input id="pw" type="password" placeholder="后台密码">
+    <button id="pw-btn">进入</button>
+  </div>
+
+  <div class="panel" id="panel">
+    <div class="block" style="margin-top:0">
+      <h2>➕ 录入一笔返款</h2>
+      <div class="fld"><label>模特查询码（可空，留空则仅按订单号查询）</label>
+        <input id="f-code" placeholder="如 M001"></div>
+      <div class="fld"><label>展示昵称（公开页会自动脱敏）</label>
+        <input id="f-mask" placeholder="如 小雅"></div>
+      <div class="fld"><label>订单号（私密，仅本人可见）</label>
+        <input id="f-order" placeholder="如 JD20260801001"></div>
+      <div class="fld"><label>事项 / 任务内容</label>
+        <input id="f-item" placeholder="如 618 主推款拍摄"></div>
+      <div class="row2">
+        <div class="fld"><label>返款金额</label>
+          <input id="f-amount" type="number" placeholder="0.00"></div>
+        <div class="fld"><label>返款日期</label>
+          <input id="f-date" type="date"></div>
+      </div>
+      <div class="fld"><label>状态</label>
+        <select id="f-status">
+          <option value="待返">待返</option>
+          <option value="已返" selected>已返</option>
+          <option value="处理中">处理中</option>
+        </select></div>
+      <button class="submit" id="submit-btn">提交返款记录</button>
+      <span class="ghost" id="logout">退出登录</span>
+    </div>
+  </div>
+
+</div>
+<a class="ghost" style="display:block;text-align:center;margin-top:14px;color:var(--brand);text-decoration:none;" href="/">返回私域管理台 / 返款公示台 ›</a>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
