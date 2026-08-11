@@ -450,9 +450,9 @@
     const cityM = consumed.match(/([\u4e00-\u9fa5]{2,10}?)(市|地区|盟|自治州|州)(?!路)/);
     if (cityM) { r.city = cityM[1]; consumed = consumed.replace(cityM[0], ' '); }
 
-    // 5) 区/县
+    // 5) 区/县（保留「区/县」后缀，字段更完整，如：西湖区 / 余杭区 / 桐庐县）
     const distM = consumed.match(/([\u4e00-\u9fa5]{2,10}?)(区|县|旗|市辖区)(?!路|号)/);
-    if (distM) { r.district = distM[1]; consumed = consumed.replace(distM[0], ' '); }
+    if (distM) { r.district = distM[0]; consumed = consumed.replace(distM[0], ' '); }
 
     // 6) 详细地址：剩余清理
     let detail = consumed
