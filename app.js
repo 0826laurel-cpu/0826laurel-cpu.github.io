@@ -226,6 +226,7 @@ function renderHome() {
       <div class="qa" data-act="tab" data-tab="gift"><div class="ic" style="background:#FFF3E0">🎁</div><div class="t">发礼品</div></div>
       <div class="qa" data-act="tab" data-tab="interaction"><div class="ic" style="background:#E8EEFF">💬</div><div class="t">互动记录</div></div>
       <div class="qa" data-act="rebate-admin"><div class="ic" style="background:#E8F5E9">💰</div><div class="t">返款后台</div></div>
+      <div class="qa" data-act="rebate-public"><div class="ic" style="background:#E3F2FD">📢</div><div class="t">返款公示</div></div>
     </div>
     <div class="sec-title">今日待联系</div>
     ${todos}`;
@@ -1147,6 +1148,7 @@ document.addEventListener('click', async e => {
   try {
     if (act === 'tab') switchTab(el.dataset.tab);
     else if (act === 'rebate-admin') window.open('/rebate/admin.html', '_blank');
+    else if (act === 'rebate-public') window.open('/rebate/', '_blank');
     // 备注：返款后台为独立页面，新标签页打开，避免丢失本页管理状态
     else if (act === 'add') openAdd();
     else if (act === 'detail') openDetail(el.dataset.id);
