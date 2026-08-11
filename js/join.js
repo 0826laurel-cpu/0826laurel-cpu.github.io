@@ -87,8 +87,7 @@
           </div>
           <div class="field">
             <label>模特ID<span class="req">*</span></label>
-            <div class="field-input"><span class="ico">🆔</span><input id="j-id"></div>
-            <div class="field-hint">📌 在模特平台查看后填写</div>
+            <div class="field-input"><span class="ico">🆔</span><input id="j-id" placeholder="📌 在模特平台查看后填写"></div>
           </div>
           <div class="field">
             <label>微信号<span class="req">*</span></label>
