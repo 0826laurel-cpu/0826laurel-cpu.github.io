@@ -417,8 +417,6 @@
     } catch (e) { alert(e.message || '网络异常，请稍后重试'); }
   }
 
-  load();
-
   // ========== 一键粘贴识别 ==========
   function parseAddr(text) {
     text = (text || '').replace(/\r/g, '').trim();
