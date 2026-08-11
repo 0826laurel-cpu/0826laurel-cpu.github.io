@@ -108,6 +108,9 @@
             <h3>收件信息</h3>
             <span class="opt">用于发货物流同步</span>
           </div>
+          <button class="btn-paste" id="open-paste" type="button">
+            <span class="ico">📋</span><span>一键粘贴收件信息，自动识别填入</span><span class="badge-new">NEW</span>
+          </button>
           <div class="field"><label>收货人<span class="req">*</span></label>
             <div class="field-input"><span class="ico">🧑</span><input id="a-name" placeholder="你的姓名"></div>
           </div>
@@ -134,9 +137,31 @@
 
         <button class="btn" id="j-submit">提交并领取福利 🎁</button>
         <div class="note">提交即表示同意我们保存以上信息用于福利发放与贴心服务，仅你本人可见</div>
-      </div>`;
+      </div>
+
+      <!-- 一键粘贴识别 modal + toast（全局） -->
+      <div class="paste-modal" id="paste-modal" role="dialog" aria-modal="true">
+        <div class="paste-card-modal">
+          <div class="paste-modal-head">
+            <h3><span class="em">📋</span>粘贴收件信息</h3>
+            <button class="paste-modal-close" id="close-paste" type="button">×</button>
+          </div>
+          <div class="paste-modal-desc">
+            支持 <b>淘宝 / 京东 / 拼多多 / 微信 / 短信</b> 复制的地址格式，自动识别姓名 / 手机号 / 省 / 市 / 区 / 详细地址。
+          </div>
+          <textarea class="paste-area" id="paste-area" placeholder="例：张三 13800138000
+浙江省杭州市西湖区文一路 100 号
+
+或复制淘宝/京东收货地址直接粘贴"></textarea>
+          <div class="paste-modal-foot">
+            <button class="btn-paste-go" id="do-paste" type="button">✨ 一键识别填入</button>
+          </div>
+        </div>
+      </div>
+      <div class="toast-mini" id="toast-mini"></div>`;
 
     document.getElementById('j-submit').addEventListener('click', submit);
+    setupPasteUI();
   }
 
   async function submit() {
@@ -249,8 +274,11 @@
           : `<div class="addr-empty">还没填写收件地址，赶紧填上，方便我们给你寄礼物 🎀</div>
           <button class="btn" id="edit-addr">填写收件地址</button>`}
         <div id="addr-form" style="display:none;margin-top:12px">
-          <div class="field"><label>收货人 *</label><input id="a-name" value="${esc(a.name || '')}" placeholder="你的姓名"></div>
-          <div class="field"><label>收货手机号 *</label><input id="a-phone" value="${esc(a.phone || '')}" placeholder="11 位手机号"></div>
+          <button class="btn-paste" id="open-paste" type="button">
+            <span class="ico">📋</span><span>一键粘贴收件信息，自动识别填入</span><span class="badge-new">NEW</span>
+          </button>
+          <div class="field"><label>收货人 *</label><div class="field-input"><span class="ico">🧑</span><input id="a-name" value="${esc(a.name || '')}" placeholder="你的姓名"></div></div>
+          <div class="field"><label>收货手机号 *</label><div class="field-input"><span class="ico">📱</span><input id="a-phone" value="${esc(a.phone || '')}" placeholder="11 位手机号"></div></div>
           <div class="row3">
             <div class="field"><label>省</label><div class="field-input"><span class="ico">🏙️</span><input id="a-prov" value="${esc(a.province || '')}" placeholder="浙江"></div></div>
             <div class="field"><label>市</label><div class="field-input"><span class="ico">🏙️</span><input id="a-city" value="${esc(a.city || '')}" placeholder="杭州"></div></div>
@@ -274,7 +302,28 @@
         <button class="btn-line" id="copy-link">复制链接收藏</button>
         <div class="note">收藏此链接，下次直接打开就能看物流；也可转发给福利派送官核对信息。</div>
       </div>
-      <div class="note">本页仅你本人可通过专属链接访问 · 信息仅用于福利发放</div>`;
+      <div class="note">本页仅你本人可通过专属链接访问 · 信息仅用于福利发放</div>
+
+      <!-- 一键粘贴识别 modal + toast -->
+      <div class="paste-modal" id="paste-modal" role="dialog" aria-modal="true">
+        <div class="paste-card-modal">
+          <div class="paste-modal-head">
+            <h3><span class="em">📋</span>粘贴收件信息</h3>
+            <button class="paste-modal-close" id="close-paste" type="button">×</button>
+          </div>
+          <div class="paste-modal-desc">
+            支持 <b>淘宝 / 京东 / 拼多多 / 微信 / 短信</b> 复制的地址格式，自动识别姓名 / 手机号 / 省 / 市 / 区 / 详细地址。
+          </div>
+          <textarea class="paste-area" id="paste-area" placeholder="例：张三 13800138000
+浙江省杭州市西湖区文一路 100 号
+
+或复制淘宝/京东收货地址直接粘贴"></textarea>
+          <div class="paste-modal-foot">
+            <button class="btn-paste-go" id="do-paste" type="button">✨ 一键识别填入</button>
+          </div>
+        </div>
+      </div>
+      <div class="toast-mini" id="toast-mini"></div>`;
 
     document.getElementById('edit-addr').addEventListener('click', () => {
       document.getElementById('addr-form').style.display = 'block';
@@ -333,6 +382,7 @@
         head.classList.toggle('collapsed');
       });
     });
+    setupPasteUI();
   }
 
   async function saveAddr() {
@@ -355,4 +405,120 @@
   }
 
   load();
-})();
+
+  // ========== 一键粘贴识别 ==========
+  function parseAddr(text) {
+    text = (text || '').replace(/\r/g, '').trim();
+    const r = { name: '', phone: '', province: '', city: '', district: '', detail: '' };
+    if (!text) return r;
+
+    // 1) 手机号（11 位 1[3-9] 开头，前后非数字）
+    const phM = text.match(/(?<!\d)1[3-9]\d{9}(?!\d)/);
+    if (phM) r.phone = phM[0];
+
+    // 2) 姓名：手机号前最后一个 2-4 字汉字（排除地名/路名）
+    if (r.phone) {
+      const before = text.slice(0, text.indexOf(r.phone));
+      const cands = before.match(/[\u4e00-\u9fa5]{2,4}/g) || [];
+      for (let i = cands.length - 1; i >= 0; i--) {
+        if (!/(省|市|区|县|路|街|道|号|室|栋|楼|村|镇|乡|巷|弄)/.test(cands[i])) {
+          r.name = cands[i]; break;
+        }
+      }
+    }
+    if (!r.name) {
+      const m = text.match(/^([\u4e00-\u9fa5]{2,4})/);
+      if (m && !/(省|市|区|县)/.test(m[1])) r.name = m[1];
+    }
+
+    // 3) 省（4 大直辖市优先）
+    const DIRECT = ['北京', '上海', '天津', '重庆'];
+    let consumed = text;
+    const provM = consumed.match(/([\u4e00-\u9fa5]{2,8}?)(省|自治区|特别行政区|维吾尔自治区|壮族自治区|回族自治区|蒙古自治区|藏族自治州)/);
+    if (provM) {
+      r.province = provM[1];
+      consumed = consumed.replace(provM[0], ' ');
+    } else {
+      for (const d of DIRECT) {
+        const re = new RegExp(`(${d})市?`);
+        const m = consumed.match(re);
+        if (m) { r.province = d; consumed = consumed.replace(m[0], ' '); break; }
+      }
+    }
+
+    // 4) 市（"X市" / "X地区" / "X盟" / "X自治州" / "X州"）
+    const cityM = consumed.match(/([\u4e00-\u9fa5]{2,10}?)(市|地区|盟|自治州|州)(?!路)/);
+    if (cityM) { r.city = cityM[1]; consumed = consumed.replace(cityM[0], ' '); }
+
+    // 5) 区/县
+    const distM = consumed.match(/([\u4e00-\u9fa5]{2,10}?)(区|县|旗|市辖区)(?!路|号)/);
+    if (distM) { r.district = distM[1]; consumed = consumed.replace(distM[0], ' '); }
+
+    // 6) 详细地址：剩余清理
+    let detail = consumed
+      .replace(r.name, ' ')
+      .replace(r.phone, ' ')
+      .replace(/[，。、;；:,.\t\n\r]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    r.detail = detail;
+
+    return r;
+  }
+
+  function showToast(msg) {
+    const el = document.getElementById('toast-mini');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => el.classList.remove('show'), 1600);
+  }
+
+  function setupPasteUI() {
+    const modal = document.getElementById('paste-modal');
+    const area = document.getElementById('paste-area');
+    const openBtn = document.getElementById('open-paste');
+    const closeBtn = document.getElementById('close-paste');
+    const doBtn = document.getElementById('do-paste');
+    if (!modal || !openBtn) return;
+
+    const open = () => { modal.classList.add('show'); setTimeout(() => area && area.focus(), 50); };
+    const close = () => { modal.classList.remove('show'); if (area) area.value = ''; };
+
+    openBtn.addEventListener('click', open);
+    closeBtn && closeBtn.addEventListener('click', close);
+    modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+    doBtn && doBtn.addEventListener('click', () => {
+      const text = (area && area.value || '').trim();
+      if (!text) { showToast('请先粘贴收件信息'); return; }
+      const r = parseAddr(text);
+      const filled = [];
+      const set = (id, v) => {
+        const el = document.getElementById(id);
+        if (!el || !v) return false;
+        el.value = v;
+        return true;
+      };
+      if (set('a-name', r.name)) filled.push('姓名');
+      if (set('a-phone', r.phone)) filled.push('手机号');
+      if (set('a-prov', r.province)) filled.push('省');
+      if (set('a-city', r.city)) filled.push('市');
+      if (set('a-dist', r.district)) filled.push('区/县');
+      if (set('a-detail', r.detail)) filled.push('详细地址');
+      if (!filled.length) { showToast('未能识别，请检查格式'); return; }
+      close();
+      showToast(`✨ 已识别填入 ${filled.length} 个字段`);
+    });
+
+    // 移动端剪贴板 API（部分浏览器支持直接读取，异步兜底）
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      openBtn.addEventListener('click', async () => {
+        try {
+          const t = await navigator.clipboard.readText();
+          if (t && area && !area.value) area.value = t;
+        } catch (e) { /* 用户拒绝/无权限，忽略 */ }
+      }, true);
+    }
+  }
