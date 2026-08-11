@@ -277,10 +277,11 @@
         </div>
         <div class="ship-list" id="ship-list">${buildShipsHtml()}</div>
       </div>
-      <div class="note">本页仅你本人可通过专属链接访问 · 信息仅用于福利发放</div>`;
+      <div class="note">本页仅你本人可通过专属链接访问 · 信息仅用于福利发放</div>
+      ${buildWallHtml()}`;
   }
 
-  function renderFeed() {
+  function buildWallHtml() {
     const feedHtml = WALL_FEED.length ? WALL_FEED.map(f => {
       const name = f.partner_name || '某位伙伴';
       const gift = f.gift_name || f.product_title || '礼品';
@@ -293,7 +294,7 @@
       </div>`;
     }).join('') : '<div class="wall-empty">还没有送礼记录，敬请期待 🎀</div>';
 
-    document.getElementById('view-feed').innerHTML = `
+    return `
       <div class="me-card wall">
         <div class="block-title">🎉 福利社群动态</div>
         <div class="wall-stats">
@@ -383,7 +384,6 @@
     document.getElementById('viewport').style.display = 'block';
     document.getElementById('tabbar').style.display = 'flex';
     renderHome();
-    renderFeed();
     renderRebate();
     renderWelfare();
     bindEvents();

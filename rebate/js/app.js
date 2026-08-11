@@ -1,4 +1,4 @@
-// ============ 公开返款页逻辑（多 Tab 版） ============
+// ============ 公开返款页逻辑（单页长滚动版） ============
 const DEMO = {
   stats:{ total_amount:1286400, total_count:842, model_count:156, month_amount:186500 },
   feed:[
@@ -38,21 +38,6 @@ function relTime(t){
   return Math.floor(s/86400)+' 天前';
 }
 function maskStatus(s){ return s||'待返'; }
-
-// ---- Tab 切换 ----
-function switchTab(name){
-  // 视图
-  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === name));
-  // Tab 按钮
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  // 滚动回顶部，提升体验
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-document.getElementById('tabBar').addEventListener('click', e => {
-  const tab = e.target.closest('.tab');
-  if (!tab) return;
-  switchTab(tab.dataset.tab);
-});
 
 // ---- 统计 count-up ----
 function countUp(el, target, isMoney){
@@ -188,6 +173,4 @@ document.getElementById('q-input').addEventListener('keydown', e=>{ if(e.key==='
   renderStats(await loadStats());
   renderFeed(await loadFeed());
   renderBoard(await loadBoard());
-  // 默认首页 Tab
-  switchTab('home');
 })();

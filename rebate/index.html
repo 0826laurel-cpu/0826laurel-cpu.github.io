@@ -15,52 +15,37 @@
     <span class="live"><span class="dot"></span>实时公示中</span>
   </div>
 
-  <!-- Tab 视图容器 -->
-  <div class="views" id="views">
+  <div class="main" id="main">
 
-    <!-- 首页：统计概览 -->
-    <div class="view active" data-view="home">
-      <div class="stats" id="stats">
-        <div class="stat"><div class="num" id="s-amount">¥0</div><div class="lbl">累计返款金额</div></div>
-        <div class="stat"><div class="num" id="s-count">0</div><div class="lbl">已结算笔数</div></div>
-        <div class="stat"><div class="num" id="s-model">0</div><div class="lbl">合作模特人数</div></div>
-        <div class="stat"><div class="num" id="s-month">¥0</div><div class="lbl">本月返款</div></div>
+    <!-- 查询模块 -->
+    <div class="block query-block">
+      <h2>🔍 我是模特，查我的返款</h2>
+      <div class="q-box">
+        <input id="q-input" type="text" placeholder="输入订单号 或 专属查询码" autocomplete="off">
+        <button id="q-btn">查询</button>
       </div>
-      <div class="block home-tip">
-        <h2>👋 欢迎使用</h2>
-        <p style="margin:0;font-size:14px;color:var(--sub);line-height:1.7">
-          底部可自由切换「动态」「榜单」「查询」。所有公开数据均已脱敏，仅本人凭专属查询码可查个人明细。
-        </p>
-      </div>
+      <div class="hint">提示：订单号或查询码由对接人提供给你，仅你能查到自己的明细。</div>
+      <div id="queryResult"></div>
     </div>
 
-    <!-- 动态：实时返款 feed -->
-    <div class="view" data-view="feed">
-      <div class="block">
-        <h2>🔥 实时返款动态 <span class="tag">脱敏</span></h2>
-        <div class="feed-wrap"><div class="feed-track" id="feed"></div></div>
-      </div>
+    <!-- 金额累计模块 -->
+    <div class="stats" id="stats">
+      <div class="stat"><div class="num" id="s-amount">¥0</div><div class="lbl">累计返款金额</div></div>
+      <div class="stat"><div class="num" id="s-count">0</div><div class="lbl">已结算笔数</div></div>
+      <div class="stat"><div class="num" id="s-model">0</div><div class="lbl">合作模特人数</div></div>
+      <div class="stat"><div class="num" id="s-month">¥0</div><div class="lbl">本月返款</div></div>
     </div>
 
-    <!-- 榜单：返款达人榜 -->
-    <div class="view" data-view="board">
-      <div class="block">
-        <h2>🏆 返款达人榜 <span class="tag">脱敏</span></h2>
-        <div id="leaderboard"></div>
-      </div>
+    <!-- 实时返款动态模块 -->
+    <div class="block">
+      <h2>🔥 实时返款动态 <span class="tag">脱敏</span></h2>
+      <div class="feed-wrap"><div class="feed-track" id="feed"></div></div>
     </div>
 
-    <!-- 查询：查我的返款 -->
-    <div class="view" data-view="query">
-      <div class="block">
-        <h2>🔍 我是模特，查我的返款</h2>
-        <div class="q-box">
-          <input id="q-input" type="text" placeholder="输入订单号 或 专属查询码" autocomplete="off">
-          <button id="q-btn">查询</button>
-        </div>
-        <div class="hint">提示：订单号或查询码由对接人提供给你，仅你能查到自己的明细。</div>
-        <div id="queryResult"></div>
-      </div>
+    <!-- 达人榜模块 -->
+    <div class="block">
+      <h2>🏆 返款达人榜 <span class="tag">脱敏</span></h2>
+      <div id="leaderboard"></div>
     </div>
 
   </div>
@@ -72,16 +57,8 @@
 
 </div>
 
-<!-- 底部 Tab 导航 -->
-<nav class="tab-bar" id="tabBar">
-  <div class="tab active" data-tab="home"><span class="tab-ico">🏠</span><span class="tab-txt">首页</span></div>
-  <div class="tab" data-tab="feed"><span class="tab-ico">🔥</span><span class="tab-txt">动态</span></div>
-  <div class="tab" data-tab="board"><span class="tab-ico">🏆</span><span class="tab-txt">榜单</span></div>
-  <div class="tab" data-tab="query"><span class="tab-ico">🔍</span><span class="tab-txt">查询</span></div>
-</nav>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js?v=5"></script>
-<script src="js/app.js?v=5"></script>
+<script src="js/config.js?v=6"></script>
+<script src="js/app.js?v=6"></script>
 </body>
 </html>
