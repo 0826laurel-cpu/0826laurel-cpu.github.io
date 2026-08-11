@@ -21,8 +21,8 @@ const DEMO = {
   ],
   // 私密查询示例：输入 M001 或 JD20260801001 可见
   private:[
-    {model_code:'M001', model_mask:'小雅', order_no:'JD20260801001', item:'618 主推款拍摄', amount:1280, rebate_date:'2026-08-01', status:'已返'},
-    {model_code:'M001', model_mask:'小雅', order_no:'JD20260720007', item:'夏日清仓返款', amount:760, rebate_date:'2026-07-20', status:'已返'},
+    {model_code:'M001', model_mask:'小雅', order_no:'JD20260801001', item:'618 主推款拍摄', amount:1280, rebate_date:'2026-08-01', expected_rebate_date:'2026-08-05', status:'已返', voucher_url:''},
+    {model_code:'M001', model_mask:'小雅', order_no:'JD20260720007', item:'夏日清仓返款', amount:760, rebate_date:'2026-07-20', expected_rebate_date:'2026-07-25', status:'已返', voucher_url:''},
   ]
 };
 
@@ -122,9 +122,24 @@ function renderQuery(rows){
       <div class="q-item">${r.item}</div>
       <div class="q-amount">${money(r.amount)}</div>
       <div class="q-date">返款日期：${r.rebate_date}</div>
+      <div class="q-expected">预计返款：${r.expected_rebate_date || '待定'}</div>
+      ${r.status==='已返' && r.voucher_url ? `
+        <div class="q-voucher">
+          <div class="qv-label">返款凭证</div>
+          <img src="${r.voucher_url}" alt="返款凭证" onclick="openVoucher('${r.voucher_url}')">
+        </div>` : ''}
     </div>`).join('');
   box.innerHTML = html;
 }
+
+// 凭证放大查看
+window.openVoucher = function(url){
+  const box = document.createElement('div');
+  box.className = 'voucher-lightbox';
+  box.innerHTML = `<img src="${url}" alt="返款凭证">`;
+  box.onclick = () => box.remove();
+  document.body.appendChild(box);
+};
 
 document.getElementById('q-btn').addEventListener('click', async ()=>{
   const v = document.getElementById('q-input').value;

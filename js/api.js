@@ -23,6 +23,13 @@ function normPartner(r) {
     address: (r.address && typeof r.address === 'object') ? r.address : {},
     createdAt: toMs(r.created_at),
     updatedAt: toMs(r.updated_at),
+    // 运营数据字段（福利概览/签到/邀请）
+    inviteCode: r.invite_code || '',
+    invitedBy: r.invited_by || '',
+    points: Number(r.points) || 0,
+    lastCheckin: r.last_checkin || '',
+    checkinStreak: Number(r.checkin_streak) || 0,
+    lastSeenAt: toMs(r.last_seen_at),
     interactions: []
   };
 }
@@ -40,6 +47,7 @@ function normShipment(r) {
     trackingAddedAt: r.tracking_added_at || null,
     productLink: r.product_link || '',
     productTitle: r.product_title || '',
+    value: Number(r.value) || 0,
     createdAt: toMs(r.created_at)
   };
 }

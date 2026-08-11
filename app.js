@@ -155,6 +155,7 @@ function renderAll() {
   safe(renderInteraction);
   safe(renderMe);
   safe(renderWool);
+  safe(renderOps);
 }
 
 function renderStats() {
@@ -261,6 +262,96 @@ function renderCharts() {
       options: { responsive: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 9 } }, grid: { display: false } }, y: { beginAtZero: true, ticks: { font: { size: 9 }, stepSize: 1 }, grid: { color: '#f0f0f0' } } } }
     });
   }
+}
+
+// ---------- 运营数据 ----------
+function shanghaiTodayStr() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+function renderOps() {
+  const ps = DB.partners || [];
+  const gifts = DB.gifts || [];
+  const ships = DB.shipments || [];
+  const todayStr = shanghaiTodayStr();
+
+  // 指标卡
+  const checkedToday = ps.filter(p => p.lastCheckin === todayStr).length;
+  const everChecked = ps.filter(p => p.lastCheckin).length;
+  const invitedIn = ps.filter(p => p.invitedBy && p.invitedBy !== '').length;
+  const redeemed = gifts.filter(g => g.note === '积分兑换').length;
+  // 本月已签收礼品价值
+  const now = new Date(); const y = now.getFullYear(), m = now.getMonth();
+  const monthSignedValue = ships.filter(s => s.status === 'signed' && (() => { const d = new Date(s.createdAt); return d.getFullYear() === y && d.getMonth() === m; })())
+    .reduce((a, s) => a + (Number(s.value) || 0), 0);
+  const totalShipValue = ships.reduce((a, s) => a + (Number(s.value) || 0), 0);
+  const totalPoints = ps.reduce((a, p) => a + (Number(p.points) || 0), 0);
+
+  const statsHtml = `
+    <div class="stats">
+      <div class="stat"><div class="n" style="color:#2BB673">${checkedToday}</div><div class="l">今日签到</div></div>
+      <div class="stat"><div class="n" style="color:#5B7CFA">${everChecked}</div><div class="l">累计签到</div></div>
+      <div class="stat"><div class="n" style="color:#FF6B5C">${invitedIn}</div><div class="l">被邀请入驻</div></div>
+      <div class="stat"><div class="n" style="color:#7C6CF0">${redeemed}</div><div class="l">积分兑换</div></div>
+      <div class="stat"><div class="n" style="color:#E58A3F">¥${fmtMoney(monthSignedValue)}</div><div class="l">本月签收价值</div></div>
+      <div class="stat"><div class="n" style="color:#FF8FA3">¥${fmtMoney(totalShipValue)}</div><div class="l">累计寄出价值</div></div>
+    </div>
+    <div class="ops-extra">当前全站积分余额合计：<b style="color:#FF6B5C">${totalPoints}</b> 分</div>`;
+
+  // 邀请排行榜 TOP10
+  const codeToName = {}; ps.forEach(p => { if (p.inviteCode) codeToName[p.inviteCode] = p.name; });
+  const invMap = {};
+  ps.forEach(p => { if (p.invitedBy) invMap[p.invitedBy] = (invMap[p.invitedBy] || 0) + 1; });
+  const invRank = Object.keys(invMap).map(code => ({ code, name: codeToName[code] || code, cnt: invMap[code] }))
+    .sort((a, b) => b.cnt - a.cnt).slice(0, 10);
+  const invHtml = invRank.length ? invRank.map((r, i) => `
+    <div class="ops-row">
+      <div class="ops-rank">${i + 1}</div>
+      <div class="av" style="background:${avColor('', r.name)}">${esc((r.name || '?').slice(0, 1))}</div>
+      <div class="ops-main"><div class="ops-nm">${esc(r.name)} <span class="ops-code">${esc(r.code)}</span></div></div>
+      <div class="ops-num">${r.cnt} <span>人</span></div>
+    </div>`).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有人通过邀请码入驻，分享你的福利页试试 🤝</div>`;
+
+  // 最近兑换记录
+  const idToName = {}; ps.forEach(p => { idToName[p.id] = p.name; });
+  const redeemList = gifts.filter(g => g.note === '积分兑换')
+    .slice().sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 12);
+  const redeemHtml = redeemList.length ? redeemList.map(g => `
+    <div class="ops-row">
+      <div class="av" style="background:#F0E9FF">🎁</div>
+      <div class="ops-main"><div class="ops-nm">${esc(idToName[g.partnerId] || '—')}</div><div class="ops-sub">${esc(g.giftName)}</div></div>
+      <div class="ops-time">${fmtTime(g.at)}</div>
+    </div>`).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有伙伴兑换好礼 🎀</div>`;
+
+  // 签到 7 天趋势（HTML 条形）
+  const trend = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const pad = n => String(n).padStart(2, '0');
+    const ds = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    trend.push({ ds, label: (d.getMonth() + 1) + '/' + d.getDate(), cnt: ps.filter(p => p.lastCheckin === ds).length });
+  }
+  const maxCnt = Math.max(1, ...trend.map(t => t.cnt));
+  const trendHtml = trend.map(t => `
+    <div class="bar-col">
+      <div class="bar-val">${t.cnt}</div>
+      <div class="bar" style="height:${Math.round(t.cnt / maxCnt * 100)}px;background:${t.ds === todayStr ? '#FF6B5C' : '#FFB36B'}"></div>
+      <div class="bar-lab">${t.label}</div>
+    </div>`).join('');
+
+  document.getElementById('view-ops').innerHTML = `
+    <div class="header">
+      <div class="row"><div class="hi">运营数据</div><div class="avatar">数</div></div>
+      <div class="sub">签到 · 邀请 · 积分 · 福利成本，一眼掌握增长与活跃</div>
+    </div>
+    ${statsHtml}
+    <div class="sec-title">签到趋势（近 7 天）</div>
+    <div class="card"><div class="bar-chart">${trendHtml}</div></div>
+    <div class="sec-title">邀请排行榜 TOP 10</div>
+    <div class="card">${invHtml}</div>
+    <div class="sec-title">最近积分兑换</div>
+    <div class="card">${redeemHtml}</div>`;
 }
 
 // ---------- 伙伴 ----------
@@ -548,6 +639,7 @@ function renderMe() {
     <div class="menu">
       <div class="mi" data-act="tab" data-tab="partners"><div class="ic" style="background:#FFEAE5;color:#FF6B5C">♥</div><div class="nm">我的伙伴</div><div class="ar">›</div></div>
       <div class="mi" data-act="tab" data-tab="gift"><div class="ic" style="background:#FFF3E0;color:#E58A3F">★</div><div class="nm">礼品记录</div><div class="ar">›</div></div>
+      <div class="mi" data-act="tab" data-tab="ops"><div class="ic" style="background:#E8F5E9;color:#2BB673">📊</div><div class="nm">运营数据</div><div class="ar">›</div></div>
       <div class="mi" data-act="export"><div class="ic" style="background:#E8EEFF;color:#5B7CFA">⬇</div><div class="nm">导出伙伴数据 (CSV)</div><div class="ar">›</div></div>
       <div class="mi" data-act="logout"><div class="ic" style="background:#EDEDF0;color:#6B7280">⚙</div><div class="nm">退出登录</div><div class="ar">›</div></div>
     </div>
@@ -984,6 +1076,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
   if (name === 'home') renderHome();
   if (name === 'wool') renderWool();
+  if (name === 'ops') renderOps();
 }
 async function exportCsv() {
   try {
