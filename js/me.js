@@ -128,30 +128,41 @@
     if (!rows.length) return '';
     return '<div class="addr-list">' + rows.join('') + '</div>';
   }
-  function showErr(title, hint) {
+  function showErr(title, hint, detail) {
     const err = document.getElementById('err');
     const viewport = document.getElementById('viewport');
     const tabbar = document.getElementById('tabbar');
     if (viewport) viewport.style.display = 'none';
     if (tabbar) tabbar.style.display = 'none';
     err.style.display = 'block';
-    err.innerHTML = '<div class="em">🔒</div><h1>' + esc(title || '链接无效') + '</h1><p class="lead">' + (hint || '请使用完整的专属链接访问本页') + '</p>';
+    const detailBlock = detail ? '<pre class="err-detail">' + esc(detail) + '</pre>' : '';
+    err.innerHTML = '<div class="em">🔒</div><h1>' + esc(title || '链接无效') + '</h1><p class="lead">' + (hint || '请使用完整的专属链接访问本页') + '</p>' + detailBlock + '<button class="btn" id="retryBtn" style="margin-top:18px">刷新重试</button>';
+    const retryBtn = document.getElementById('retryBtn');
+    if (retryBtn) retryBtn.addEventListener('click', () => { err.style.display = 'none'; if (viewport) viewport.style.display = 'block'; if (tabbar) tabbar.style.display = 'flex'; load(); });
   }
 
   async function load() {
     if (!TOKEN) { showErr('链接无效', '链接里没有 token。请使用完整的专属链接（应形如 ' + location.origin + '/me.html?t=...）。'); return; }
     if (TOKEN === 'TOKEN' || !/^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(TOKEN)) { showErr('链接无效', '链接里的 token 不正确（看到了占位符 "TOKEN" 或格式不对）。请使用你收到的<b>真实</b>专属链接，<b>不要手动修改链接</b>。'); return; }
+    if (typeof window.sb === 'undefined' || !window.sb || typeof window.sb.rpc !== 'function') {
+      showErr('客户端加载失败', 'Supabase 客户端没有初始化成功，通常是脚本加载被浏览器拦截或网络不稳定。请检查网络、关闭广告拦截插件后重试。', 'window.sb=' + (typeof window.sb) + ' sb.rpc=' + (window.sb && typeof window.sb.rpc));
+      return;
+    }
     try {
       const { data: pd, error: e1 } = await sb.rpc('get_my_partner', { p_token: TOKEN });
-      if (e1 || !pd || !pd.ok) { showErr('链接无效', '找不到对应的伙伴记录。可能链接已失效，请联系福利派送官重新发送你的专属链接。'); return; }
+      if (e1 || !pd || !pd.ok) { showErr('链接无效', '找不到对应的伙伴记录。可能链接已失效，请联系福利派送官重新发送你的专属链接。' + (e1 ? ' (' + esc(e1.message || e1) + ')' : '')); return; }
       const { data: sd, error: e2 } = await sb.rpc('my_shipments', { p_token: TOKEN });
-      if (e2) { showErr('加载失败', '物流信息加载失败，请稍后刷新重试。'); return; }
+      if (e2) { showErr('加载失败', '物流信息加载失败，请稍后刷新重试。' + (e2.message ? ' (' + esc(e2.message) + ')' : '')); return; }
       PARTNER = pd.partner; SHIPS = ((sd && sd.shipments) || []).map(normShip);
       const wall = generateWallData();
       WALL_FEED = wall.feed;
       WALL_STATS = wall.stats;
       render();
-    } catch (e) { showErr('网络异常', '请检查网络后刷新重试。'); }
+    } catch (e) {
+      const msg = (e && (e.message || e)) || '未知错误';
+      const detail = '类型: ' + (e && e.name ? e.name : typeof e) + '\n信息: ' + msg + '\n时间: ' + new Date().toLocaleString();
+      showErr('网络异常', '请检查网络后刷新重试。如果反复出现，请截图本页错误详情。', detail);
+    }
   }
 
   function switchTab(name) {
