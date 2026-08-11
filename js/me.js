@@ -313,9 +313,9 @@
         </div>
         <div class="ship-list" id="ship-list">${ships}</div>
       </div>
+      ${wallHtml}
       ${rebateEntryHtml}
       ${welfareEntryHtml}
-      ${wallHtml}
       <div class="note">本页仅你本人可通过专属链接访问 · 信息仅用于福利发放</div>`;
 
     document.getElementById('edit-addr').addEventListener('click', () => {
