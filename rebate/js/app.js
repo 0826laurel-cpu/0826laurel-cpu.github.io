@@ -109,12 +109,32 @@ async function query(code){
   }
   return DEMO.private.filter(r => r.model_code===code || r.order_no===code);
 }
-function renderQuery(rows){
+// 按订单号去重：优先保留「已返」>「处理中」>「待返」，同状态取最新
+function dedupeByOrder(rows){
+  const map = new Map();
+  const priority = { '已返': 0, '处理中': 1, '待返': 2 };
+  for (const r of rows){
+    const key = r.order_no;
+    const cur = map.get(key);
+    if (!cur) { map.set(key, r); continue; }
+    const p1 = priority[r.status] ?? 3;
+    const p2 = priority[cur.status] ?? 3;
+    if (p1 < p2) { map.set(key, r); continue; }
+    if (p1 === p2) {
+      const d1 = new Date(r.created_at||0).getTime();
+      const d2 = new Date(cur.created_at||0).getTime();
+      if (d1 > d2) map.set(key, r);
+    }
+  }
+  return Array.from(map.values()).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+}
+
+function renderQuery(rawRows){
   const box = document.getElementById('queryResult');
+  const rows = dedupeByOrder(rawRows);
   if (!rows.length){ box.innerHTML = '<div class="empty">未查到记录，请确认订单号或查询码是否正确～</div>'; return; }
   const total = rows.reduce((s,r)=>s+Number(r.amount||0),0);
-  let html = '';
-  if (rows.length>1) html += `<div class="q-sum">共 ${rows.length} 笔返款 · 累计 ${money(total)}</div>`;
+  let html = `<div class="q-sum">共 ${rows.length} 笔返款 · 累计 ${money(total)}</div>`;
   html += rows.map(r=>`
     <div class="q-card">
       <div class="q-top"><span class="q-order">订单 ${r.order_no}</span>
