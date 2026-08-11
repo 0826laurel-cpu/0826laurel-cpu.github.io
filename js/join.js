@@ -114,17 +114,19 @@
           </div>
           <div class="row3">
             <div class="field"><label>省</label>
-              <div class="field-input"><span class="ico">🏙️</span><input id="a-prov" placeholder="如：浙江"></div>
+              <div class="field-input"><span class="ico">🏙️</span><input id="a-prov" placeholder="浙江"></div>
             </div>
             <div class="field"><label>市</label>
-              <div class="field-input"><span class="ico">🏙️</span><input id="a-city" placeholder="如：杭州"></div>
+              <div class="field-input"><span class="ico">🏙️</span><input id="a-city" placeholder="杭州"></div>
             </div>
             <div class="field"><label>区 / 县</label>
-              <div class="field-input"><span class="ico">🏘️</span><input id="a-dist" placeholder="如：西湖区"></div>
+              <div class="field-input"><span class="ico">🏘️</span><input id="a-dist" placeholder="西湖区"></div>
             </div>
           </div>
-          <div class="field"><label>详细地址</label>
-            <div class="field-input"><span class="ico">📍</span><input id="a-detail" placeholder="街道 / 小区 / 门牌"></div>
+          <div class="addr-detail">
+            <div class="field" style="margin-bottom:0"><label style="color:#D9483A">📍 详细地址<span class="req">*</span></label>
+              <div class="field-input"><span class="ico">🏠</span><input id="a-detail" placeholder="街道 / 小区 / 楼号 / 门牌"></div>
+            </div>
           </div>
         </div>
 
@@ -247,11 +249,14 @@
           <div class="field"><label>收货人 *</label><input id="a-name" value="${esc(a.name || '')}" placeholder="你的姓名"></div>
           <div class="field"><label>收货手机号 *</label><input id="a-phone" value="${esc(a.phone || '')}" placeholder="11 位手机号"></div>
           <div class="row3">
-            <div class="field"><label>省</label><div class="field-input"><span class="ico">🏙️</span><input id="a-prov" value="${esc(a.province || '')}" placeholder="如：浙江"></div></div>
-            <div class="field"><label>市</label><div class="field-input"><span class="ico">🏙️</span><input id="a-city" value="${esc(a.city || '')}" placeholder="如：杭州"></div></div>
-            <div class="field"><label>区 / 县</label><div class="field-input"><span class="ico">🏘️</span><input id="a-dist" value="${esc(a.district || '')}" placeholder="如：西湖区"></div></div>
+            <div class="field"><label>省</label><div class="field-input"><span class="ico">🏙️</span><input id="a-prov" value="${esc(a.province || '')}" placeholder="浙江"></div></div>
+            <div class="field"><label>市</label><div class="field-input"><span class="ico">🏙️</span><input id="a-city" value="${esc(a.city || '')}" placeholder="杭州"></div></div>
+            <div class="field"><label>区 / 县</label><div class="field-input"><span class="ico">🏘️</span><input id="a-dist" value="${esc(a.district || '')}" placeholder="西湖区"></div></div>
           </div>
-          <div class="field"><label>详细地址</label><input id="a-detail" value="${esc(a.detail || '')}" placeholder="街道 / 小区 / 门牌"></div>
+          <div class="addr-detail">
+            <div class="field" style="margin-bottom:0"><label style="color:#D9483A">📍 详细地址<span class="req">*</span></label>
+              <div class="field-input"><span class="ico">🏠</span><input id="a-detail" value="${esc(a.detail || '')}" placeholder="街道 / 小区 / 楼号 / 门牌"></div></div>
+          </div>
           <button class="btn" id="save-addr">保存地址</button>
         </div>
       </div>
