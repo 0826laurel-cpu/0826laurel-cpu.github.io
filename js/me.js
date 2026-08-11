@@ -299,8 +299,6 @@
         </div>
       </div>
       ${overviewHtml}
-      ${checkinHtml}
-      ${inviteHtml}
       <div class="me-card">
         <div class="addr-head">
           <div class="addr-title">收件地址</div>
@@ -334,6 +332,8 @@
         <div class="ship-list" id="ship-list">${ships}</div>
       </div>
       ${wallHtml}
+      ${checkinHtml}
+      ${inviteHtml}
       <div class="me-card guide-entry">
         <div class="block-title">📖 网拍模特平台图鉴</div>
         <p class="guide-desc">8个主流平台一次看懂</p>
