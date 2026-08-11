@@ -198,7 +198,7 @@
       if (error) throw new Error(error.message);
       if (!data || !data.ok) throw new Error('提交失败，请稍后重试');
       localStorage.setItem(LS_KEY, data.token);
-      renderDashboard({ id: data.id, name, wechat, platform, model_id: modelId, address }, [], true);
+      window.location.replace(location.origin + '/me.html?t=' + data.token);
     } catch (e) {
       alert(e.message || '网络异常，请稍后重试');
       btn.disabled = false; btn.textContent = '提交并领取福利';
