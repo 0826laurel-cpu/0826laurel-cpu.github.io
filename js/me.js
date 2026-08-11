@@ -247,6 +247,13 @@
         ${noRebate ? '<div class="rebate-empty">还没有返款记录～完成返款任务后，这里会显示你的返款进度与凭证 💸</div>' : rebateItems}
       </div>`;
 
+    // ---- 返款公示：嵌入完整公开页（同源 iframe，自动撑高） ----
+    const rebatePublicHtml = `
+      <div class="me-card rebate-card">
+        <div class="block-title">📢 返款公示 <span style="font-size:12px;color:var(--gray);font-weight:normal;margin-left:6px">实时公开 · 大家都在领 💸</span></div>
+        <iframe id="rebate-public-frame" class="rebate-public-frame" src="/rebate/" loading="lazy" title="返款公示公开页"></iframe>
+      </div>`;
+
     const feedHtml = WALL_FEED.length ? WALL_FEED.map(f => {
       const name = f.partner_name || '某位伙伴';
       const gift = f.gift_name || f.product_title || '礼品';
@@ -366,6 +373,7 @@
         <div class="ship-list" id="ship-list">${ships}</div>
       </div>
       ${rebateHtml}
+      ${rebatePublicHtml}
       ${wallHtml}
       ${checkinHtml}
       ${inviteHtml}
@@ -375,6 +383,29 @@
         <a class="btn-guide" href="guide/?t=${TOKEN ? encodeURIComponent(TOKEN) : ''}">查看平台图鉴 →</a>
       </div>
       <div class="note">本页仅你本人可通过专属链接访问 · 信息仅用于福利发放</div>`;
+
+    // 返款公示 iframe 自动撑高（与本站同源，可读取内部内容高度）
+    (function () {
+      const rf = document.getElementById('rebate-public-frame');
+      if (!rf) return;
+      const fit = () => {
+        try {
+          const d = rf.contentDocument;
+          if (!d) return;
+          const h = Math.max(d.body ? d.body.scrollHeight : 0, d.documentElement ? d.documentElement.scrollHeight : 0);
+          if (h > 0) rf.style.height = h + 'px';
+        } catch (e) { /* 跨域或异常时忽略，保留默认高度 */ }
+      };
+      rf.addEventListener('load', () => {
+        fit();
+        try {
+          const d = rf.contentDocument;
+          if (d && d.body) new MutationObserver(fit).observe(d.body, { childList: true, subtree: true });
+        } catch (e) {}
+        let n = 0;
+        const t = setInterval(() => { fit(); if (++n > 16) clearInterval(t); }, 500);
+      });
+    })();
 
     document.getElementById('edit-addr').addEventListener('click', () => {
       document.getElementById('addr-form').style.display = 'block';
