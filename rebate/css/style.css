@@ -90,6 +90,34 @@ body{
   padding:14px;text-align:center;font-size:15px;font-weight:700;margin-bottom:10px;}
 .empty{text-align:center;color:var(--sub);font-size:14px;padding:24px 0;}
 
+/* 视图切换 */
+.views{position:relative;}
+.view{display:none;animation:fadeIn .25s ease;}
+.view.active{display:block;}
+@keyframes fadeIn{from{opacity:.6;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* 首页提示卡 */
+.home-tip p{margin:0;}
+
+/* 底部 Tab 导航 */
+.tab-bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:100;
+  background:rgba(255,255,255,.95);backdrop-filter:blur(10px);
+  border-top:1px solid var(--line);
+  display:flex;justify-content:space-around;align-items:center;
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  box-shadow:0 -2px 12px rgba(0,0,0,.04);
+}
+.tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:8px 0 10px;color:var(--sub);font-size:11px;cursor:pointer;transition:.2s;
+}
+.tab-ico{font-size:20px;line-height:1;margin-bottom:3px;}
+.tab-txt{font-size:11px;}
+.tab.active{color:var(--brand);}
+.tab.active .tab-ico{transform:scale(1.08);}
+
 /* 底部 */
-.foot{text-align:center;font-size:11px;color:var(--sub);margin-top:18px;line-height:1.7;}
-.link-admin{display:block;text-align:center;margin-top:14px;font-size:12px;color:var(--brand);text-decoration:none;}
+body{padding-bottom:76px;}
+.foot{text-align:center;font-size:11px;color:var(--sub);margin-top:18px;line-height:1.7;padding-bottom:8px;}
+.link-admin{display:none;}
