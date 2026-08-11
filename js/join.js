@@ -85,13 +85,14 @@
           <div class="field"><label>模特平台<span class="req">*</span></label>
             <div class="field-input"><span class="ico">🌐</span><input id="j-platform" placeholder="如：集美、多彩、猫当 等"></div>
           </div>
-          <div class="field"><label>模特ID<span class="req">*</span></label>
+          <div class="field">
+            <label>模特ID<span class="req">*</span></label>
             <div class="field-input"><span class="ico">🆔</span><input id="j-id"></div>
+            <div class="field-hint">📌 在模特平台查看后填写</div>
           </div>
           <div class="field">
             <label>微信号<span class="req">*</span></label>
-            <div class="group-tip"><span class="ti">💡</span><div><b>方便必要时联系</b>（订单沟通、地址异常、退换等），福利派送官一对一添加，不会打扰。</div></div>
-            <div class="field-input"><span class="ico">💬</span><input id="j-wechat"></div>
+            <div class="field-input"><span class="ico">💬</span><input id="j-wechat" placeholder="方便必要时联系（订单沟通，打款等）"></div>
           </div>
           <div class="field"><label>想对我们的话（选填）</label>
             <div class="field-input"><span class="ico">✨</span><textarea id="j-note" placeholder="你的偏好、生日、想要的…"></textarea></div>
