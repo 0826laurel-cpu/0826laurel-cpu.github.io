@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>互动福利中心</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: linear-gradient(160deg, #FFE9E0, #FFF1F3); color: #20232E; }
+    .welfare-wrap { max-width: 430px; margin: 0 auto; min-height: 100vh; padding: 44px 24px; }
+    .me-card { background: #fff; border-radius: 22px; padding: 22px 20px; box-shadow: 0 10px 30px rgba(255,107,92,.12); margin-bottom: 16px; }
+    .block-title { font-size: 15px; font-weight: 700; margin: 0 0 14px; }
+
+    /* 返回条 */
+    .back-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+    .back-bar a { font-size: 14px; color: #FF6B5C; text-decoration: none; font-weight: 600; }
+    .back-bar a::before { content: '‹ '; }
+
+    /* 签到 */
+    .checkin-card .ck-row { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+    .checkin-card .ck-points { font-size: 32px; font-weight: 700; color: #FF6B5C; }
+    .checkin-card .ck-points span { font-size: 14px; font-weight: 400; color: #9AA0AD; }
+    .checkin-card .ck-streak { font-size: 13px; color: #888; margin-top: 4px; }
+    .checkin-card .ck-done { font-size: 13px; font-weight: 600; color: #2BB673; background: #E7F7EE; border: 1px solid #BFE9CF; border-radius: 999px; padding: 8px 14px; }
+    .btn-checkin { font-size: 14px; font-weight: 600; color: #fff; background: linear-gradient(135deg,#FF8A5C,#FF6B5C); border: none; border-radius: 999px; padding: 10px 20px; }
+    .btn-checkin:active { transform: scale(.97); }
+    .checkin-card .redeem-title { font-size: 13px; font-weight: 600; color: #444; margin: 18px 0 10px; }
+    .checkin-card .redeem-list { display: flex; flex-direction: column; gap: 8px; }
+    .checkin-card .rd { display: flex; align-items: center; justify-content: space-between; background: #FAFBFC; border: 1px solid #EEF0F2; border-radius: 12px; padding: 12px 14px; font-size: 14px; color: #2C2C2A; }
+    .checkin-card .rd .rc { font-size: 12px; color: #FF6B5C; font-weight: 600; }
+    .checkin-card .rd:active { background: #F2F3F5; }
+    .checkin-card .ck-tip { font-size: 11px; color: #B4B2A9; margin-top: 12px; line-height: 1.6; }
+
+    /* 邀请 */
+    .invite-card .invite-desc { font-size: 13px; color: #6B7280; line-height: 1.7; margin: 0 0 14px; }
+    .invite-card .invite-code-box { display: flex; align-items: center; gap: 10px; background: #FFF7F4; border: 1px dashed #FFD9D2; border-radius: 14px; padding: 12px 14px; }
+    .invite-card .ic-code { font-size: 18px; font-weight: 700; letter-spacing: 1px; color: #FF6B5C; flex: 1; }
+    .btn-copy { font-size: 13px; font-weight: 600; color: #FF6B5C; background: #fff; border: 1px solid #FFD9D2; border-radius: 999px; padding: 8px 14px; }
+    .btn-copy:active { background: #FFEAE5; }
+    .invite-card .invite-stat { font-size: 12px; color: #888; margin-top: 12px; }
+    .invite-card .invite-stat b { color: #FF6B5C; }
+
+    /* 图鉴 */
+    .guide-entry { text-align: center; }
+    .guide-entry .guide-desc { font-size: 13px; color: #6B7280; line-height: 1.7; margin: 8px 0 16px; }
+    .btn-guide {
+      display: inline-block; padding: 12px 26px; border-radius: 14px;
+      background: linear-gradient(135deg,#FF9975,#FF7091); color: #fff;
+      font-size: 15px; font-weight: 700; text-decoration: none; letter-spacing: 1px;
+      box-shadow: 0 10px 24px rgba(255,112,145,.32);
+    }
+    .btn-guide:active { transform: scale(.97); }
+
+    .note { text-align: center; font-size: 11px; color: #b9bcc6; margin-top: 16px; }
+    .err { text-align: center; padding: 60px 16px; }
+    .err .em { font-size: 50px; margin-bottom: 14px; }
+    .err h1 { font-size: 19px; font-weight: 800; margin-bottom: 4px; }
+    .err .lead { font-size: 13px; color: #9AA0AD; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="welfare-wrap" id="app">
+    <div class="err" id="err" style="display:none">
+      <div class="em">🔒</div>
+      <h1>链接无效</h1>
+      <p class="lead">请通过福利派送官发给你的专属链接访问本页</p>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/sb.js"></script>
+  <script src="js/welfare.js?v=1"></script>
+</body>
+</html>

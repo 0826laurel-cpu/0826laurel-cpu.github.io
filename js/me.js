@@ -10,11 +10,6 @@
     return s ? s.status : '';
   }
   let PARTNER = null, SHIPS = [], WALL_FEED = [], WALL_STATS = { total_sent: 0, total_receivers: 0, total_signed: 0 };
-  let MODEL_REBATES = [];
-  const REBATE_STATUS = { '已返': '已返', '处理中': '处理中', '待返': '待返' };
-  const REBATE_COLOR = { '已返': '#2BB673', '处理中': '#E58A3F', '待返': '#9AA0AD' };
-  const money = n => '¥' + Number(n || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
-  let INVITE_STATS = { invited_count: 0 };
 
   function fmtTime(ts) {
     if (!ts) return '';
@@ -161,16 +156,6 @@
       const { data: sd, error: e2 } = await sb.rpc('my_shipments', { p_token: TOKEN });
       if (e2) { showErr('加载失败', '物流信息加载失败，请稍后刷新重试。'); return; }
       PARTNER = pd.partner; SHIPS = ((sd && sd.shipments) || []).map(normShip);
-      // 返款进度：按专属页编号自动拉取该模特的全部返款（失败不阻断主流程）
-      try {
-        const { data: rbd, error: e4 } = await sb.rpc('get_my_rebates_by_model', { p_model_id: pd.partner.model_id });
-        if (!e4) MODEL_REBATES = rbd || [];
-      } catch (e4) { /* 不影响主流程 */ }
-      // 邀请统计：拿到「我邀请了几位好友」，失败不阻断主流程
-      try {
-        const { data: isd, error: e3 } = await sb.rpc('my_invite_stats', { p_token: TOKEN });
-        if (!e3 && isd && isd.ok) INVITE_STATS = isd;
-      } catch (e3) { /* 不影响主流程 */ }
       // 福利社群动态：使用每天自动生成的模拟热闹数据（日期/名字每日更新）
       const wall = generateWallData();
       WALL_FEED = wall.feed;
@@ -222,38 +207,6 @@
       </div>`;
     }).join('') : '<div style="text-align:center;color:#9AA0AD;font-size:13px;padding:14px">还没有收到礼品发货～</div>';
 
-    // ---- 我的返款进度（按专属页编号自动关联） ----
-    const noRebate = !MODEL_REBATES || !MODEL_REBATES.length;
-    const rebateItems = noRebate ? '' : MODEL_REBATES.map(r => {
-      const st = r.status || '待返';
-      const stColor = REBATE_COLOR[st] || '#9AA0AD';
-      const voucher = (st === '已返' && r.voucher_url)
-        ? `<div class="rebate-voucher"><div class="qv-label">返款凭证</div><img src="${esc(r.voucher_url)}" alt="返款凭证" onclick="openVoucher('${esc(r.voucher_url)}')"></div>`
-        : '';
-      return `<div class="rebate-item">
-        <div class="rebate-top">
-          <span class="rebate-name">${esc(r.item || '任务返款')}</span>
-          <span class="rebate-status" style="background:${stColor}">${esc(st)}</span>
-        </div>
-        <div class="rebate-amount">${money(r.amount)}</div>
-        <div class="rebate-date">返款日期：${esc(r.rebate_date || '—')}</div>
-        <div class="rebate-expected">预计返款：${esc(r.expected_rebate_date || '待定')}</div>
-        ${voucher}
-      </div>`;
-    }).join('');
-    const rebateHtml = `
-      <div class="me-card rebate-card">
-        <div class="block-title">💰 我的返款进度 <span style="font-size:12px;color:var(--gray);font-weight:normal;margin-left:6px">共 ${MODEL_REBATES.length} 笔</span></div>
-        ${noRebate ? '<div class="rebate-empty">还没有返款记录～完成返款任务后，这里会显示你的返款进度与凭证 💸</div>' : rebateItems}
-      </div>`;
-
-    // ---- 返款公示：嵌入完整公开页（同源 iframe，自动撑高） ----
-    const rebatePublicHtml = `
-      <div class="me-card rebate-card">
-        <div class="block-title">📢 返款公示 <span style="font-size:12px;color:var(--gray);font-weight:normal;margin-left:6px">实时公开 · 大家都在领 💸</span></div>
-        <iframe id="rebate-public-frame" class="rebate-public-frame" src="/rebate/" loading="lazy" title="返款公示公开页"></iframe>
-      </div>`;
-
     const feedHtml = WALL_FEED.length ? WALL_FEED.map(f => {
       const name = f.partner_name || '某位伙伴';
       const gift = f.gift_name || f.product_title || '礼品';
@@ -293,39 +246,27 @@
         </div>
       </div>`;
 
-    // ---- 每日签到 + 积分商城 ----
-    const checkinHtml = `
-      <div class="me-card checkin-card">
-        <div class="block-title">🪙 每日签到 · 积分兑好礼</div>
-        <div class="ck-row">
-          <div class="ck-info">
-            <div class="ck-points">${PARTNER.points} <span>积分</span></div>
-            <div class="ck-streak">🔥 连续签到 ${PARTNER.checkinStreak} 天</div>
-          </div>
-          ${PARTNER.checkedToday
-            ? '<div class="ck-done">✓ 今日已签</div>'
-            : '<button class="btn-checkin" id="btn-checkin">签到领积分</button>'}
+    // ---- 一级入口：返款公示 ----
+    const rebateEntryHtml = `
+      <a class="entry-card" href="rebate/" target="_blank">
+        <div class="entry-icon" style="background:linear-gradient(135deg,#FF9975,#FF7091)">💰</div>
+        <div class="entry-body">
+          <div class="entry-title">模特返款公示台</div>
+          <div class="entry-desc">查看实时返款动态、达人榜，查询我的返款进度与凭证</div>
         </div>
-        <div class="redeem-title">积分好礼</div>
-        <div class="redeem-list">
-          <div class="rd" data-cost="100" data-item="定制礼盒">🎁 定制礼盒<span class="rc">100积分</span></div>
-          <div class="rd" data-cost="200" data-item="暖心保温杯">🥤 暖心保温杯<span class="rc">200积分</span></div>
-          <div class="rd" data-cost="300" data-item="蓝牙音箱">🔊 蓝牙音箱<span class="rc">300积分</span></div>
-        </div>
-        <div class="ck-tip">每天签到得 5 积分，连续签到额外 +2/天（上限+10）；积分可兑换好礼，福利官亲自寄出～</div>
-      </div>`;
+        <span class="entry-arrow">›</span>
+      </a>`;
 
-    // ---- 转介绍邀请码 ----
-    const inviteHtml = `
-      <div class="me-card invite-card">
-        <div class="block-title">🤝 邀请模特好友</div>
-        <p class="invite-desc">分享你的专属邀请码给想做网拍模特的朋友，TA 成功入驻后，你们各得 <b>10 积分</b>！</p>
-        <div class="invite-code-box">
-          <span class="ic-code">${esc(PARTNER.inviteCode || '—')}</span>
-          <button class="btn-copy" id="btn-copy-invite">复制邀请链接</button>
+    // ---- 一级入口：互动福利（签到/邀请/图鉴） ----
+    const welfareEntryHtml = `
+      <a class="entry-card" href="welfare.html?t=${encodeURIComponent(TOKEN)}">
+        <div class="entry-icon" style="background:linear-gradient(135deg,#7C6CF0,#FF6B5C)">🎁</div>
+        <div class="entry-body">
+          <div class="entry-title">互动福利中心</div>
+          <div class="entry-desc">每日签到领积分、邀请模特好友、查看网拍平台图鉴</div>
         </div>
-        <div class="invite-stat">已成功邀请 <b>${INVITE_STATS.invited_count || 0}</b> 位好友 · 你共有 <b>${PARTNER.points}</b> 积分</div>
-      </div>`;
+        <span class="entry-arrow">›</span>
+      </a>`;
 
     document.getElementById('app').innerHTML = `
       ${notifyHtml}
@@ -372,40 +313,10 @@
         </div>
         <div class="ship-list" id="ship-list">${ships}</div>
       </div>
-      ${rebateHtml}
-      ${rebatePublicHtml}
+      ${rebateEntryHtml}
+      ${welfareEntryHtml}
       ${wallHtml}
-      ${checkinHtml}
-      ${inviteHtml}
-      <div class="me-card guide-entry">
-        <div class="block-title">📖 网拍模特平台图鉴</div>
-        <p class="guide-desc">8个主流平台一次看懂</p>
-        <a class="btn-guide" href="guide/?t=${TOKEN ? encodeURIComponent(TOKEN) : ''}">查看平台图鉴 →</a>
-      </div>
       <div class="note">本页仅你本人可通过专属链接访问 · 信息仅用于福利发放</div>`;
-
-    // 返款公示 iframe 自动撑高（与本站同源，可读取内部内容高度）
-    (function () {
-      const rf = document.getElementById('rebate-public-frame');
-      if (!rf) return;
-      const fit = () => {
-        try {
-          const d = rf.contentDocument;
-          if (!d) return;
-          const h = Math.max(d.body ? d.body.scrollHeight : 0, d.documentElement ? d.documentElement.scrollHeight : 0);
-          if (h > 0) rf.style.height = h + 'px';
-        } catch (e) { /* 跨域或异常时忽略，保留默认高度 */ }
-      };
-      rf.addEventListener('load', () => {
-        fit();
-        try {
-          const d = rf.contentDocument;
-          if (d && d.body) new MutationObserver(fit).observe(d.body, { childList: true, subtree: true });
-        } catch (e) {}
-        let n = 0;
-        const t = setInterval(() => { fit(); if (++n > 16) clearInterval(t); }, 500);
-      });
-    })();
 
     document.getElementById('edit-addr').addEventListener('click', () => {
       document.getElementById('addr-form').style.display = 'block';
@@ -447,44 +358,6 @@
         head.classList.toggle('collapsed');
       });
     });
-    // 每日签到
-    const btnCheckin = document.getElementById('btn-checkin');
-    if (btnCheckin) {
-      btnCheckin.addEventListener('click', async () => {
-        btnCheckin.disabled = true; btnCheckin.textContent = '签到中…';
-        try {
-          const { data, error } = await sb.rpc('checkin', { p_token: TOKEN });
-          if (error) throw new Error(error.message);
-          if (data && data.checked) { alert('签到成功，获得 ' + data.gained + ' 积分！🔥'); load(); }
-          else if (data && data.already) { load(); }
-          else alert('签到失败，请重试');
-        } catch (e) { alert(e.message || '网络异常'); btnCheckin.disabled = false; btnCheckin.textContent = '签到领积分'; }
-      });
-    }
-    // 复制邀请链接
-    const btnCopyInvite = document.getElementById('btn-copy-invite');
-    if (btnCopyInvite) {
-      btnCopyInvite.addEventListener('click', () => {
-        const link = location.origin + '/join.html?ref=' + encodeURIComponent(PARTNER.inviteCode || '');
-        const flash = () => { btnCopyInvite.textContent = '已复制 ✓'; setTimeout(() => btnCopyInvite.textContent = '复制邀请链接', 1500); };
-        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(flash).catch(() => prompt('复制此邀请链接：', link));
-        else prompt('复制此邀请链接：', link);
-      });
-    }
-    // 积分兑换好礼
-    document.querySelectorAll('.rd').forEach(rd => {
-      rd.addEventListener('click', async () => {
-        const cost = Number(rd.dataset.cost), item = rd.dataset.item;
-        if (!confirm('确认用 ' + cost + ' 积分兑换「' + item + '」？\n（兑换后福利官会为你寄出）')) return;
-        rd.style.opacity = '.5';
-        try {
-          const { data, error } = await sb.rpc('redeem_points', { p_token: TOKEN, p_cost: cost, p_item: item });
-          if (error) throw new Error(error.message);
-          if (data && data.ok) { alert('兑换成功 🎁 福利官将为你寄出「' + item + '」'); load(); }
-          else alert((data && data.error) || '兑换失败');
-        } catch (e) { alert(e.message || '网络异常'); rd.style.opacity = '1'; }
-      });
-    });
     // 标记已读（站内通知）：本次渲染已展示未读横幅，随后更新 last_seen_at，下次访问即不再提示
     Api.touchSeen(TOKEN);
   }
@@ -508,15 +381,6 @@
       else alert('保存失败，请重试');
     } catch (e) { alert(e.message || '网络异常，请稍后重试'); }
   }
-
-  // 返款凭证放大查看
-  window.openVoucher = function (url) {
-    const box = document.createElement('div');
-    box.className = 'voucher-lightbox';
-    box.innerHTML = '<img src="' + esc(url) + '" alt="返款凭证">';
-    box.onclick = () => box.remove();
-    document.body.appendChild(box);
-  };
 
   load();
 })();
