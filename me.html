@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -7,7 +7,11 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: linear-gradient(160deg, #FFE9E0, #FFF1F3); color: #20232E; }
-    .me-wrap { max-width: 430px; margin: 0 auto; min-height: 100vh; padding: 44px 24px; }
+    .me-wrap { max-width: 430px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+    .viewport { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 24px 20px 110px; }
+    .view { display: none; }
+    .view.active { display: block; animation: fadeIn .25s ease; }
+    @keyframes fadeIn { from { opacity: .6; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     .me-card { background: #fff; border-radius: 22px; padding: 22px 20px; box-shadow: 0 10px 30px rgba(255,107,92,.12); margin-bottom: 16px; }
     .badge { width: 54px; height: 54px; border-radius: 16px; background: linear-gradient(135deg,#FF9975,#FF7091); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; margin-bottom: 12px; }
     h1 { font-size: 19px; font-weight: 800; margin-bottom: 4px; }
@@ -232,50 +236,41 @@
     .overview-card .ov .n { font-size: 22px; font-weight: 700; color: #2C2C2A; }
     .overview-card .ov .l { font-size: 12px; color: #9AA0AD; margin-top: 4px; }
 
-    /* === 每日签到 + 积分商城 === */
-    .checkin-card .ck-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
-    .checkin-card .ck-points { font-size: 26px; font-weight: 700; color: #FF6B5C; }
-    .checkin-card .ck-points span { font-size: 13px; font-weight: 400; color: #9AA0AD; }
-    .checkin-card .ck-streak { font-size: 12px; color: #888; margin-top: 2px; }
-    .checkin-card .ck-done { font-size: 13px; font-weight: 600; color: #2BB673; background: #E7F7EE; border: 1px solid #BFE9CF; border-radius: 999px; padding: 8px 14px; }
-    .btn-checkin { font-size: 14px; font-weight: 600; color: #fff; background: linear-gradient(135deg,#FF8A5C,#FF6B5C); border: none; border-radius: 999px; padding: 10px 20px; }
-    .btn-checkin:active { transform: scale(.97); }
-    .checkin-card .redeem-title { font-size: 13px; font-weight: 600; color: #444; margin: 16px 0 8px; }
-    .checkin-card .redeem-list { display: flex; flex-direction: column; gap: 8px; }
-    .checkin-card .rd { display: flex; align-items: center; justify-content: space-between; background: #FAFBFC; border: 1px solid #EEF0F2; border-radius: 12px; padding: 12px 14px; font-size: 14px; color: #2C2C2A; }
-    .checkin-card .rd .rc { font-size: 12px; color: #FF6B5C; font-weight: 600; }
-    .checkin-card .rd:active { background: #F2F3F5; }
-    .checkin-card .ck-tip { font-size: 11px; color: #B4B2A9; margin-top: 12px; line-height: 1.6; }
-
-    /* === 转介绍邀请码 === */
-    .invite-card .invite-desc { font-size: 13px; color: #6B7280; line-height: 1.7; margin: 8px 0 14px; }
-    .invite-card .invite-code-box { display: flex; align-items: center; gap: 10px; background: #FFF7F4; border: 1px dashed #FFD9D2; border-radius: 14px; padding: 12px 14px; }
-    .invite-card .ic-code { font-size: 18px; font-weight: 700; letter-spacing: 1px; color: #FF6B5C; flex: 1; }
-    .btn-copy { font-size: 13px; font-weight: 600; color: #FF6B5C; background: #fff; border: 1px solid #FFD9D2; border-radius: 999px; padding: 8px 14px; }
-    .btn-copy:active { background: #FFEAE5; }
-    .invite-card .invite-stat { font-size: 12px; color: #888; margin-top: 12px; }
-    .invite-card .invite-stat b { color: #FF6B5C; }
-
-    /* === 一级入口卡片（返款公示 / 互动福利） === */
-    .entry-card {
-      display: flex; align-items: center; gap: 14px;
-      background: #fff; border: 1px solid #FFE3DC; border-radius: 18px;
-      padding: 16px; margin-bottom: 12px;
+    /* === iframe 内嵌页（返款 / 福利） === */
+    .iframe-wrap {
+      width: 100%; height: calc(100vh - 170px);
+      border-radius: 18px; overflow: hidden;
+      background: #fff; border: 1px solid #FFE3DC;
       box-shadow: 0 8px 22px rgba(255,107,92,.10);
-      text-decoration: none; color: inherit;
-      transition: transform .15s ease, box-shadow .15s ease;
     }
-    .entry-card:last-child { margin-bottom: 0; }
-    .entry-card:active { transform: scale(.98); box-shadow: 0 6px 18px rgba(255,107,92,.14); }
-    .entry-icon {
-      width: 48px; height: 48px; border-radius: 14px;
+    .iframe-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
+
+    /* === 底部 Tab 导航 === */
+    .tabbar {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 78px;
+      background: rgba(255,255,255,.95); backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(255,107,92,.12);
       display: flex; align-items: center; justify-content: center;
-      font-size: 24px; color: #fff; flex-shrink: 0;
+      padding: 0 21px 10px; z-index: 30;
     }
-    .entry-body { flex: 1; min-width: 0; }
-    .entry-title { font-size: 15px; font-weight: 800; color: #20232E; margin-bottom: 4px; }
-    .entry-desc { font-size: 12px; color: #9AA0AD; line-height: 1.5; }
-    .entry-arrow { font-size: 22px; color: #FF6B5C; font-weight: 300; }
+    .pill {
+      width: 100%; height: 54px; border-radius: 28px;
+      border: 1px solid #FFE3DC; display: flex;
+      background: #fff; box-shadow: 0 -4px 20px rgba(255,107,92,.08);
+    }
+    .tab {
+      flex: 1; border-radius: 24px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 3px; color: #9AA0AD; cursor: pointer;
+      transition: all .15s ease;
+    }
+    .tab.on {
+      background: linear-gradient(135deg,#FF9975,#FF7091);
+      color: #fff; box-shadow: 0 4px 14px rgba(255,107,92,.25);
+    }
+    .tab .ti { font-size: 20px; line-height: 1; }
+    .tab .tl { font-size: 10px; font-weight: 500; }
+    .tab.on .tl { font-weight: 700; }
   </style>
 </head>
 <body>
@@ -285,11 +280,27 @@
       <h1>链接无效</h1>
       <p class="lead">请通过福利派送官发给你的专属链接访问本页</p>
     </div>
+
+    <div class="viewport" id="viewport" style="display:none">
+      <div class="view active" id="view-home"></div>
+      <div class="view" id="view-feed"></div>
+      <div class="view" id="view-rebate"></div>
+      <div class="view" id="view-welfare"></div>
+    </div>
+
+    <nav class="tabbar" id="tabbar" style="display:none">
+      <div class="pill">
+        <div class="tab on" data-tab="home"><span class="ti">🏠</span><span class="tl">首页</span></div>
+        <div class="tab" data-tab="feed"><span class="ti">🔥</span><span class="tl">动态</span></div>
+        <div class="tab" data-tab="rebate"><span class="ti">💰</span><span class="tl">返款</span></div>
+        <div class="tab" data-tab="welfare"><span class="ti">🎁</span><span class="tl">福利</span></div>
+      </div>
+    </nav>
   </div>
 
   <script src="config.js"></script>
   <script src="vendor/supabase.js"></script>
   <script src="js/sb.js"></script>
-  <script src="js/me.js?v=17"></script>
+  <script src="js/me.js?v=18"></script>
 </body>
 </html>

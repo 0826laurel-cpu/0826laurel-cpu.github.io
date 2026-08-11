@@ -1,10 +1,9 @@
-// me.js — 伙伴专属自助页（调用 Supabase RPC，按 token 隔离）
+// me.js — 伙伴专属自助页（底部 Tab 多视图版）
 (function () {
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const TOKEN = new URLSearchParams(location.search).get('t') || '';
   const SHIP_STATUS = { pending: '待发货', collected: '已揽收', transit: '运输中', delivering: '派送中', signed: '已签收' };
   const SHIP_COLOR = { pending: '#9AA0AD', collected: '#5B7CFA', transit: '#E58A3F', delivering: '#FF8FA3', signed: '#2BB673' };
-  // 兜底：填了快递单号就不应再显示"待发货"，升级为"已揽收"
   function effStatus(s) {
     if (s && s.status === 'pending' && s.trackingNo && String(s.trackingNo).trim() !== '') return 'collected';
     return s ? s.status : '';
@@ -20,7 +19,6 @@
     if (diff < 86400 * 30) return Math.floor(diff / 86400) + '天前';
     return d.toISOString().slice(0, 10);
   }
-  // 送礼墙日期：今天 / 昨天 / M/D（随真实时间每日更新）
   function fmtWallDate(ts) {
     if (!ts) return '';
     const d = new Date(ts), n = new Date(), y = new Date(n); y.setDate(n.getDate() - 1);
@@ -48,9 +46,7 @@
       createdAt: s.created_at, updatedAt: s.updated_at
     };
   }
-  // 基于 seed 生成 6/7/8 位随机模特编号，每位 0-9 均匀分布，首位 1-9
   function genModelCode(seed) {
-    // 先对 seed 做一次散列混合，避免连续 seed 产生相关输出
     let x = (seed >>> 0) || 1;
     x = (x + 0x9e3779b9) >>> 0;
     x = (x ^ (x >>> 16)) >>> 0;
@@ -59,22 +55,19 @@
     x = Math.imul(x, 0xc2b2ae35) >>> 0;
     x = (x ^ (x >>> 16)) >>> 0;
     function rnd() { x = (x * 1103515245 + 12345) & 0x7fffffff; return x / 0x7fffffff; }
-    const len = 6 + Math.floor(rnd() * 3); // 6/7/8 位随机
-    let s = String(1 + Math.floor(rnd() * 9)); // 首位 1-9，避免前导 0
+    const len = 6 + Math.floor(rnd() * 3);
+    let s = String(1 + Math.floor(rnd() * 9));
     for (let i = 1; i < len; i++) s += String(Math.floor(rnd() * 10));
     return s;
   }
-  // 福利社群动态：每天自动生成热闹的模拟送礼记录（日期/模特编号每天更新；累计数字逐日累增）
   function generateWallData() {
     const gifts = ['定制礼盒','暖心保温杯','防晒喷雾','补水面膜','精致手链','香薰蜡烛','便携风扇','零食大礼包','护手霜套装','真丝发圈','眼影盘','口红礼盒','毛绒挂件','国潮帆布袋','蓝牙音箱','颈部按摩仪','收纳盒套装','花茶礼盒','手机支架','桌垫'];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const daySeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-    // 以 2026-08-01 为运营起点，计算累计天数，让顶部统计数字逐日自然累增
     const startDate = new Date('2026-08-01');
     startDate.setHours(0, 0, 0, 0);
     const diffDays = Math.max(0, Math.floor((today - startDate) / 86400000));
-    // 每天换一批活跃模特编号（8–12 个，随机六/七/八位），保证“编号每天更新”
     const activeCount = 8 + (daySeed % 5);
     const activeNames = [];
     const seenCodes = new Set();
@@ -92,11 +85,10 @@
       d.setDate(d.getDate() - dayOffset);
       const dayTs = d.getTime();
       const daySeed2 = daySeed + dayOffset * 13;
-      const count = 2 + (daySeed2 % 3); // 每天 2–4 条
+      const count = 2 + (daySeed2 % 3);
       for (let i = 0; i < count; i++) {
         const name = activeNames[(daySeed2 + i * 11) % activeNames.length];
         const gift = gifts[(daySeed2 + i * 17 + dayOffset) % gifts.length];
-        // 今天/昨天多为运输/派送中，更早的基本已签收，营造真实物流感
         let status;
         if (dayOffset <= 1) {
           status = (daySeed2 + i) % 2 === 0 ? 'delivering' : 'transit';
@@ -109,14 +101,10 @@
       }
     }
     feed.sort((a, b) => b.created_at - a.created_at);
-    // 顶部统计：基于运营天数累增，同时不低于 feed 实际产生的数量
     const total_sent = Math.max(feed.length, 28 + diffDays * 2 + (daySeed % 5));
     const total_receivers = Math.max(seenNames.size, 8 + diffDays + (daySeed % 3));
     const total_signed = Math.max(feedSigned, 18 + diffDays * 2 + (daySeed % 4));
-    return {
-      feed,
-      stats: { total_sent, total_receivers, total_signed }
-    };
+    return { feed, stats: { total_sent, total_receivers, total_signed } };
   }
   function fmtTrackDate(ts) {
     if (!ts) return '';
@@ -129,7 +117,6 @@
     if (!a || (!a.name && !a.detail)) return '';
     return [a.name, a.phone, [a.province, a.city, a.district].filter(Boolean).join(''), a.detail, a.postal].filter(Boolean).join('\n');
   }
-  // 美化的地址分组：姓名 / 电话 / 地址各一行带图标
   function addrRowsMarkup(a) {
     const regParts = [a.province, a.city, a.district].filter(Boolean);
     const region = regParts.join(' · ');
@@ -142,9 +129,13 @@
     return '<div class="addr-list">' + rows.join('') + '</div>';
   }
   function showErr(title, hint) {
-    const el = document.getElementById('err');
-    el.style.display = 'block';
-    el.innerHTML = '<div class="em">🔒</div><h1>' + esc(title || '链接无效') + '</h1><p class="lead">' + (hint || '请使用完整的专属链接访问本页') + '</p>';
+    const err = document.getElementById('err');
+    const viewport = document.getElementById('viewport');
+    const tabbar = document.getElementById('tabbar');
+    if (viewport) viewport.style.display = 'none';
+    if (tabbar) tabbar.style.display = 'none';
+    err.style.display = 'block';
+    err.innerHTML = '<div class="em">🔒</div><h1>' + esc(title || '链接无效') + '</h1><p class="lead">' + (hint || '请使用完整的专属链接访问本页') + '</p>';
   }
 
   async function load() {
@@ -156,7 +147,6 @@
       const { data: sd, error: e2 } = await sb.rpc('my_shipments', { p_token: TOKEN });
       if (e2) { showErr('加载失败', '物流信息加载失败，请稍后刷新重试。'); return; }
       PARTNER = pd.partner; SHIPS = ((sd && sd.shipments) || []).map(normShip);
-      // 福利社群动态：使用每天自动生成的模拟热闹数据（日期/名字每日更新）
       const wall = generateWallData();
       WALL_FEED = wall.feed;
       WALL_STATS = wall.stats;
@@ -164,17 +154,15 @@
     } catch (e) { showErr('网络异常', '请检查网络后刷新重试。'); }
   }
 
-  function render() {
-    const p = PARTNER, a = p.address || {}, addr = addrText(a);
-    const lastSeen = Number(p.lastSeenAt) || 0;
-    const unseen = SHIPS.filter(s => {
-      const t = (s.trackingAddedAt || s.createdAt) ? new Date(s.trackingAddedAt || s.createdAt).getTime() : 0;
-      return t > lastSeen;
-    }).length;
-    const notifyHtml = unseen > 0
-      ? `<div class="notify-banner">🎁 你有 <b>${unseen}</b> 件新礼品动态！福利派送官已为你寄出，下拉查看物流动态～</div>`
-      : '';
-    const ships = SHIPS.length ? SHIPS.map(s => {
+  function switchTab(name) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+    const viewport = document.getElementById('viewport');
+    if (viewport) viewport.scrollTop = 0;
+  }
+
+  function buildShipsHtml() {
+    return SHIPS.length ? SHIPS.map(s => {
       const logs = (s.logs || []).map(l => `<div class="it"><div class="dot" style="background:${SHIP_COLOR[l.status] || '#FF6B5C'}"></div>
         <div><div class="tt">${esc(l.desc)}</div><div class="ta">${SHIP_STATUS[l.status] || ''} · ${fmtTime(l.time)}</div></div></div>`).join('') || '<div style="color:#9AA0AD;font-size:13px">暂无轨迹</div>';
       const trackNo = s.trackingNo || '';
@@ -206,37 +194,14 @@
         <div class="tl${collapseCls}">${logs}</div>
       </div>`;
     }).join('') : '<div style="text-align:center;color:#9AA0AD;font-size:13px;padding:14px">还没有收到礼品发货～</div>';
+  }
 
-    const feedHtml = WALL_FEED.length ? WALL_FEED.map(f => {
-      const name = f.partner_name || '某位伙伴';
-      const gift = f.gift_name || f.product_title || '礼品';
-      return `<div class="wall-item">
-        <div class="av" style="background:${avColorMe(name)}">${esc(name.slice(0, 1))}</div>
-        <div class="wi-body">
-          <div class="wi-text">模特 <b>${esc(name)}</b> · ${fmtWallDate(f.created_at)} 收到了 <b>${esc(gift)}</b></div>
-          <div class="wi-meta">${SHIP_STATUS[f.status] || ''}</div>
-        </div>
-      </div>`;
-    }).join('') : '<div class="wall-empty">还没有送礼记录，敬请期待 🎀</div>';
-
-    const wallHtml = `
-      <div class="me-card wall">
-        <div class="block-title">🎉 福利社群动态</div>
-        <div class="wall-stats">
-          <div class="ws"><div class="n">${WALL_STATS.total_sent}</div><div class="l">已送出礼品</div></div>
-          <div class="ws"><div class="n">${WALL_STATS.total_receivers}</div><div class="l">位伙伴已收到</div></div>
-          <div class="ws"><div class="n" style="color:#2BB673">${WALL_STATS.total_signed}</div><div class="l">已签收</div></div>
-        </div>
-        <div class="wall-feed">${feedHtml}</div>
-        <div class="wall-tip">每一份小礼物，都是我们想离你更近一点 ❤️</div>
-      </div>`;
-
-    // ---- 专属福利概览 ----
+  function buildOverviewHtml() {
     const now = new Date(), y = now.getFullYear(), m = now.getMonth();
     const monthSigned = SHIPS.filter(s => s.status === 'signed' && (() => { const d = new Date(s.createdAt); return d.getFullYear() === y && d.getMonth() === m; })()).length;
     const pendingCount = SHIPS.filter(s => s.status !== 'signed').length;
     const totalValue = SHIPS.filter(s => s.status === 'signed').reduce((a, s) => a + (Number(s.value) || 0), 0);
-    const overviewHtml = `
+    return `
       <div class="me-card overview-card">
         <div class="block-title">📊 我的福利概览</div>
         <div class="ov-grid">
@@ -245,30 +210,20 @@
           <div class="ov"><div class="n" style="color:#FF6B5C">¥${totalValue}</div><div class="l">累计福利价值</div></div>
         </div>
       </div>`;
+  }
 
-    // ---- 一级入口：返款公示 ----
-    const rebateEntryHtml = `
-      <a class="entry-card" href="rebate/" target="_blank">
-        <div class="entry-icon" style="background:linear-gradient(135deg,#FF9975,#FF7091)">💰</div>
-        <div class="entry-body">
-          <div class="entry-title">模特返款公示台</div>
-          <div class="entry-desc">查看实时返款动态、达人榜，查询我的返款进度与凭证</div>
-        </div>
-        <span class="entry-arrow">›</span>
-      </a>`;
+  function renderHome() {
+    const p = PARTNER, a = p.address || {}, addr = addrText(a);
+    const lastSeen = Number(p.lastSeenAt) || 0;
+    const unseen = SHIPS.filter(s => {
+      const t = (s.trackingAddedAt || s.createdAt) ? new Date(s.trackingAddedAt || s.createdAt).getTime() : 0;
+      return t > lastSeen;
+    }).length;
+    const notifyHtml = unseen > 0
+      ? `<div class="notify-banner">🎁 你有 <b>${unseen}</b> 件新礼品动态！福利派送官已为你寄出，下拉查看物流动态～</div>`
+      : '';
 
-    // ---- 一级入口：互动福利（签到/邀请/图鉴） ----
-    const welfareEntryHtml = `
-      <a class="entry-card" href="welfare.html?t=${encodeURIComponent(TOKEN)}">
-        <div class="entry-icon" style="background:linear-gradient(135deg,#7C6CF0,#FF6B5C)">🎁</div>
-        <div class="entry-body">
-          <div class="entry-title">互动福利中心</div>
-          <div class="entry-desc">每日签到领积分、邀请模特好友、查看网拍平台图鉴</div>
-        </div>
-        <span class="entry-arrow">›</span>
-      </a>`;
-
-    document.getElementById('app').innerHTML = `
+    document.getElementById('view-home').innerHTML = `
       ${notifyHtml}
       <div class="me-card">
         <div class="hero">
@@ -280,13 +235,11 @@
           </div>
         </div>
       </div>
-      ${overviewHtml}
+      ${buildOverviewHtml()}
       <div class="me-card">
         <div class="addr-head">
           <div class="addr-title">收件地址</div>
-          ${addr
-            ? '<span class="addr-badge set">✓ 已设置</span>'
-            : '<span class="addr-badge unset">待完善</span>'}
+          ${addr ? '<span class="addr-badge set">✓ 已设置</span>' : '<span class="addr-badge unset">待完善</span>'}
         </div>
         ${addr
           ? `${addrRowsMarkup(a)}
@@ -308,21 +261,73 @@
       </div>
       <div class="me-card">
         <div class="ship-head-row" id="ship-head-row">
-          <div class="block-title">🚚 我的礼品与物流 <span style="font-size:12px;color:var(--gray);font-weight:normal;margin-left:6px">共 ${SHIPS.length} 件</span></div>
+          <div class="block-title">🚚 我的礼品与物流 <span style="font-size:12px;color:#9AA0AD;font-weight:normal;margin-left:6px">共 ${SHIPS.length} 件</span></div>
           <span class="ship-fold-btn" id="ship-fold-btn">收起</span>
         </div>
-        <div class="ship-list" id="ship-list">${ships}</div>
+        <div class="ship-list" id="ship-list">${buildShipsHtml()}</div>
       </div>
-      ${wallHtml}
-      ${rebateEntryHtml}
-      ${welfareEntryHtml}
       <div class="note">本页仅你本人可通过专属链接访问 · 信息仅用于福利发放</div>`;
+  }
 
-    document.getElementById('edit-addr').addEventListener('click', () => {
-      document.getElementById('addr-form').style.display = 'block';
-      document.getElementById('edit-addr').style.display = 'none';
-    });
-    document.getElementById('save-addr').addEventListener('click', saveAddr);
+  function renderFeed() {
+    const feedHtml = WALL_FEED.length ? WALL_FEED.map(f => {
+      const name = f.partner_name || '某位伙伴';
+      const gift = f.gift_name || f.product_title || '礼品';
+      return `<div class="wall-item">
+        <div class="av" style="background:${avColorMe(name)}">${esc(name.slice(0, 1))}</div>
+        <div class="wi-body">
+          <div class="wi-text">模特 <b>${esc(name)}</b> · ${fmtWallDate(f.created_at)} 收到了 <b>${esc(gift)}</b></div>
+          <div class="wi-meta">${SHIP_STATUS[f.status] || ''}</div>
+        </div>
+      </div>`;
+    }).join('') : '<div class="wall-empty">还没有送礼记录，敬请期待 🎀</div>';
+
+    document.getElementById('view-feed').innerHTML = `
+      <div class="me-card wall">
+        <div class="block-title">🎉 福利社群动态</div>
+        <div class="wall-stats">
+          <div class="ws"><div class="n">${WALL_STATS.total_sent}</div><div class="l">已送出礼品</div></div>
+          <div class="ws"><div class="n">${WALL_STATS.total_receivers}</div><div class="l">位伙伴已收到</div></div>
+          <div class="ws"><div class="n" style="color:#2BB673">${WALL_STATS.total_signed}</div><div class="l">已签收</div></div>
+        </div>
+        <div class="wall-feed">${feedHtml}</div>
+        <div class="wall-tip">每一份小礼物，都是我们想离你更近一点 ❤️</div>
+      </div>
+      <div class="note">每日更新 · 真实物流状态同步</div>`;
+  }
+
+  function renderRebate() {
+    document.getElementById('view-rebate').innerHTML = `
+      <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
+        <div class="iframe-wrap">
+          <iframe src="rebate/?v=6" title="返款公示台" allow="clipboard-write"></iframe>
+        </div>
+      </div>`;
+  }
+
+  function renderWelfare() {
+    document.getElementById('view-welfare').innerHTML = `
+      <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
+        <div class="iframe-wrap">
+          <iframe src="welfare.html?t=${encodeURIComponent(TOKEN)}" title="互动福利中心" allow="clipboard-write"></iframe>
+        </div>
+      </div>`;
+  }
+
+  function bindEvents() {
+    // 编辑地址
+    const editAddr = document.getElementById('edit-addr');
+    if (editAddr) {
+      editAddr.addEventListener('click', () => {
+        document.getElementById('addr-form').style.display = 'block';
+        editAddr.style.display = 'none';
+      });
+    }
+    // 保存地址
+    const saveAddrBtn = document.getElementById('save-addr');
+    if (saveAddrBtn) saveAddrBtn.addEventListener('click', saveAddr);
+
+    // 复制快递单号
     document.querySelectorAll('.track-copy').forEach(btn => {
       btn.addEventListener('click', () => {
         const no = btn.dataset.no || '';
@@ -336,6 +341,7 @@
         }
       });
     });
+
     // 整个礼品物流卡片一键折叠/展开
     const shipHeadRow = document.getElementById('ship-head-row');
     const shipList = document.getElementById('ship-list');
@@ -347,6 +353,7 @@
         shipFoldBtn.textContent = shipList.classList.contains('collapsed') ? '展开' : '收起';
       });
     }
+
     // 物流轨迹折叠/展开
     document.querySelectorAll('.ship-head[data-toggle="tl"]').forEach(head => {
       head.addEventListener('click', () => {
@@ -358,7 +365,18 @@
         head.classList.toggle('collapsed');
       });
     });
-    // 标记已读（站内通知）：本次渲染已展示未读横幅，随后更新 last_seen_at，下次访问即不再提示
+  }
+
+  function render() {
+    document.getElementById('err').style.display = 'none';
+    document.getElementById('viewport').style.display = 'block';
+    document.getElementById('tabbar').style.display = 'flex';
+    renderHome();
+    renderFeed();
+    renderRebate();
+    renderWelfare();
+    bindEvents();
+    switchTab('home');
     Api.touchSeen(TOKEN);
   }
 
@@ -381,6 +399,13 @@
       else alert('保存失败，请重试');
     } catch (e) { alert(e.message || '网络异常，请稍后重试'); }
   }
+
+  // Tab 切换
+  document.getElementById('tabbar').addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    switchTab(tab.dataset.tab);
+  });
 
   load();
 })();
