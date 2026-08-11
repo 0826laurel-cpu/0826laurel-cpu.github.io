@@ -78,7 +78,7 @@
           <div class="group-head">
             <span class="g-ico model">👤</span>
             <h3>模特信息</h3>
-            <span class="opt">仅福利派送官可见</span>
+            <span class="opt">任填一平台即可</span>
           </div>
           <div class="field"><label>模特平台<span class="req">*</span></label>
             <div class="field-input"><span class="ico">🌐</span><input id="j-platform" placeholder="如：集美、多彩、猫当 等"></div>
@@ -89,7 +89,7 @@
           <div class="field">
             <label>微信号<span class="req">*</span></label>
             <div class="group-tip"><span class="ti">💡</span><div><b>方便必要时联系</b>（订单沟通、地址异常、退换等），福利派送官一对一添加，不会打扰。</div></div>
-            <div class="field-input"><span class="ico">💬</span><input id="j-wechat" placeholder="你的微信号，方便我们加你"></div>
+            <div class="field-input"><span class="ico">💬</span><input id="j-wechat" placeholder="你的微信号，方便必要时联系"></div>
           </div>
           <div class="field"><label>想对我们的话（选填）</label>
             <div class="field-input"><span class="ico">✨</span><textarea id="j-note" placeholder="你的偏好、生日、想要的…"></textarea></div>
@@ -104,7 +104,7 @@
           <div class="group-head">
             <span class="g-ico addr">📦</span>
             <h3>收件信息</h3>
-            <span class="opt">仅用于寄送福利</span>
+            <span class="opt">用于发货物流同步</span>
           </div>
           <div class="field"><label>收货人<span class="req">*</span></label>
             <div class="field-input"><span class="ico">🧑</span><input id="a-name" placeholder="你的姓名"></div>
