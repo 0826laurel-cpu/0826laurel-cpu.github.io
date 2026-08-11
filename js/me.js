@@ -145,13 +145,13 @@
     if (!TOKEN) { showErr('链接无效', '链接里没有 token。请使用完整的专属链接（应形如 ' + location.origin + '/me.html?t=...）。'); return; }
     if (TOKEN === 'TOKEN' || !/^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(TOKEN)) { showErr('链接无效', '链接里的 token 不正确（看到了占位符 "TOKEN" 或格式不对）。请使用你收到的<b>真实</b>专属链接，<b>不要手动修改链接</b>。'); return; }
     if (typeof window.sb === 'undefined' || !window.sb || typeof window.sb.rpc !== 'function') {
-      showErr('客户端加载失败', 'Supabase 客户端没有初始化成功，通常是脚本加载被浏览器拦截或网络不稳定。请检查网络、关闭广告拦截插件后重试。', 'window.sb=' + (typeof window.sb) + ' sb.rpc=' + (window.sb && typeof window.sb.rpc));
+      showErr('客户端加载失败', 'Supabase 客户端没有初始化成功，通常是脚本加载被浏览器拦截或网络不稳定。请检查网络、关闭广告拦截插件后重试。', 'window.sb=' + (typeof window.sb) + ' window.sb.rpc=' + (window.sb && typeof window.sb.rpc));
       return;
     }
     try {
-      const { data: pd, error: e1 } = await sb.rpc('get_my_partner', { p_token: TOKEN });
+      const { data: pd, error: e1 } = await window.sb.rpc('get_my_partner', { p_token: TOKEN });
       if (e1 || !pd || !pd.ok) { showErr('链接无效', '找不到对应的伙伴记录。可能链接已失效，请联系福利派送官重新发送你的专属链接。' + (e1 ? ' (' + esc(e1.message || e1) + ')' : '')); return; }
-      const { data: sd, error: e2 } = await sb.rpc('my_shipments', { p_token: TOKEN });
+      const { data: sd, error: e2 } = await window.sb.rpc('my_shipments', { p_token: TOKEN });
       if (e2) { showErr('加载失败', '物流信息加载失败，请稍后刷新重试。' + (e2.message ? ' (' + esc(e2.message) + ')' : '')); return; }
       PARTNER = pd.partner; SHIPS = ((sd && sd.shipments) || []).map(normShip);
       const wall = generateWallData();
@@ -404,7 +404,7 @@
       postal: document.getElementById('a-postal').value.trim()
     };
     try {
-      const { data, error } = await sb.rpc('update_my_partner_addr', { p_token: TOKEN, p_address: address });
+      const { data, error } = await window.sb.rpc('update_my_partner_addr', { p_token: TOKEN, p_address: address });
       if (error) throw new Error(error.message);
       if (data && data.ok) { alert('地址已保存 ✅'); load(); }
       else alert('保存失败，请重试');
