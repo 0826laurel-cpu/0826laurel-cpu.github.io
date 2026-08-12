@@ -323,9 +323,12 @@
       border-radius: 18px; overflow: hidden;
       background: #fff; border: 1px solid #FFE3DC;
       box-shadow: 0 8px 22px rgba(255,107,92,.10);
-      transition: height .2s ease;
+      contain: layout paint;
     }
-    .iframe-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
+    .iframe-wrap iframe {
+      width: 100%; height: 100%; border: none; display: block;
+      -webkit-transform: translateZ(0); transform: translateZ(0);
+    }
 
     /* === 底部 Tab 导航 === */
     .tabbar {
@@ -391,7 +394,7 @@
   <script src="vendor/supabase.js"></script>
   <script src="js/sb.js"></script>
   <script src="js/api.js?v=3"></script>
-  <script src="js/app-page.js?v=1&cb=1738153858000"></script>
+  <script src="js/app-page.js?v=2&cb=1738155262000"></script>
   <script>
     // 一次性清理：注销任何残留 service worker，防止它拦截并返回旧的 me.js
     if ('serviceWorker' in navigator) {

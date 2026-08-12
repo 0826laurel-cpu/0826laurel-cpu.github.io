@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>模特返款公示台</title>
-<link rel="stylesheet" href="css/style.css?v=11">
+<link rel="stylesheet" href="css/style.css?v=12">
 </head>
-<body>
+<body style="overflow:hidden">
 <div class="wrap">
 
   <div class="hero">
@@ -59,13 +59,26 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js?v=6"></script>
-<script src="js/app.js?v=9"></script>
+<script src="js/app.js?v=10"></script>
 <script>
 (function(){
-  function report(){ if(window.parent!==window) window.parent.postMessage({type:'setHeight',page:'rebate',height:document.body.scrollHeight},'*'); }
+  let lastH = 0;
+  function report(){
+    if(window.parent===window) return;
+    const h = document.body.scrollHeight;
+    if (Math.abs(h - lastH) <= 2) return;
+    lastH = h;
+    window.parent.postMessage({type:'setHeight',page:'rebate',height:h},'*');
+  }
   window.addEventListener('load',report);
   window.addEventListener('resize',report);
-  setInterval(report,500);
+  if ('ResizeObserver' in window) {
+    var ro = new ResizeObserver(function(){ report(); });
+    ro.observe(document.body);
+  } else {
+    setInterval(report,800);
+  }
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) report(); });
 })();
 </script>
 </body>

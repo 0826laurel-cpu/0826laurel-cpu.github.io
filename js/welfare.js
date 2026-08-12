@@ -45,7 +45,7 @@
         <div class="redeem-title">积分好礼</div>
         <div class="redeem-list">
           <div class="rd" data-cost="100" data-item="小号礼品盲盒">
-            <img class="rd-img" src="img/box-small.jpg" alt="小号礼品盲盒">
+            <img class="rd-img" src="img/box-small.jpg" alt="小号礼品盲盒" width="64" height="64" loading="lazy" decoding="async">
             <div class="rd-body">
               <div class="rd-name">小号礼品盲盒</div>
               <div class="rd-sub">随机惊喜小礼</div>
@@ -53,7 +53,7 @@
             </div>
           </div>
           <div class="rd" data-cost="200" data-item="中号礼品盲盒">
-            <img class="rd-img" src="img/box-medium.jpg" alt="中号礼品盲盒">
+            <img class="rd-img" src="img/box-medium.jpg" alt="中号礼品盲盒" width="64" height="64" loading="lazy" decoding="async">
             <div class="rd-body">
               <div class="rd-name">中号礼品盲盒</div>
               <div class="rd-sub">诚意满满好礼</div>
@@ -61,7 +61,7 @@
             </div>
           </div>
           <div class="rd" data-cost="300" data-item="大号礼品盲盒">
-            <img class="rd-img" src="img/box-large.jpg" alt="大号礼品盲盒">
+            <img class="rd-img" src="img/box-large.jpg" alt="大号礼品盲盒" width="64" height="64" loading="lazy" decoding="async">
             <div class="rd-body">
               <div class="rd-name">大号礼品盲盒</div>
               <div class="rd-sub">超值惊喜大礼</div>

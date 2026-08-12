@@ -9,7 +9,7 @@
     html, body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: linear-gradient(160deg, #FFE9E0, #FFF1F3); color: #20232E; }
     html { scrollbar-width: none; -ms-overflow-style: none; }
     html::-webkit-scrollbar { display: none; width: 0; height: 0; }
-    body { overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+    body { overflow: hidden; scrollbar-width: none; -ms-overflow-style: none; }
     body::-webkit-scrollbar { display: none; width: 0; height: 0; }
     .welfare-wrap { max-width: 430px; margin: 0 auto; min-height: 100vh; padding: 44px 12px; }
     .me-card { background: #fff; border-radius: 22px; padding: 22px 20px; box-shadow: 0 10px 30px rgba(255,107,92,.12); margin-bottom: 16px; }
@@ -82,13 +82,26 @@
   <script src="config.js"></script>
   <script src="vendor/supabase.js"></script>
   <script src="js/sb.js"></script>
-  <script src="js/welfare.js?v=8"></script>
+  <script src="js/welfare.js?v=9"></script>
   <script>
   (function(){
-    function report(){ if(window.parent!==window) window.parent.postMessage({type:'setHeight',page:'welfare',height:document.body.scrollHeight},'*'); }
+    let lastH = 0;
+    function report(){
+      if(window.parent===window) return;
+      const h = document.body.scrollHeight;
+      if (Math.abs(h - lastH) <= 2) return;
+      lastH = h;
+      window.parent.postMessage({type:'setHeight',page:'welfare',height:h},'*');
+    }
     window.addEventListener('load',report);
     window.addEventListener('resize',report);
-    setInterval(report,500);
+    if ('ResizeObserver' in window) {
+      var ro = new ResizeObserver(function(){ report(); });
+      ro.observe(document.body);
+    } else {
+      setInterval(report,800);
+    }
+    document.addEventListener('visibilitychange',function(){ if(!document.hidden) report(); });
   })();
   </script>
 </body>
