@@ -418,6 +418,28 @@
     .tl .ta { font-size: 11px; color: #9AA0AD; margin-top: 2px; }
 
     #loading { text-align: center; color: #9AA0AD; font-size: 13px; padding: 60px 0; }
+
+    /* ========== 登录 / 注册 切换 ========== */
+    .auth-tabs { display: flex; gap: 10px; margin: 2px 0 16px; }
+    .auth-tab {
+      flex: 1; padding: 13px 10px;
+      border: none; border-radius: 16px;
+      background: rgba(255,255,255,.7);
+      color: #9AA0AD; font-size: 15px; font-weight: 700;
+      box-shadow: 0 6px 18px rgba(255,107,92,.08);
+      cursor: pointer;
+      transition: all .18s ease;
+    }
+    .auth-tab.active {
+      background: linear-gradient(135deg,#FF9975 0%,#FF7091 100%);
+      color: #fff;
+      box-shadow: 0 10px 22px rgba(255,112,145,.32);
+    }
+    .card-sub {
+      font-size: 13px; font-weight: 700; color: #C2410C;
+      margin: 16px 0 10px; padding-top: 14px;
+      border-top: 1px dashed #FFD9CC;
+    }
   </style>
 </head>
 <body>
@@ -428,6 +450,6 @@
   <script src="config.js"></script>
   <script src="vendor/supabase.js"></script>
   <script src="js/sb.js"></script>
-  <script src="js/join.js?v=30"></script>
+  <script src="js/join.js?v=31"></script>
 </body>
 </html>

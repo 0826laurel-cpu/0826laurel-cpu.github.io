@@ -357,6 +357,14 @@
     .tab .ti { width: 22px; height: 22px; line-height: 1; }
     .tab .tl { font-size: 10px; font-weight: 500; margin-top: 1px; }
     .tab.on .tl { font-weight: 700; }
+    .me-logout {
+      position: fixed; right: 14px; bottom: 78px; z-index: 60;
+      font-size: 12px; color: #fff; text-decoration: none;
+      background: rgba(32,35,46,.82); border-radius: 999px;
+      padding: 7px 13px; box-shadow: 0 4px 14px rgba(0,0,0,.2);
+      backdrop-filter: blur(6px);
+    }
+    .me-logout:active { transform: scale(.96); }
   </style>
 </head>
 <body>
@@ -397,6 +405,17 @@
   <script src="js/api.js?v=3"></script>
   <div class="toast-mini" id="toast-mini"></div>
   <script src="js/app-page.js?v=6"></script>
+  <a class="me-logout" id="me-logout" href="#">退出</a>
+  <script>
+    (function () {
+      var el = document.getElementById('me-logout');
+      if (el) el.addEventListener('click', function (e) {
+        e.preventDefault();
+        try { localStorage.removeItem('p_token'); } catch (err) {}
+        location.replace(location.origin + '/join.html');
+      });
+    })();
+  </script>
   <script>
     // 一次性清理：注销任何残留 service worker，防止它拦截并返回旧的 me.js
     if ('serviceWorker' in navigator) {
