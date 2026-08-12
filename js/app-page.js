@@ -205,6 +205,8 @@
       const { data: sd, error: e2 } = await window.sb.rpc('my_shipments', { p_token: TOKEN });
       if (e2) { showErr('加载失败', '物流信息加载失败，请稍后刷新重试。' + (e2.message ? ' (' + esc(e2.message) + ')' : '')); return; }
       PARTNER = pd.partner; SHIPS = ((sd && sd.shipments) || []).map(normShip);
+      // 动态标题：让浏览器 Tab / 微信收藏名都变成「{名字}模特专属后台」
+      try { document.title = (PARTNER && PARTNER.name ? PARTNER.name + '模特专属后台' : '模特专属后台'); } catch (e) {}
       const wall = generateWallData();
       WALL_FEED = wall.feed;
       WALL_STATS = wall.stats;
@@ -296,7 +298,7 @@
         <div class="hero">
           <div class="hero-icon">🎁</div>
           <div class="hero-body">
-            <h1>${esc(p.name)} 的模特专属福利页</h1>
+            <h1>${esc(p.name)}模特专属后台</h1>
             <div class="lead">这是你的私人福利空间 —— 填好收件地址，就能第一时间收到福利派送官亲自寄出的小礼物，并实时查看物流动态～</div>
             <div class="hero-meta"><span class="pulse"></span>福利派送官亲自寄出 · 智能物流同步</div>
           </div>
