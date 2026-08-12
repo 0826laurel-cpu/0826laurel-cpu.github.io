@@ -141,6 +141,78 @@
     .addr-row.full .ico { margin-top: 1px; }
     .addr-row.full .text { line-height: 1.55; }
 
+    /* === 收款码（支付宝）模块 === */
+    .payout-qr {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px dashed #EDEDF0;
+    }
+    .payout-qr-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .payout-qr-head .title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 800; color: #20232E;
+    }
+    .payout-qr-head .title .em {
+      width: 26px; height: 26px; border-radius: 8px;
+      background: linear-gradient(135deg,#1677FF,#00B6FF);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700;
+    }
+    .payout-qr-head .hint {
+      font-size: 11px; color: #9AA0AD; font-weight: 500;
+    }
+    .payout-qr-body {
+      display: flex; align-items: center; gap: 14px;
+    }
+    .payout-qr-thumb {
+      width: 96px; height: 96px; border-radius: 14px;
+      border: 1.5px solid #EDEDF0; background: #FAFBFC;
+      overflow: hidden; flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .payout-qr-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .payout-qr-info { flex: 1; min-width: 0; }
+    .payout-qr-info .l1 { font-size: 13px; font-weight: 700; color: #20232E; margin-bottom: 4px; }
+    .payout-qr-info .l2 { font-size: 11px; color: #9AA0AD; line-height: 1.5; margin-bottom: 10px; }
+    .payout-qr-actions { display: flex; gap: 8px; }
+    .payout-qr-actions .btn-mini {
+      border: 1.5px solid #EDEDF0; background: #fff;
+      color: #5A5F6B; font-size: 12px; font-weight: 600;
+      padding: 6px 12px; border-radius: 10px; cursor: pointer;
+      transition: all .15s ease;
+    }
+    .payout-qr-actions .btn-mini:hover { border-color: #FF6B5C; color: #FF6B5C; }
+    .payout-qr-actions .btn-mini.danger:hover { border-color: #E14E4E; color: #E14E4E; }
+    .payout-qr-empty {
+      display: flex; align-items: center; gap: 14px;
+      background: linear-gradient(135deg, #FFF7EA, #FFEEF3);
+      border: 1.5px dashed #FFB6A8;
+      border-radius: 14px; padding: 14px;
+    }
+    .payout-qr-empty .ico {
+      width: 56px; height: 56px; border-radius: 14px;
+      background: #fff; border: 1px solid #FFE0CB;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; flex: 0 0 auto;
+    }
+    .payout-qr-empty .text { flex: 1; min-width: 0; }
+    .payout-qr-empty .text .l1 { font-size: 13px; font-weight: 700; color: #B83A4E; margin-bottom: 3px; }
+    .payout-qr-empty .text .l2 { font-size: 11px; color: #8A4D2E; line-height: 1.5; }
+    .payout-qr-empty .btn-up {
+      background: linear-gradient(135deg,#FF9975,#FF7091);
+      color: #fff; border: none; border-radius: 12px;
+      padding: 10px 16px; font-size: 13px; font-weight: 700;
+      cursor: pointer; box-shadow: 0 4px 10px rgba(255,112,145,.28);
+      transition: transform .15s ease;
+      flex: 0 0 auto;
+    }
+    .payout-qr-empty .btn-up:active { transform: scale(.97); }
+    .payout-qr-uploading { font-size: 12px; color: #FF6B5C; padding: 8px 0; text-align: center; }
+    .payout-qr-input { display: none; }
+
     /* 编辑地址按钮（更现代） */
     .btn-edit {
       display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -316,6 +388,6 @@
   <script src="vendor/supabase.js"></script>
   <script src="js/sb.js"></script>
   <script src="js/api.js?v=3"></script>
-  <script src="js/me.js?v=25"></script>
+  <script src="js/me.js?v=26"></script>
 </body>
 </html>

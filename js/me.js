@@ -18,6 +18,7 @@
     return s ? s.status : '';
   }
   let PARTNER = null, SHIPS = [], WALL_FEED = [], WALL_STATS = { total_sent: 0, total_receivers: 0, total_signed: 0 };
+  let PAYOUT_QR_URL = null;
 
   function fmtTime(ts) {
     if (!ts) return '';
@@ -137,6 +138,40 @@
     if (!rows.length) return '';
     return '<div class="addr-list">' + rows.join('') + '</div>';
   }
+
+  // 收款码模块（支付宝）
+  function payoutQrMarkup(addrSet) {
+    const has = !!PAYOUT_QR_URL;
+    const body = has
+      ? `<div class="payout-qr-body">
+           <div class="payout-qr-thumb"><img id="payout-qr-img" src="${esc(PAYOUT_QR_URL)}" alt="收款码"></div>
+           <div class="payout-qr-info">
+             <div class="l1">支付宝收款码已上传</div>
+             <div class="l2">仅福利派送官可见，方便后续打款</div>
+             <div class="payout-qr-actions">
+               <button class="btn-mini" id="payout-qr-replace">📷 替换</button>
+               <button class="btn-mini danger" id="payout-qr-clear">🗑 删除</button>
+             </div>
+           </div>
+         </div>`
+      : `<div class="payout-qr-empty">
+           <div class="ico">💳</div>
+           <div class="text">
+             <div class="l1">上传收款码</div>
+             <div class="l2">${addrSet ? '上传后我们后续打款就用这张' : '先填收件地址，再上传收款码，方便后续打款'}</div>
+           </div>
+           <button class="btn-up" id="payout-qr-upload">📤 上传</button>
+         </div>`;
+    return `<div class="payout-qr">
+      <div class="payout-qr-head">
+        <div class="title"><span class="em">支</span>收款码（支付宝）</div>
+        <div class="hint">${has ? '已设置' : '为后续打款'}</div>
+      </div>
+      ${body}
+      <input type="file" accept="image/jpeg,image/png,image/webp" class="payout-qr-input" id="payout-qr-input">
+      <div id="payout-qr-msg" class="payout-qr-uploading" style="display:none"></div>
+    </div>`;
+  }
   function showErr(title, hint, detail) {
     const err = document.getElementById('err');
     const viewport = document.getElementById('viewport');
@@ -166,6 +201,11 @@
       const wall = generateWallData();
       WALL_FEED = wall.feed;
       WALL_STATS = wall.stats;
+      // 收款码（支付宝）：独立 RPC，失败不阻塞主流程
+      try {
+        const qr = await window.sb.rpc('get_my_partner_payout_qr', { p_token: TOKEN });
+        if (qr && qr.data && qr.data.ok) PAYOUT_QR_URL = qr.data.payout_qr_url || null;
+      } catch (e) { /* SQL 未执行时静默忽略 */ }
       render();
     } catch (e) {
       const msg = (e && (e.message || e)) || '未知错误';
@@ -278,6 +318,7 @@
           <div class="field"><label>邮编（选填）</label><input id="a-postal" value="${esc(a.postal || '')}" placeholder="如：310000"></div>
           <button class="btn" id="save-addr">保存地址</button>
         </div>
+        ${payoutQrMarkup(addr)}
       </div>
       <div class="me-card">
         <div class="ship-head-row" id="ship-head-row">
@@ -352,6 +393,16 @@
     const saveAddrBtn = document.getElementById('save-addr');
     if (saveAddrBtn) saveAddrBtn.addEventListener('click', saveAddr);
 
+    // 收款码（支付宝）
+    const qrInput = document.getElementById('payout-qr-input');
+    const triggerQr = (fn) => { if (qrInput && fn) { qrInput.value = ''; qrInput.onchange = (e) => fn(e.target.files[0]); qrInput.click(); } };
+    const upBtn = document.getElementById('payout-qr-upload');
+    const replBtn = document.getElementById('payout-qr-replace');
+    const clrBtn = document.getElementById('payout-qr-clear');
+    if (upBtn) upBtn.addEventListener('click', () => triggerQr(handlePayoutQrSelect));
+    if (replBtn) replBtn.addEventListener('click', () => triggerQr(handlePayoutQrSelect));
+    if (clrBtn) clrBtn.addEventListener('click', clearPayoutQr);
+
     // 复制快递单号
     document.querySelectorAll('.track-copy').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -425,6 +476,99 @@
       if (data && data.ok) { alert('地址已保存 ✅'); load(); }
       else alert('保存失败，请重试');
     } catch (e) { alert(e.message || '网络异常，请稍后重试'); }
+  }
+
+  // ========== 收款码（支付宝） ==========
+  function payoutQrMsg(text, show = true) {
+    const el = document.getElementById('payout-qr-msg');
+    if (!el) return;
+    el.textContent = text;
+    el.style.display = show ? 'block' : 'none';
+  }
+
+  // 把图片压缩到最长边 1200px 并转 base64 dataURL（控制大小）
+  async function compressImageToDataUrl(file, maxDim = 1200, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+            else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          // jpeg 压缩更小；保留 PNG 走 png (二维码通常更小)
+          const isPng = (file.type || '').includes('png');
+          const dataUrl = canvas.toDataURL(isPng ? 'image/png' : 'image/jpeg', quality);
+          resolve(dataUrl);
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handlePayoutQrSelect(file) {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { alert('图片太大，请压缩到 8MB 以内再试'); return; }
+    payoutQrMsg('上传处理中…');
+    try {
+      const dataUrl = await compressImageToDataUrl(file);
+      if (dataUrl.length > 500000) {
+        // 二次压缩
+        const dataUrl2 = await compressImageToDataUrl(file, 900, 0.7);
+        if (dataUrl2.length > 500000) { alert('图片太大，请换张更小的图'); payoutQrMsg('', false); return; }
+        await savePayoutQrToServer(dataUrl2);
+      } else {
+        await savePayoutQrToServer(dataUrl);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('图片处理失败：' + (e.message || e));
+      payoutQrMsg('', false);
+    }
+  }
+
+  async function savePayoutQrToServer(dataUrl) {
+    payoutQrMsg('上传中…');
+    try {
+      const { data, error } = await window.sb.rpc('update_my_partner_payout_qr', {
+        p_token: TOKEN, p_payout_qr_url: dataUrl
+      });
+      if (error) throw new Error(error.message);
+      if (!data || !data.ok) throw new Error((data && data.error) || '保存失败');
+      PAYOUT_QR_URL = dataUrl;
+      payoutQrMsg('已上传 ✅');
+      setTimeout(() => { render(); bindEvents(); }, 600);
+    } catch (e) {
+      alert('上传失败：' + (e.message || e) + '\n\n请确认 Supabase 已执行 supabase_partner_payout_qr.sql');
+      payoutQrMsg('', false);
+    }
+  }
+
+  async function clearPayoutQr() {
+    if (!confirm('确定删除收款码？后续打款会受阻。')) return;
+    payoutQrMsg('删除中…');
+    try {
+      const { data, error } = await window.sb.rpc('update_my_partner_payout_qr', {
+        p_token: TOKEN, p_payout_qr_url: null
+      });
+      if (error) throw new Error(error.message);
+      if (!data || !data.ok) throw new Error((data && data.error) || '删除失败');
+      PAYOUT_QR_URL = null;
+      payoutQrMsg('已删除');
+      setTimeout(() => { render(); bindEvents(); }, 400);
+    } catch (e) {
+      alert('删除失败：' + (e.message || e));
+      payoutQrMsg('', false);
+    }
   }
 
   // Tab 切换
