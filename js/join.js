@@ -65,11 +65,10 @@
       <div class="hero">
         <div class="hero-icon">🎁</div>
         <h1>加入合作模特的专属福利圈</h1>
-        <p class="lead">填写收件信息后，发货后礼品信息会在此页面同步，可查询物流等</p>
+        <p class="lead">填写收件信息后，<br>发货后礼品信息会在此页面同步，<br>可查询物流等</p>
         <div class="hero-tags">
           <span class="hero-tag"><span class="pulse"></span>福利派送官亲自寄出</span>
           <span class="hero-tag">🎀 智能物流同步</span>
-          <span class="hero-tag">🔒 隐私受保护</span>
         </div>
       </div>
       ${REF ? `<div class="ref-banner">🎁 由邀请码 <b>${esc(REF)}</b> 的模特邀请你加入福利圈</div>` : ''}
@@ -198,7 +197,7 @@
       if (error) throw new Error(error.message);
       if (!data || !data.ok) throw new Error('提交失败，请稍后重试');
       localStorage.setItem(LS_KEY, data.token);
-      window.location.replace(location.origin + '/welfare.html?t=' + data.token);
+      window.location.replace(location.origin + '/me.html?t=' + data.token);
     } catch (e) {
       alert(e.message || '网络异常，请稍后重试');
       btn.disabled = false; btn.textContent = '提交并领取福利';
