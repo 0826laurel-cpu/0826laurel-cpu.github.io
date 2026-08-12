@@ -135,7 +135,7 @@
         </div>
 
         <button class="btn" id="j-submit">提交并领取福利 🎁</button>
-        <div class="note">提交后自动跳转到物流和活动页面</div>
+        <div class="note">提交后自动跳转到你的专属福利页 · 记得收藏专属链接，下次直接打开即可</div>
       </div>
 
       <!-- 一键粘贴识别 modal + toast（全局） -->
