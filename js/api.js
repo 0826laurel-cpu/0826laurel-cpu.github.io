@@ -23,6 +23,9 @@ function normPartner(r) {
     address: (r.address && typeof r.address === 'object') ? r.address : {},
     createdAt: toMs(r.created_at),
     updatedAt: toMs(r.updated_at),
+    // 模特平台 / ID（入驻时填写，name = platform·modelId）
+    platform: r.platform || '',
+    modelId: r.model_id || '',
     // 运营数据字段（福利概览/签到/邀请）
     inviteCode: r.invite_code || '',
     invitedBy: r.invited_by || '',
@@ -259,6 +262,72 @@ const Api = {
     const { data, error } = await sb.functions.invoke('fetch-pdd', { body: payload });
     if (error) throw new Error(error.message || '函数调用失败');
     return data;
+  },
+
+  // ---- 返款管理（rebate）----
+  async checkRebateAdmin(pw) {
+    const { data, error } = await sb.rpc('admin_check_pw', { p_admin_pw: pw });
+    if (error) throw new Error(error.message);
+    return data === true;
+  },
+  async listRebatesPending(pw) {
+    const { data, error } = await sb.rpc('admin_pending_list', { p_admin_pw: pw });
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+  async listRebatesPaid(pw) {
+    const { data, error } = await sb.rpc('admin_paid_list', { p_admin_pw: pw });
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+  async addRebate(pw, b) {
+    const { data, error } = await sb.rpc('admin_add_rebate', {
+      p_admin_pw: pw,
+      p_model_code: b.modelCode || '',
+      p_model_mask: b.modelMask || '',
+      p_model_id: b.modelId || '',
+      p_order_no: b.orderNo || '',
+      p_item: b.item || '',
+      p_amount: Number(b.amount) || 0,
+      p_rebate_date: b.rebateDate || null,
+      p_expected_rebate_date: b.expectedDate || null,
+      p_status: b.status || '已返',
+      p_voucher_url: b.voucherUrl || null
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+  async getRebatesByCode(code) {
+    const { data, error } = await sb.rpc('get_my_rebates', { p_code: code });
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+  async uploadRebateVoucher(file) {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `voucher/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { data: upData, error: upError } = await sb.storage.from('rebate-vouchers').upload(path, file, {
+      contentType: file.type,
+      upsert: true
+    });
+    if (upError) throw new Error(upError.message);
+    const { data: urlData } = sb.storage.from('rebate-vouchers').getPublicUrl(path);
+    return urlData.publicUrl;
+  },
+  // 返款公示页数据
+  async rebatePublicStats() {
+    const { data, error } = await sb.rpc('public_stats');
+    if (error) throw new Error(error.message);
+    return data;
+  },
+  async rebatePublicFeed(limit) {
+    const { data, error } = await sb.rpc('public_feed', { p_limit: limit || 30 });
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+  async rebatePublicLeaderboard(limit) {
+    const { data, error } = await sb.rpc('public_leaderboard', { p_limit: limit || 10 });
+    if (error) throw new Error(error.message);
+    return data || [];
   }
 };
 

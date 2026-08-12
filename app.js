@@ -3,8 +3,14 @@ let DB = { partners: [], gifts: [], shipments: [] };
 let STATS = null;
 let DASH = null;
 let filterTier = 'all';
+let filterCity = 'all';
 let searchQ = '';
 let charts = {};
+
+// 返款模块状态（内存，不持久化）
+let REBATE_PW = '';
+let REBATE_LOGGED_IN = false;
+let REBATE_TAB = 'form'; // form | pending | paid | public
 
 const TIER_LABEL = { vip: 'VIP', core: '核心', normal: '普通', sleep: '待激活', new: '新提交' };
 const TIER_COLOR = { vip: '#FF6B5C', core: '#7C6CF0', normal: '#FFB36B', sleep: '#9AA0AD', new: '#FF8FA3' };
@@ -50,6 +56,41 @@ function fmtDate(ts) {
   if (isNaN(d.getTime())) return '';
   const pad = n => String(n).padStart(2, '0');
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+function fmtHomeDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  const isYesterday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate() - 1;
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const base = `${d.getMonth() + 1}月${d.getDate()}日 ${weekdays[d.getDay()]}`;
+  if (isToday) return `今天 · ${base}`;
+  if (isYesterday) return `昨天 · ${base}`;
+  return base;
+}
+function fmtDateTime(t) {
+  const d = new Date(t);
+  if (isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+function partnerModelText(p) {
+  if (p.platform && p.modelId) return `${esc(p.platform)} · ${esc(p.modelId)}`;
+  if (p.modelId) return `模特ID：${esc(p.modelId)}`;
+  if (p.platform) return esc(p.platform);
+  return esc(p.name || '');
+}
+function partnerCity(p) {
+  const a = p.address || {};
+  const city = a.city || a.province || '';
+  return city || '未填城市';
+}
+function money(n) { return '¥' + Number(n || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 }); }
+function rebateMaskName(name) {
+  if (!name || name.length <= 1) return name || '*';
+  return name[0] + '*'.repeat(name.length - 1);
 }
 
 // 兼容层：把旧的 /api/... 路径映射到新的 Supabase Api（渲染逻辑无需改动）
@@ -163,6 +204,7 @@ function renderAll() {
   safe(renderMe);
   safe(renderWool);
   safe(renderOps);
+  safe(renderRebate);
 }
 
 function renderStats() {
@@ -183,18 +225,34 @@ function dynamicGreeting() {
 }
 
 function renderHome() {
-  const need = DB.partners
-    .filter(p => p.status === 'new' || p.source === 'self' || !p.lastContact)
-    .slice(0, 4);
-  const todos = need.length ? need.map(p => `
-    <div class="card todo" data-act="detail" data-id="${p.id}">
-      <div class="av" style="background:${avColor(p.tier, p.name)}">${esc((p.name || '?').slice(0, 1))}</div>
-      <div class="info">
-        <div class="nm">${esc(p.name)} · ${p.source === 'self' ? '新入驻待联系' : (p.note || '该联系啦')}</div>
-        <div class="tg">${p.tier === 'new' ? '新提交' : TIER_LABEL[p.tier] || ''} · ${p.lastContact || '尚未联系'}</div>
-      </div>
-      <button class="btn-sm" data-act="detail" data-id="${p.id}">联系</button>
-    </div>`).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">暂时没有待联系的伙伴 🎉</div>`;
+  // 按入驻日期分组：最近 14 天（或全部，若不足）
+  const dayMap = new Map();
+  const ps = DB.partners.slice().sort((a, b) => b.createdAt - a.createdAt);
+  const cutoff = Date.now() - 14 * 86400000;
+  ps.forEach(p => {
+    const d = new Date(p.createdAt);
+    if (isNaN(d.getTime())) return;
+    const ds = fmtDate(p.createdAt);
+    if (!ds) return;
+    const label = fmtHomeDate(p.createdAt);
+    if (!dayMap.has(ds)) dayMap.set(ds, { label, list: [] });
+    dayMap.get(ds).list.push(p);
+  });
+  const recentGroups = Array.from(dayMap.entries()).filter(([_, g]) => g.list.some(p => p.createdAt >= cutoff || ps.length <= 14));
+
+  const todos = recentGroups.length ? recentGroups.map(([ds, g]) => `
+    <div class="join-group">
+      <div class="join-date">${esc(g.label)} <span class="join-count">${g.list.length} 人</span></div>
+      ${g.list.map(p => `
+        <div class="join-row" data-act="detail" data-id="${p.id}">
+          <div class="av" style="background:${avColor(p.tier, p.name)}">${esc((p.name || '?').slice(0, 1))}</div>
+          <div class="info">
+            <div class="nm">${esc(p.name)} <span class="tag" style="background:${p.status === 'new' ? '#FFE3EA' : '#FFEAE5'};color:${p.status === 'new' ? '#FF7091' : '#FF6B5C'}">${STATUS_LABEL[p.status] || '新提交'}</span></div>
+            <div class="tg">${partnerModelText(p)} · ${partnerCity(p)} · ${p.tier === 'new' ? '新提交' : (TIER_LABEL[p.tier] || '')}</div>
+          </div>
+          <button class="btn-sm" data-act="detail" data-id="${p.id}">查看</button>
+        </div>`).join('')}
+    </div>`).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有伙伴入驻 🎉</div>`;
 
   const d = DASH || {};
   document.getElementById('view-home').innerHTML = `
@@ -225,10 +283,10 @@ function renderHome() {
       <div class="qa" data-act="add"><div class="ic" style="background:#FFEAE5">＋</div><div class="t">新增伙伴</div></div>
       <div class="qa" data-act="tab" data-tab="gift"><div class="ic" style="background:#FFF3E0">🎁</div><div class="t">发礼品</div></div>
       <div class="qa" data-act="tab" data-tab="interaction"><div class="ic" style="background:#E8EEFF">💬</div><div class="t">互动记录</div></div>
-      <div class="qa" data-act="rebate-admin"><div class="ic" style="background:#E8F5E9">💰</div><div class="t">返款后台</div></div>
-      <div class="qa" data-act="rebate-public"><div class="ic" style="background:#E3F2FD">📢</div><div class="t">返款公示</div></div>
+        <div class="qa" data-act="tab" data-tab="rebate"><div class="ic" style="background:#E8F5E9">💰</div><div class="t">返款后台</div></div>
+        <div class="qa" data-act="tab" data-tab="rebate" data-rebate="public"><div class="ic" style="background:#E3F2FD">📢</div><div class="t">返款公示</div></div>
     </div>
-    <div class="sec-title">今日待联系</div>
+    <div class="sec-title">按入驻日期查看</div>
     ${todos}`;
   // 填充统计数字
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -393,6 +451,284 @@ function renderOps() {
   });
 }
 
+// ---------- 返款管理 ----------
+function renderRebate() {
+  const box = document.getElementById('view-rebate');
+  if (!box) return;
+
+  if (!REBATE_LOGGED_IN) {
+    box.innerHTML = `
+      <div class="header">
+        <div class="row"><div class="hi">返款管理</div><div class="avatar">返</div></div>
+        <div class="sub">录入返款、查看待返/已返订单、同步返款公示</div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="field"><label>返款后台密码</label>
+          <input id="rebate-pw" type="password" placeholder="请输入返款后台密码">
+        </div>
+        <button class="btn-primary" id="rebate-login-btn">进入返款后台</button>
+        <div style="font-size:12px;color:var(--gray);margin-top:10px">密码与私域管理后台独立验证，仅本次会话有效</div>
+      </div>`;
+    const btn = document.getElementById('rebate-login-btn');
+    const input = document.getElementById('rebate-pw');
+    if (btn) btn.addEventListener('click', doRebateLogin);
+    if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') doRebateLogin(); });
+    return;
+  }
+
+  const tabs = [
+    ['form', '➕ 录入返款'],
+    ['pending', '⏳ 待返款'],
+    ['paid', '✅ 已返款'],
+    ['public', '📢 返款公示']
+  ];
+  const tabHtml = `<div class="chips" style="margin-bottom:14px">${tabs.map(([k, l]) =>
+    `<button class="chip ${REBATE_TAB === k ? 'on' : ''}" data-act="rebate-tab" data-tab="${k}">${l}</button>`).join('')}</div>`;
+
+  let body = '';
+  if (REBATE_TAB === 'form') body = rebateFormHtml();
+  else if (REBATE_TAB === 'pending') body = `<div class="rebate-list" id="rebate-pending-box"><div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载中…</div></div>`;
+  else if (REBATE_TAB === 'paid') body = `<div class="rebate-list" id="rebate-paid-box"><div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载中…</div></div>`;
+  else if (REBATE_TAB === 'public') body = `<div class="rebate-list" id="rebate-public-box"><div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载中…</div></div>`;
+
+  box.innerHTML = `
+    <div class="header">
+      <div class="row"><div class="hi">返款管理</div><div class="avatar">返</div></div>
+      <div class="sub">录入返款、查看待返/已返订单、同步返款公示</div>
+    </div>
+    ${tabHtml}
+    <div id="rebate-body">${body}</div>
+    <button class="btn-line" style="margin-top:10px" data-act="rebate-logout">退出返款后台</button>`;
+
+  // 绑定各子 tab 的专属逻辑
+  if (REBATE_TAB === 'form') bindRebateForm();
+  if (REBATE_TAB === 'pending') loadRebatePending();
+  if (REBATE_TAB === 'paid') loadRebatePaid();
+  if (REBATE_TAB === 'public') loadRebatePublic();
+}
+
+function rebateFormHtml(prefill = {}) {
+  const today = new Date().toISOString().slice(0, 10);
+  return `
+    <div class="card" id="rebate-form-card">
+      <div class="field"><label>模特查询码 / 模特ID（可空）</label>
+        <input id="r-code" value="${esc(prefill.model_code || '')}" placeholder="如 M001 或模特平台ID"></div>
+      <div class="field"><label>展示昵称（公开页会自动脱敏）</label>
+        <input id="r-mask" value="${esc(prefill.model_mask || '')}" placeholder="如 小雅"></div>
+      <div class="field"><label>模特专属页编号（选填，填后同步到 ta 的福利专属页）</label>
+        <input id="r-model-id" value="${esc(prefill.model_id || '')}" placeholder="如 me.html 链接里的编号"></div>
+      <div class="field"><label>订单号（私密，仅本人可见）</label>
+        <input id="r-order" value="${esc(prefill.order_no || '')}" placeholder="如 JD20260801001"></div>
+      <div class="field"><label>事项 / 任务内容</label>
+        <input id="r-item" value="${esc(prefill.item || '')}" placeholder="如 618 主推款拍摄"></div>
+      <div class="row2">
+        <div class="field"><label>返款金额</label>
+          <input id="r-amount" type="number" step="0.01" value="${prefill.amount != null ? fmtMoney(prefill.amount) : ''}" placeholder="0.00"></div>
+        <div class="field"><label>返款日期</label>
+          <input id="r-date" type="date" value="${prefill.rebate_date || today}"></div>
+      </div>
+      <div class="field"><label>预计返款日期（模特可见）</label>
+        <input id="r-expected" type="date" value="${esc(prefill.expected_rebate_date || '')}"></div>
+      <div class="field"><label>状态</label>
+        <select id="r-status">
+          <option value="待返" ${prefill.status === '待返' ? 'selected' : ''}>待返</option>
+          <option value="已返" ${(!prefill.status || prefill.status === '已返') ? 'selected' : ''}>已返</option>
+          <option value="处理中" ${prefill.status === '处理中' ? 'selected' : ''}>处理中</option>
+        </select></div>
+      <div class="field"><label>返款凭证（转账截图，状态为「已返」时模特可见）</label>
+        <div class="file-wrap">
+          <input id="r-voucher" type="file" accept="image/jpeg,image/png,image/webp">
+          <label for="r-voucher" class="file-btn">📷 选择转账截图</label>
+          <span class="file-name" id="r-voucher-name">未选择文件</span>
+        </div>
+        <img class="file-preview" id="r-voucher-preview" style="display:none" alt="预览">
+      </div>
+      <button class="btn-primary" id="r-submit">提交返款记录</button>
+      <button class="btn-line" id="r-reset" style="margin-top:6px">重置表单</button>
+    </div>`;
+}
+
+function bindRebateForm(prefill = {}) {
+  const input = document.getElementById('r-voucher');
+  const name = document.getElementById('r-voucher-name');
+  const preview = document.getElementById('r-voucher-preview');
+  if (input) {
+    input.addEventListener('change', () => {
+      const file = input.files[0];
+      if (!file) { name.textContent = '未选择文件'; preview.style.display = 'none'; preview.src = ''; return; }
+      name.textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; };
+      reader.readAsDataURL(file);
+    });
+  }
+  const submit = document.getElementById('r-submit');
+  if (submit) submit.addEventListener('click', saveRebate);
+  const reset = document.getElementById('r-reset');
+  if (reset) reset.addEventListener('click', () => { REBATE_PREFILL = null; renderRebate(); });
+}
+
+let REBATE_PREFILL = null;
+
+async function doRebateLogin() {
+  const input = document.getElementById('rebate-pw');
+  const pw = input ? input.value.trim() : '';
+  if (!pw) { toast('请输入密码'); return; }
+  try {
+    const ok = await Api.checkRebateAdmin(pw);
+    if (!ok) { toast('密码错误'); return; }
+    REBATE_PW = pw;
+    REBATE_LOGGED_IN = true;
+    REBATE_TAB = 'form';
+    toast('验证成功');
+    renderRebate();
+  } catch (e) { toast('验证失败：' + e.message, { err: true }); }
+}
+
+async function saveRebate() {
+  const file = document.getElementById('r-voucher')?.files[0];
+  const status = document.getElementById('r-status')?.value || '已返';
+  let voucherUrl = '';
+  try {
+    if (file) {
+      toast('正在上传凭证…');
+      voucherUrl = await Api.uploadRebateVoucher(file);
+    }
+    const payload = {
+      modelCode: document.getElementById('r-code')?.value.trim() || '',
+      modelMask: document.getElementById('r-mask')?.value.trim() || '',
+      modelId: document.getElementById('r-model-id')?.value.trim() || '',
+      orderNo: document.getElementById('r-order')?.value.trim() || '',
+      item: document.getElementById('r-item')?.value.trim() || '',
+      amount: parseFloat(document.getElementById('r-amount')?.value || '0'),
+      rebateDate: document.getElementById('r-date')?.value || null,
+      expectedDate: document.getElementById('r-expected')?.value || null,
+      status,
+      voucherUrl
+    };
+    if (!payload.modelMask || !payload.orderNo || !payload.item || !payload.amount) {
+      toast('请填全：昵称 / 订单号 / 事项 / 金额'); return;
+    }
+    await Api.addRebate(REBATE_PW, payload);
+    toast('✅ 返款记录已提交');
+    REBATE_PREFILL = null;
+    REBATE_TAB = 'paid';
+    renderRebate();
+  } catch (e) { toast(e.message || '提交失败', { err: true }); }
+}
+
+function renderRebateRows(rows, type) {
+  if (!rows.length) return `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">暂无${type === 'pending' ? '待返款' : '已返款'}订单</div>`;
+  return rows.map(r => {
+    const model = r.model_code ? `（${esc(r.model_code)}）` : '';
+    const voucher = (type === 'paid' && r.voucher_url)
+      ? `<img src="${esc(r.voucher_url)}" class="rebate-voucher-thumb" onclick="openRebateVoucher('${esc(r.voucher_url)}')" alt="凭证">`
+      : '';
+    const actions = type === 'pending' ? `
+      <div class="rebate-actions">
+        <button class="btn-sm" data-act="rebate-pay" data-order="${esc(r.order_no)}">上传返款截图</button>
+        <button class="btn-line" style="width:auto;padding:6px 12px" data-act="rebate-edit" data-order="${esc(r.order_no)}">编辑</button>
+      </div>` : '';
+    return `
+      <div class="card rebate-card">
+        <div class="rebate-top">
+          <div class="rebate-order">${esc(r.order_no || '-')}</div>
+          <div class="rebate-amount">${money(r.amount)}</div>
+        </div>
+        <div class="rebate-meta">
+          <span>👤 ${esc(r.model_mask || '匿名')}${model}</span>
+          <span>📦 ${esc(r.item || '-')}</span>
+        </div>
+        <div class="rebate-meta">
+          <span>状态：<b style="color:${r.status === '已返' ? '#2BB673' : (r.status === '处理中' ? '#5B7CFA' : '#FF6B5C')}">${esc(r.status || '待返')}</b></span>
+          <span>录入：${fmtDateTime(r.created_at)}</span>
+        </div>
+        ${r.expected_rebate_date ? `<div class="rebate-meta">预计返款：${esc(r.expected_rebate_date)}</div>` : ''}
+        ${r.rebate_date ? `<div class="rebate-meta">返款日期：${esc(r.rebate_date)}</div>` : ''}
+        ${voucher}
+        ${actions}
+      </div>`;
+  }).join('');
+}
+
+async function loadRebatePending() {
+  const box = document.getElementById('rebate-pending-box');
+  if (!box) return;
+  try {
+    const rows = await Api.listRebatesPending(REBATE_PW);
+    box.innerHTML = renderRebateRows(rows, 'pending');
+  } catch (e) { box.innerHTML = `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载失败：${esc(e.message)}</div>`; }
+}
+
+async function loadRebatePaid() {
+  const box = document.getElementById('rebate-paid-box');
+  if (!box) return;
+  try {
+    const rows = await Api.listRebatesPaid(REBATE_PW);
+    box.innerHTML = renderRebateRows(rows, 'paid');
+  } catch (e) { box.innerHTML = `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载失败：${esc(e.message)}</div>`; }
+}
+
+async function loadRebatePublic() {
+  const box = document.getElementById('rebate-public-box');
+  if (!box) return;
+  try {
+    const [stats, feed, board] = await Promise.all([
+      Api.rebatePublicStats().catch(() => null),
+      Api.rebatePublicFeed(20).catch(() => []),
+      Api.rebatePublicLeaderboard(10).catch(() => [])
+    ]);
+    const statHtml = stats ? `
+      <div class="stats" style="margin-bottom:12px">
+        <div class="stat"><div class="n" style="color:#FF6B5C">${money(stats.total_amount || 0)}</div><div class="l">累计返款</div></div>
+        <div class="stat"><div class="n" style="color:#5B7CFA">${stats.total_count || 0}</div><div class="l">返款笔数</div></div>
+        <div class="stat"><div class="n" style="color:#2BB673">${stats.model_count || 0}</div><div class="l">覆盖模特</div></div>
+        <div class="stat"><div class="n" style="color:#E58A3F">${money(stats.month_amount || 0)}</div><div class="l">本月返款</div></div>
+      </div>` : '';
+    const feedHtml = feed.length ? feed.map(r => `
+      <div class="feed-item">
+        <span class="fi-emoji">🎉</span>
+        <div class="fi-main">
+          <div><b>${esc(rebateMaskName(r.mask || r.model_mask || '匿名'))}</b> 收到返款 <span class="fi-amt">${money(r.amount)}</span></div>
+          <div class="fi-sub">${esc(r.item || '')} · ${esc(r.status || '已返')} · ${fmtDateTime(r.created_at)}</div>
+        </div>
+      </div>`).join('') : '<div class="card" style="text-align:center;color:var(--gray);font-size:13px">暂无公示数据</div>';
+    const boardHtml = board.length ? board.map((r, i) => `
+      <div class="ops-row">
+        <div class="ops-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
+        <div class="ops-main"><div class="ops-nm">${esc(rebateMaskName(r.mask || r.model_mask || '匿名'))}</div></div>
+        <div class="ops-num">${money(r.total)}<span> · ${r.cnt || 0}笔</span></div>
+      </div>`).join('') : '<div class="card" style="text-align:center;color:var(--gray);font-size:13px">暂无排行榜</div>';
+    box.innerHTML = `${statHtml}
+      <div class="sec-title">最新返款动态</div><div class="card" style="padding:10px 14px">${feedHtml}</div>
+      <div class="sec-title">返款排行榜</div><div class="card">${boardHtml}</div>`;
+  } catch (e) { box.innerHTML = `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载失败：${esc(e.message)}</div>`; }
+}
+
+async function fillRebateForPay(orderNo, status) {
+  try {
+    const rows = await Api.getRebatesByCode(orderNo);
+    const r = rows.find(x => x.order_no === orderNo);
+    if (!r) { toast('未找到该订单'); return; }
+    REBATE_PREFILL = r;
+    REBATE_TAB = 'form';
+    renderRebate();
+    // 等表单渲染完后把状态设为期望的
+    setTimeout(() => {
+      const st = document.getElementById('r-status');
+      if (st && status) st.value = status;
+    }, 0);
+  } catch (e) { toast(e.message || '加载订单失败', { err: true }); }
+}
+
+window.openRebateVoucher = function (url) {
+  const box = document.createElement('div');
+  box.className = 'voucher-lightbox';
+  box.innerHTML = `<img src="${url}" alt="返款凭证">`;
+  box.onclick = () => box.remove();
+  document.body.appendChild(box);
+};
+
 // ---------- 伙伴 ----------
 function renderPartners() {
   const s = STATS || {};
@@ -406,11 +742,23 @@ function renderPartners() {
   const unshippedCount = Math.max(0, (DB.partners || []).length - shippedCount);
   const tiers = [['all', '全部 ' + DB.partners.length], ['vip', 'VIP ' + (s.vip||0)], ['core', '核心 ' + (s.core||0)], ['normal', '普通 ' + (s.normal||0)], ['sleep', '待激活 ' + (s.sleep||0)], ['new', '新提交 ' + (s.news||0)], ['shipped', '🚚 已发货 ' + shippedCount], ['unshipped', '📦 待发货 ' + unshippedCount]];
   const chips = tiers.map(([t, l]) => `<button class="chip ${filterTier === t ? 'on' : ''}" data-act="chip" data-tier="${t}">${l}</button>`).join('');
+
+  // 城市筛选：从地址中提取市/省
+  const cityMap = new Map();
+  DB.partners.forEach(p => {
+    const c = partnerCity(p);
+    cityMap.set(c, (cityMap.get(c) || 0) + 1);
+  });
+  const cityList = Array.from(cityMap.entries()).sort((a, b) => b[1] - a[1]);
+  const cityChips = `<button class="chip ${filterCity === 'all' ? 'on' : ''}" data-act="city-chip" data-city="all">全部城市</button>` +
+    cityList.map(([c, n]) => `<button class="chip ${filterCity === c ? 'on' : ''}" data-act="city-chip" data-city="${esc(c)}">${esc(c)} ${n}</button>`).join('');
+
   let list = DB.partners;
   if (filterTier === 'shipped') list = list.filter(p => shipCountMap.has(p.id));
   else if (filterTier === 'unshipped') list = list.filter(p => !shipCountMap.has(p.id));
   else if (filterTier !== 'all') list = list.filter(p => p.tier === filterTier);
-  if (searchQ) list = list.filter(p => (p.name + p.wechat + (p.note || '')).toLowerCase().includes(searchQ.toLowerCase()));
+  if (filterCity !== 'all') list = list.filter(p => partnerCity(p) === filterCity);
+  if (searchQ) list = list.filter(p => (p.name + p.wechat + (p.note || '') + (p.platform || '') + (p.modelId || '')).toLowerCase().includes(searchQ.toLowerCase()));
   list = list.slice().sort((a, b) => b.createdAt - a.createdAt);
   const cards = list.length ? list.map(p => {
     const cnt = shipCountMap.get(p.id) || 0;
@@ -446,7 +794,8 @@ function renderPartners() {
         <div class="av" style="background:${avColor(p.tier, p.name)}">${esc((p.name || '?').slice(0, 1))}</div>
         <div class="info">
           <div class="nm">${esc(p.name)} ${tierTag} ${shipTag}</div>
-          <div class="meta">${esc(p.wechat || '')} · ${p.lastContact || '未联系'} · ${STATUS_LABEL[p.status] || ''}</div>
+          <div class="meta">${partnerModelText(p)} · ${partnerCity(p)}</div>
+          <div class="meta sub-line">${esc(p.wechat || '')} · ${p.lastContact || '未联系'} · ${STATUS_LABEL[p.status] || ''}</div>
         </div>
         <div class="pcard-head-act">
           <button class="btn-icon" data-act="detail" data-id="${p.id}" title="查看详情">📝</button>
@@ -471,8 +820,9 @@ function renderPartners() {
 
   document.getElementById('view-partners').innerHTML = `
     <div class="sec-title" style="font-size:22px">我的伙伴</div>
-    <div class="search">🔍<input id="search-input" placeholder="搜索昵称 / 微信 / 备注" value="${esc(searchQ)}"></div>
+    <div class="search">🔍<input id="search-input" placeholder="搜索昵称 / 微信 / 模特ID / 备注" value="${esc(searchQ)}"></div>
     <div class="chips">${chips}</div>
+    <div class="chips city-chips">${cityChips}</div>
     <div class="pcards-bar">
       <div class="left">点击伙伴行展开看单号，点击「📝」直接看详情</div>
       <button class="right" data-act="toggle-all">全部展开 / 折叠</button>
@@ -688,6 +1038,7 @@ function renderMe() {
       <div class="mi" data-act="tab" data-tab="partners"><div class="ic" style="background:#FFEAE5;color:#FF6B5C">♥</div><div class="nm">我的伙伴</div><div class="ar">›</div></div>
       <div class="mi" data-act="tab" data-tab="gift"><div class="ic" style="background:#FFF3E0;color:#E58A3F">★</div><div class="nm">礼品记录</div><div class="ar">›</div></div>
       <div class="mi" data-act="tab" data-tab="ops"><div class="ic" style="background:#E8F5E9;color:#2BB673">📊</div><div class="nm">运营数据</div><div class="ar">›</div></div>
+      <div class="mi" data-act="tab" data-tab="rebate"><div class="ic" style="background:#E8F5E9;color:#2BB673">💰</div><div class="nm">返款管理</div><div class="ar">›</div></div>
       <div class="mi" data-act="export"><div class="ic" style="background:#E8EEFF;color:#5B7CFA">⬇</div><div class="nm">导出伙伴数据 (CSV)</div><div class="ar">›</div></div>
       <div class="mi" data-act="logout"><div class="ic" style="background:#EDEDF0;color:#6B7280">⚙</div><div class="nm">退出登录</div><div class="ar">›</div></div>
     </div>
@@ -1118,13 +1469,17 @@ function openInteract(id) {
 }
 
 // ---------- 事件 ----------
-function switchTab(name) {
+function switchTab(name, opts) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
   if (name === 'home') renderHome();
   if (name === 'wool') renderWool();
   if (name === 'ops') renderOps();
+  if (name === 'rebate') {
+    if (opts && opts.rebateTab) REBATE_TAB = opts.rebateTab;
+    renderRebate();
+  }
 }
 async function exportCsv() {
   try {
@@ -1146,10 +1501,11 @@ document.addEventListener('click', async e => {
   if (!el) return;
   const act = el.dataset.act;
   try {
-    if (act === 'tab') switchTab(el.dataset.tab);
-    else if (act === 'rebate-admin') window.open('/rebate/admin.html', '_blank');
-    else if (act === 'rebate-public') window.open('/rebate/', '_blank');
-    // 备注：返款后台为独立页面，新标签页打开，避免丢失本页管理状态
+    if (act === 'tab') switchTab(el.dataset.tab, { rebateTab: el.dataset.rebate || 'form' });
+    else if (act === 'rebate-tab') { REBATE_TAB = el.dataset.tab; renderRebate(); }
+    else if (act === 'rebate-logout') { REBATE_LOGGED_IN = false; REBATE_PW = ''; REBATE_TAB = 'form'; renderRebate(); }
+    else if (act === 'rebate-pay') { await fillRebateForPay(el.dataset.order, '已返'); }
+    else if (act === 'rebate-edit') { await fillRebateForPay(el.dataset.order, null); }
     else if (act === 'add') openAdd();
     else if (act === 'detail') openDetail(el.dataset.id);
     else if (act === 'gift') {
@@ -1187,7 +1543,8 @@ document.addEventListener('click', async e => {
       document.getElementById('ov-detail').classList.remove('show');
       toast('已删除'); await loadData(); await loadStats();
     }
-    else     if (act === 'chip') { filterTier = el.dataset.tier; renderPartners(); }
+    else if (act === 'chip') { filterTier = el.dataset.tier; renderPartners(); }
+    else if (act === 'city-chip') { filterCity = el.dataset.city; renderPartners(); }
     else if (act === 'export') exportCsv();
     else if (act === 'logout') logout();
     else if (act === 'close') document.getElementById(el.dataset.ov).classList.remove('show');

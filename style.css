@@ -356,3 +356,40 @@ body {
 .inv-sub { padding: 9px 0; border-bottom: 1px solid var(--line); }
 .inv-sub:last-child { border-bottom: none; }
 .inv-sub .av { width: 30px; height: 30px; border-radius: 15px; font-size: 12px; }
+
+/* 首页：按入驻日期分组 */
+.join-group { margin-bottom: 14px; }
+.join-date { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.join-date .join-count { font-size: 11px; color: var(--gray); font-weight: 600; background: #F5F6FA; padding: 2px 8px; border-radius: 10px; }
+.join-row { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; }
+.join-row .info { flex: 1; min-width: 0; }
+.join-row .nm { font-size: 13px; font-weight: 600; }
+.join-row .tg { font-size: 11px; color: var(--gray); margin-top: 2px; }
+
+/* 伙伴页：城市筛选 + 信息展示 */
+.city-chips { padding-top: 0; margin-top: -4px; }
+.pcard .meta.sub-line { margin-top: 4px; }
+
+/* 返款管理 */
+#view-rebate .file-wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+#view-rebate .file-wrap input[type="file"] { display: none; }
+#view-rebate .file-btn { display: inline-block; background: linear-gradient(135deg, #fff5f1, #fff); border: 1.5px dashed var(--coral); color: var(--coral); padding: 10px 14px; border-radius: 12px; font-size: 14px; cursor: pointer; }
+#view-rebate .file-name { font-size: 13px; color: var(--gray); }
+#view-rebate .file-preview { max-width: 120px; max-height: 120px; border-radius: 10px; margin-top: 8px; border: 1px solid var(--line); object-fit: cover; }
+#view-rebate .rebate-list { margin-top: 4px; }
+#view-rebate .rebate-card { margin-bottom: 10px; }
+#view-rebate .rebate-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+#view-rebate .rebate-order { font-size: 13px; font-weight: 700; color: var(--ink); word-break: break-all; }
+#view-rebate .rebate-amount { font-size: 15px; font-weight: 800; color: var(--coral); white-space: nowrap; }
+#view-rebate .rebate-meta { font-size: 12px; color: var(--gray); margin-top: 6px; }
+#view-rebate .rebate-meta span { margin-right: 10px; }
+#view-rebate .rebate-actions { display: flex; gap: 8px; margin-top: 10px; }
+#view-rebate .rebate-voucher-thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); margin-top: 6px; cursor: pointer; }
+#view-rebate .feed-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+#view-rebate .feed-item:last-child { border-bottom: none; }
+#view-rebate .feed-item .fi-emoji { font-size: 18px; }
+#view-rebate .feed-item .fi-main { flex: 1; font-size: 13px; }
+#view-rebate .feed-item .fi-amt { color: var(--coral); font-weight: 700; }
+#view-rebate .feed-item .fi-sub { font-size: 11px; color: var(--gray); margin-top: 2px; }
+.voucher-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.voucher-lightbox img { max-width: 92%; max-height: 92%; border-radius: 10px; }
