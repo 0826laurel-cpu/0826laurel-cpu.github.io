@@ -375,7 +375,7 @@
     document.getElementById('view-welfare').innerHTML = `
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap" id="welfare-wrap">
-          <iframe id="welfare-frame" src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=6" title="互动福利中心" allow="clipboard-write"></iframe>
+          <iframe id="welfare-frame" src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=7" title="互动福利中心" allow="clipboard-write"></iframe>
         </div>
       </div>`;
   }

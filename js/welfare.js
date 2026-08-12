@@ -44,9 +44,30 @@
         </div>
         <div class="redeem-title">积分好礼</div>
         <div class="redeem-list">
-          <div class="rd" data-cost="100" data-item="定制礼盒">🎁 定制礼盒<span class="rc">100积分</span></div>
-          <div class="rd" data-cost="200" data-item="暖心保温杯">🥤 暖心保温杯<span class="rc">200积分</span></div>
-          <div class="rd" data-cost="300" data-item="蓝牙音箱">🔊 蓝牙音箱<span class="rc">300积分</span></div>
+          <div class="rd" data-cost="100" data-item="小号礼品盲盒">
+            <img class="rd-img" src="img/box-small.jpg" alt="小号礼品盲盒">
+            <div class="rd-body">
+              <div class="rd-name">小号礼品盲盒</div>
+              <div class="rd-sub">随机惊喜小礼</div>
+              <span class="rc">100积分</span>
+            </div>
+          </div>
+          <div class="rd" data-cost="300" data-item="大号礼品盲盒">
+            <img class="rd-img" src="img/box-large.jpg" alt="大号礼品盲盒">
+            <div class="rd-body">
+              <div class="rd-name">大号礼品盲盒</div>
+              <div class="rd-sub">超值惊喜大礼</div>
+              <span class="rc">300积分</span>
+            </div>
+          </div>
+          <div class="rd" data-cost="200" data-item="中号礼品盲盒">
+            <img class="rd-img" src="img/box-medium.jpg" alt="中号礼品盲盒">
+            <div class="rd-body">
+              <div class="rd-name">中号礼品盲盒</div>
+              <div class="rd-sub">诚意满满好礼</div>
+              <span class="rc">200积分</span>
+            </div>
+          </div>
         </div>
         <div class="ck-tip">每天签到得 5 积分，连续签到额外 +2/天（上限+10）；积分可兑换好礼，福利官亲自寄出～</div>
       </div>`;
