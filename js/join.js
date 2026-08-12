@@ -12,7 +12,6 @@
 
   const SHIP_STATUS = { pending: '待发货', collected: '已揽收', transit: '运输中', delivering: '派送中', signed: '已签收' };
   const SHIP_COLOR = { pending: '#9AA0AD', collected: '#5B7CFA', transit: '#E58A3F', delivering: '#FF8FA3', signed: '#2BB673' };
-  let JOIN_PAYOUT_QR = null; // 收款码 base64 dataURL（提交后入库）
   // 兜底：填了快递单号就不应再显示"待发货"，升级为"已揽收"
   function effStatus(s) {
     if (s && s.status === 'pending' && s.trackingNo && String(s.trackingNo).trim() !== '') return 'collected';
@@ -136,37 +135,6 @@
           </div>
         </div>
 
-        <!-- 收款码（支付宝） -->
-        <div class="group" style="margin-top:18px">
-          <div class="group-head">
-            <span class="g-ico" style="background:linear-gradient(135deg,#E6F2FF,#CCE5FF);color:#1677FF">支</span>
-            <h3>收款码（支付宝）</h3>
-            <span class="opt">后续打款用</span>
-          </div>
-          <div class="group-tip"><span class="ti">💡</span><div>上传你的<b>支付宝收款码</b>，方便后续打款。仅福利派送官可见，绝不外泄。</div></div>
-          <div class="payout-qr-empty" id="j-qr-empty">
-            <div class="ico">💳</div>
-            <div class="text">
-              <div class="l1">上传支付宝收款码</div>
-              <div class="l2">登录支付宝 → 收钱 → 保存收款码图片</div>
-            </div>
-            <button class="btn-up" type="button" id="j-qr-upload">📤 上传</button>
-          </div>
-          <div class="payout-qr-body" id="j-qr-body" style="display:none">
-            <div class="payout-qr-thumb"><img id="j-qr-img" alt="收款码"></div>
-            <div class="payout-qr-info">
-              <div class="l1">支付宝收款码已上传</div>
-              <div class="l2">提交后即可参与后续打款</div>
-              <div class="payout-qr-actions">
-                <button class="btn-mini" type="button" id="j-qr-replace">📷 替换</button>
-                <button class="btn-mini danger" type="button" id="j-qr-clear">🗑 删除</button>
-              </div>
-            </div>
-          </div>
-          <input type="file" accept="image/jpeg,image/png,image/webp" id="j-qr-input" style="display:none">
-          <div id="j-qr-msg" class="payout-qr-uploading" style="display:none"></div>
-        </div>
-
         <button class="btn" id="j-submit">提交并领取福利 🎁</button>
         <div class="note">提交即表示同意我们保存以上信息用于福利发放与贴心服务，仅你本人可见</div>
       </div>
@@ -194,7 +162,6 @@
 
     document.getElementById('j-submit').addEventListener('click', submit);
     setupPasteUI();
-    setupPayoutQrUI();
   }
 
   async function submit() {
@@ -231,12 +198,6 @@
       if (error) throw new Error(error.message);
       if (!data || !data.ok) throw new Error('提交失败，请稍后重试');
       localStorage.setItem(LS_KEY, data.token);
-      // 收款码：拿到 token 后再上传（不影响主流程）
-      if (JOIN_PAYOUT_QR) {
-        try {
-          await sb.rpc('update_my_partner_payout_qr', { p_token: data.token, p_payout_qr_url: JOIN_PAYOUT_QR });
-        } catch (e) { console.warn('payout_qr upload failed (non-blocking):', e); }
-      }
       window.location.replace(location.origin + '/me.html?t=' + data.token);
     } catch (e) {
       alert(e.message || '网络异常，请稍后重试');
@@ -435,7 +396,6 @@
       });
     });
     setupPasteUI();
-    setupPayoutQrUI();
   }
 
   async function saveAddr() {
@@ -572,61 +532,6 @@
         } catch (e) { /* 用户拒绝/无权限，忽略 */ }
       }, true);
     }
-  }
-
-  // ---------- 收款码（支付宝）UI ----------
-  function setupPayoutQrUI() {
-    const input = document.getElementById('j-qr-input');
-    const empty = document.getElementById('j-qr-empty');
-    const body = document.getElementById('j-qr-body');
-    const img = document.getElementById('j-qr-img');
-    const msg = document.getElementById('j-qr-msg');
-    if (!input || !empty || !body || !img) return;
-    const showMsg = (t, on) => { if (msg) { msg.textContent = t; msg.style.display = on ? 'block' : 'none'; } };
-    const updateView = () => {
-      if (JOIN_PAYOUT_QR) { img.src = JOIN_PAYOUT_QR; empty.style.display = 'none'; body.style.display = 'flex'; }
-      else { empty.style.display = 'flex'; body.style.display = 'none'; }
-    };
-    const compress = (file, maxDim = 1200, quality = 0.85) => new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => {
-        const im = new Image();
-        im.onload = () => {
-          let w = im.width, h = im.height;
-          if (w > maxDim || h > maxDim) {
-            if (w > h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
-            else { w = Math.round(w * (maxDim / h)); h = maxDim; }
-          }
-          const c = document.createElement('canvas'); c.width = w; c.height = h;
-          c.getContext('2d').drawImage(im, 0, 0, w, h);
-          const isPng = (file.type || '').includes('png');
-          resolve(c.toDataURL(isPng ? 'image/png' : 'image/jpeg', quality));
-        };
-        im.onerror = reject; im.src = r.result;
-      };
-      r.onerror = reject; r.readAsDataURL(file);
-    });
-    const pick = async (file) => {
-      if (!file) return;
-      if (file.size > 8 * 1024 * 1024) { showToast('图片太大，请用 8MB 以内'); return; }
-      showMsg('处理中…', true);
-      try {
-        let url = await compress(file);
-        if (url.length > 500000) {
-          url = await compress(file, 900, 0.7);
-          if (url.length > 500000) { showToast('图片太大，请换张更小的'); showMsg('', false); return; }
-        }
-        JOIN_PAYOUT_QR = url;
-        updateView();
-        showMsg('已选择（提交后生效）', true);
-        setTimeout(() => showMsg('', false), 1500);
-      } catch (e) { showToast('处理失败：' + (e.message || e)); showMsg('', false); }
-    };
-    const trigger = () => { input.value = ''; input.onchange = (e) => pick(e.target.files[0]); input.click(); };
-    document.getElementById('j-qr-upload').addEventListener('click', trigger);
-    document.getElementById('j-qr-replace').addEventListener('click', trigger);
-    document.getElementById('j-qr-clear').addEventListener('click', () => { JOIN_PAYOUT_QR = null; updateView(); });
-    updateView();
   }
 
   // 暴露给入口
