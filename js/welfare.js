@@ -72,7 +72,6 @@
       </div>`;
 
     document.getElementById('app').innerHTML = `
-      <div class="back-bar"><a href="me.html?t=${encodeURIComponent(TOKEN)}">返回我的福利页</a></div>
       ${checkinHtml}
       ${inviteHtml}
       ${guideHtml}

@@ -15,11 +15,6 @@
     .me-card { background: #fff; border-radius: 22px; padding: 22px 20px; box-shadow: 0 10px 30px rgba(255,107,92,.12); margin-bottom: 16px; }
     .block-title { font-size: 15px; font-weight: 700; margin: 0 0 14px; }
 
-    /* 返回条 */
-    .back-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
-    .back-bar a { font-size: 14px; color: #FF6B5C; text-decoration: none; font-weight: 600; }
-    .back-bar a::before { content: '‹ '; }
-
     /* 签到 */
     .checkin-card .ck-row { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
     .checkin-card .ck-points { font-size: 32px; font-weight: 700; color: #FF6B5C; }
@@ -74,7 +69,7 @@
   <script src="config.js"></script>
   <script src="vendor/supabase.js"></script>
   <script src="js/sb.js"></script>
-  <script src="js/welfare.js?v=5"></script>
+  <script src="js/welfare.js?v=6"></script>
   <script>
   (function(){
     function report(){ if(window.parent!==window) window.parent.postMessage({type:'setHeight',page:'welfare',height:document.body.scrollHeight},'*'); }
