@@ -11,7 +11,7 @@
     html::-webkit-scrollbar { display: none; width: 0; height: 0; }
     body { overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
     body::-webkit-scrollbar { display: none; width: 0; height: 0; }
-    .welfare-wrap { max-width: 430px; margin: 0 auto; min-height: 100vh; padding: 44px 24px; }
+    .welfare-wrap { max-width: 430px; margin: 0 auto; min-height: 100vh; padding: 44px 12px; }
     .me-card { background: #fff; border-radius: 22px; padding: 22px 20px; box-shadow: 0 10px 30px rgba(255,107,92,.12); margin-bottom: 16px; }
     .block-title { font-size: 15px; font-weight: 700; margin: 0 0 14px; }
 
@@ -74,7 +74,7 @@
   <script src="config.js"></script>
   <script src="vendor/supabase.js"></script>
   <script src="js/sb.js"></script>
-  <script src="js/welfare.js?v=3"></script>
+  <script src="js/welfare.js?v=5"></script>
   <script>
   (function(){
     function report(){ if(window.parent!==window) window.parent.postMessage({type:'setHeight',page:'welfare',height:document.body.scrollHeight},'*'); }
