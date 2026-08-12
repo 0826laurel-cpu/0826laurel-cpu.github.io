@@ -486,7 +486,7 @@ function renderRebate() {
     `<button class="chip ${REBATE_TAB === k ? 'on' : ''}" data-act="rebate-tab" data-tab="${k}">${l}</button>`).join('')}</div>`;
 
   let body = '';
-  if (REBATE_TAB === 'form') body = rebateFormHtml();
+  if (REBATE_TAB === 'form') body = rebateFormHtml(REBATE_PREFILL || {});
   else if (REBATE_TAB === 'pending') body = `<div class="rebate-list" id="rebate-pending-box"><div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载中…</div></div>`;
   else if (REBATE_TAB === 'paid') body = `<div class="rebate-list" id="rebate-paid-box"><div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载中…</div></div>`;
   else if (REBATE_TAB === 'public') body = `<div class="rebate-list" id="rebate-public-box"><div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载中…</div></div>`;
