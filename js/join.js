@@ -136,7 +136,7 @@
         </div>
 
         <button class="btn" id="j-submit">提交并领取福利 🎁</button>
-        <div class="note">提交即表示同意我们保存以上信息用于福利发放与贴心服务，仅你本人可见</div>
+        <div class="note">提交后自动跳转到物流和活动页面</div>
       </div>
 
       <!-- 一键粘贴识别 modal + toast（全局） -->
