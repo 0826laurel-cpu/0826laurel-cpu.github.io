@@ -1,6 +1,26 @@
 // ============ 公开返款页逻辑（单页长滚动版） ============
+
+/*
+ * 核心数据计算逻辑（按 2026-08-12 需求截图约定）：
+ *
+ * 1. 合作模特人数：只增不减，起点 586 人。
+ *    以 2026-08-11 为基准日，之后每过 1 天固定增加 MODEL_DAILY_INC 人。
+ *    公式：model_count = 586 + max(0, 今天 - 2026-08-11 的天数) × MODEL_DAILY_INC
+ *
+ * 2. 其余三个指标按「自然周」累计：
+ *    - 一周从周一 00:00:00 开始，到周日 23:59:59 结束。
+ *    - 每周一从 0 重新计算，随时间线性增长到本周目标值。
+ *    - 本周目标（可按业务需要调整）：
+ *        · 累计返款金额 TOTAL_WEEK_TARGET = 15624
+ *        · 已结算笔数   COUNT_WEEK_TARGET = 22
+ *        · 本周返款     MONTH_WEEK_TARGET = 15624（原“本月返款”语义改为按本周累计）
+ *
+ * 3. 页面上的“实时滚动” ticker 仅在前述基础值上做小幅随机波动，
+ *    用于营造热闹氛围；刷新页面后会重新按日期计算，保证逻辑可预期。
+ */
+
 const DEMO = {
-  stats:{ total_amount:1286400, total_count:842, model_count:156, month_amount:186500 },
+  // stats 已改为 computeStats() 按日期动态计算，此处保留结构但不再作为默认展示值
   feed:[
     {mask:'小*', amount:1280, item:'618 主推款拍摄', status:'已返', created_at:'2026-08-11T14:50:00'},
     {mask:'L***', amount:860, item:'日常返款结算', status:'已返', created_at:'2026-08-11T14:20:00'},
@@ -38,6 +58,46 @@ function relTime(t){
   return Math.floor(s/86400)+' 天前';
 }
 function maskStatus(s){ return s||'待返'; }
+
+// ---- 按日期计算四个公示指标 ----
+const MODEL_BASE = 586;          // 合作模特人数起点
+const MODEL_DAILY_INC = 3;       // 模特人数每天固定增加量（只增不减）
+const MODEL_START_DATE = new Date('2026-08-11T00:00:00'); // 模特人数起点日（北京时间/本地时间）
+
+const TOTAL_WEEK_TARGET = 15624; // 每周累计返款金额目标
+const COUNT_WEEK_TARGET = 22;    // 每周已结算笔数目标
+const MONTH_WEEK_TARGET = 15624; // 本周返款目标（原“本月返款”按本周累计）
+
+// 获取指定日期所在周的周一 00:00:00
+function getWeekMonday(d = new Date()){
+  const date = new Date(d);
+  const day = date.getDay(); // 0=周日, 1=周一, ...
+  const diff = day === 0 ? -6 : 1 - day; // 回到本周一
+  const mon = new Date(date);
+  mon.setDate(date.getDate() + diff);
+  mon.setHours(0, 0, 0, 0);
+  return mon;
+}
+
+// 基于当前日期计算公示指标（周一 ~ 周日线性累计，模特人数只增不减）
+function computeStats(now = new Date()){
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+  // 1) 合作模特人数：起点 586 + 自基准日起每天固定增加
+  const daysSinceBase = Math.floor((now - MODEL_START_DATE) / MS_PER_DAY);
+  const model_count = MODEL_BASE + Math.max(0, daysSinceBase) * MODEL_DAILY_INC;
+
+  // 2) 其余三个指标：按自然周线性累计，周一从 0 开始
+  const mon = getWeekMonday(now);
+  const weekProgress = Math.min(1, Math.max(0, (now - mon) / (7 * MS_PER_DAY)));
+
+  return {
+    total_amount: Math.floor(TOTAL_WEEK_TARGET * weekProgress),
+    total_count:  Math.floor(COUNT_WEEK_TARGET * weekProgress),
+    model_count,
+    month_amount: Math.floor(MONTH_WEEK_TARGET * weekProgress)
+  };
+}
 
 // ---- 统计 count-up ----
 function countUp(el, target, isMoney){
@@ -97,11 +157,12 @@ function startStatsTicker() {
 }
 
 async function loadStats(){
+  // 若后端有 public_stats RPC，优先取真实数据；否则按日期规则计算
   if (sb){
     const {data,error} = await sb.rpc('public_stats');
     if (!error && data) return data;
   }
-  return DEMO.stats;
+  return computeStats();
 }
 async function loadFeed(){
   if (sb){

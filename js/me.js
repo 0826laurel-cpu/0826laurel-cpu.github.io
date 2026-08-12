@@ -366,7 +366,7 @@
     document.getElementById('view-rebate').innerHTML = `
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap" id="rebate-wrap">
-          <iframe id="rebate-frame" src="rebate/?v=9" title="返款公示台" allow="clipboard-write"></iframe>
+          <iframe id="rebate-frame" src="rebate/?v=11" title="返款公示台" allow="clipboard-write"></iframe>
         </div>
       </div>`;
   }
