@@ -157,11 +157,8 @@ function startStatsTicker() {
 }
 
 async function loadStats(){
-  // 若后端有 public_stats RPC，优先取真实数据；否则按日期规则计算
-  if (sb){
-    const {data,error} = await sb.rpc('public_stats');
-    if (!error && data) return data;
-  }
+  // 公示台使用按日期计算的值（见文件顶部计算逻辑说明），不直接读取真实订单汇总，
+  // 以保证展示数字符合“模特人数 586 起点、每周累计、周一归零”的规则。
   return computeStats();
 }
 async function loadFeed(){
