@@ -83,8 +83,8 @@ body{
 .q-expected{font-size:12px;color:#888;margin-top:2px;}
 .q-voucher{margin-top:10px;}
 .qv-label{font-size:11px;color:var(--sub);margin-bottom:4px;}
-.q-voucher img{width:100%;max-width:220px;border-radius:10px;cursor:pointer;border:1px solid var(--line);display:block;}
-.voucher-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;z-index:3000;padding:20px;}
+.q-voucher img{width:100%;border-radius:10px;cursor:pointer;border:1px solid var(--line);display:block;}
+.voucher-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;z-index:3000;padding:20px;overflow:hidden;}
 .voucher-lightbox img{max-width:100%;max-height:90vh;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
 .q-sum{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;border-radius:14px;
   padding:14px;text-align:center;font-size:15px;font-weight:700;margin-bottom:10px;}

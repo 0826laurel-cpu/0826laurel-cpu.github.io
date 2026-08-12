@@ -277,12 +277,12 @@
         </div>
         <div class="ship-list" id="ship-list">${buildShipsHtml()}</div>
       </div>
-      <div class="note">本页仅你本人可通过专属链接访问 · 信息仅用于福利发放</div>
-      ${buildWallHtml()}`;
+      ${buildWallHtml()}
+      <div class="note">本页仅你本人可通过专属链接访问 · 信息仅用于福利发放</div>`;
   }
 
   function buildWallHtml() {
-    const feedHtml = WALL_FEED.length ? WALL_FEED.map(f => {
+    const feedItemsHtml = WALL_FEED.length ? WALL_FEED.map(f => {
       const name = f.partner_name || '某位伙伴';
       const gift = f.gift_name || f.product_title || '礼品';
       return `<div class="wall-item">
@@ -302,17 +302,21 @@
           <div class="ws"><div class="n">${WALL_STATS.total_receivers}</div><div class="l">位伙伴已收到</div></div>
           <div class="ws"><div class="n" style="color:#2BB673">${WALL_STATS.total_signed}</div><div class="l">已签收</div></div>
         </div>
-        <div class="wall-feed">${feedHtml}</div>
+        <div class="wall-feed-wrap">
+          <div class="wall-feed-track">
+            <div class="wall-feed">${feedItemsHtml}</div>
+            <div class="wall-feed">${feedItemsHtml}</div>
+          </div>
+        </div>
         <div class="wall-tip">每一份小礼物，都是我们想离你更近一点 ❤️</div>
-      </div>
-      <div class="note">每日更新 · 真实物流状态同步</div>`;
+      </div>`;
   }
 
   function renderRebate() {
     document.getElementById('view-rebate').innerHTML = `
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap">
-          <iframe src="rebate/?v=6" title="返款公示台" allow="clipboard-write"></iframe>
+          <iframe src="rebate/?v=7" title="返款公示台" allow="clipboard-write"></iframe>
         </div>
       </div>`;
   }
