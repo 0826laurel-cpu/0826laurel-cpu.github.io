@@ -316,7 +316,7 @@
     document.getElementById('view-rebate').innerHTML = `
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap">
-          <iframe src="rebate/?v=7" title="返款公示台" allow="clipboard-write"></iframe>
+          <iframe src="rebate/?v=8" title="返款公示台" allow="clipboard-write" scrolling="no" style="overflow:hidden"></iframe>
         </div>
       </div>`;
   }
@@ -325,7 +325,7 @@
     document.getElementById('view-welfare').innerHTML = `
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap">
-          <iframe src="welfare.html?t=${encodeURIComponent(TOKEN)}" title="互动福利中心" allow="clipboard-write"></iframe>
+          <iframe src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=2" title="互动福利中心" allow="clipboard-write" scrolling="no" style="overflow:hidden"></iframe>
         </div>
       </div>`;
   }

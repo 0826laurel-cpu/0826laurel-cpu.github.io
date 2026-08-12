@@ -11,7 +11,10 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Helvetica,Arial,sans-serif;
   color:var(--ink);background:linear-gradient(160deg,var(--bg1),var(--bg2) 45%,var(--bg3));
   min-height:100vh;padding-bottom:40px;
+  overflow-x:hidden;
+  scrollbar-width:none;-ms-overflow-style:none;
 }
+body::-webkit-scrollbar{display:none;}
 .wrap{max-width:480px;margin:0 auto;padding:16px 14px 0;}
 
 /* 头部 */
