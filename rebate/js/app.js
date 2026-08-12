@@ -50,6 +50,52 @@ function countUp(el, target, isMoney){
   requestAnimationFrame(step);
 }
 
+// ---- 实时 ticker：让 4 个数字持续滚动增加（营造热闹氛围） ----
+const STATS_KEYS = ['total_amount', 'total_count', 'model_count', 'month_amount'];
+const liveStats = { total_amount: 0, total_count: 0, model_count: 0, month_amount: 0 };
+const statEl = {}; // { total_amount: { el, isMoney } }
+
+function bindStatEls() {
+  statEl.total_amount = { el: document.getElementById('s-amount'), isMoney: true };
+  statEl.total_count = { el: document.getElementById('s-count'), isMoney: false };
+  statEl.model_count = { el: document.getElementById('s-model'), isMoney: false };
+  statEl.month_amount = { el: document.getElementById('s-month'), isMoney: true };
+}
+
+// 滚动到目标值（含平滑动画 + 闪烁）
+function setStat(key, value, opts = {}) {
+  const conf = statEl[key];
+  if (!conf || !conf.el) return;
+  const from = liveStats[key];
+  const dur = opts.duration ?? 800;
+  const t0 = performance.now();
+  function step(t) {
+    const p = Math.min(1, (t - t0) / dur);
+    const v = from + (value - from) * p;
+    conf.el.textContent = conf.isMoney ? money(Math.floor(v)) : Math.floor(v).toLocaleString('zh-CN');
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+  // 闪烁动画
+  conf.el.classList.remove('ticker-flash');
+  void conf.el.offsetWidth; // 强制重排，重新触发 animation
+  conf.el.classList.add('ticker-flash');
+  liveStats[key] = value;
+}
+
+let tickerTimer = null;
+function startStatsTicker() {
+  if (tickerTimer) clearInterval(tickerTimer);
+  // 每 2.5 秒一次：金额 +1~30 随机，笔数 1/4 概率 +1，模特 1/12 概率 +1
+  tickerTimer = setInterval(() => {
+    const inc = Math.floor(Math.random() * 30) + 1;
+    setStat('total_amount', liveStats.total_amount + inc);
+    setStat('month_amount', liveStats.month_amount + inc);
+    if (Math.random() < 0.25) setStat('total_count', liveStats.total_count + 1);
+    if (Math.random() < 1/12) setStat('model_count', liveStats.model_count + 1);
+  }, 2500);
+}
+
 async function loadStats(){
   if (sb){
     const {data,error} = await sb.rpc('public_stats');
@@ -73,10 +119,16 @@ async function loadBoard(){
 }
 
 function renderStats(s){
-  countUp(document.getElementById('s-amount'), s.total_amount, true);
-  countUp(document.getElementById('s-count'), s.total_count, false);
-  countUp(document.getElementById('s-model'), s.model_count, false);
-  countUp(document.getElementById('s-month'), s.month_amount, true);
+  bindStatEls();
+  liveStats.total_amount = s.total_amount;
+  liveStats.total_count = s.total_count;
+  liveStats.model_count = s.model_count;
+  liveStats.month_amount = s.month_amount;
+  countUp(statEl.total_amount.el, s.total_amount, true);
+  countUp(statEl.total_count.el, s.total_count, false);
+  countUp(statEl.model_count.el, s.model_count, false);
+  countUp(statEl.month_amount.el, s.month_amount, true);
+  startStatsTicker(); // 启动实时滚动 ticker
 }
 function feedItem(r){
   return `<div class="feed-item">
