@@ -14,6 +14,8 @@
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const TOKEN = new URLSearchParams(location.search).get('t') || '';
+  // 同步写入本机会话，使「打开 join 链接」也能自动回到本页（两链接互通）
+  if (TOKEN) { try { localStorage.setItem('p_token', TOKEN); } catch (e) {} }
   const SHIP_STATUS = { pending: '待发货', collected: '已揽收', transit: '运输中', delivering: '派送中', signed: '已签收' };
   const SHIP_COLOR = { pending: '#9AA0AD', collected: '#5B7CFA', transit: '#E58A3F', delivering: '#FF8FA3', signed: '#2BB673' };
   function effStatus(s) {
