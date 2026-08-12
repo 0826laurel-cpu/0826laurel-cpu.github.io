@@ -26,6 +26,8 @@ function normPartner(r) {
     // 模特平台 / ID（入驻时填写，name = platform·modelId）
     platform: r.platform || '',
     modelId: r.model_id || '',
+    // 收款码（支付宝）base64 dataURL，后台「我的伙伴」卡片缩略图用
+    payout_qr_url: r.payout_qr_url || null,
     // 运营数据字段（福利概览/签到/邀请）
     inviteCode: r.invite_code || '',
     invitedBy: r.invited_by || '',
