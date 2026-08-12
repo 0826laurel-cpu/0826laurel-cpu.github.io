@@ -392,5 +392,16 @@
   <script src="js/sb.js"></script>
   <script src="js/api.js?v=3"></script>
   <script src="js/app-page.js?v=1&cb=1786503807986"></script>
+  <script>
+    // 一次性清理：注销任何残留 service worker，防止它拦截并返回旧的 me.js
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(rs){
+        rs.forEach(function(r){ r.unregister(); });
+      });
+      if (window.caches) {
+        caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); });
+      }
+    }
+  </script>
 </body>
 </html>
