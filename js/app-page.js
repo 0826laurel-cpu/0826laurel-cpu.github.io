@@ -297,13 +297,13 @@
 
     document.getElementById('view-home').innerHTML = `
       ${notifyHtml}
-      <div class="me-card save-link-card" id="save-link-card">
-        <div class="sl-ico">🔗</div>
-        <div class="sl-body">
+      <div class="me-card save-link-card" id="save-link-card" style="display:flex !important; flex-direction:row !important; align-items:center !important; gap:10px;">
+        <div class="sl-ico" style="flex:0 0 auto !important;">🔗</div>
+        <div class="sl-body" style="flex:1 1 0% !important; min-width:0;">
           <div class="sl-title">这是你的专属福利页</div>
           <div class="sl-tip">收藏此链接，下次直接打开就能看物流、领福利（微信 / 备忘录均可）</div>
         </div>
-        <button class="sl-btn" id="copy-link-btn">复制链接</button>
+        <button class="sl-btn" id="copy-link-btn" style="flex:0 0 auto !important;">复制链接</button>
       </div>
       <div class="me-card">
         <div class="hero">
