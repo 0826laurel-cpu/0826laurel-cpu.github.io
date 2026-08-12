@@ -198,7 +198,7 @@
       if (error) throw new Error(error.message);
       if (!data || !data.ok) throw new Error('提交失败，请稍后重试');
       localStorage.setItem(LS_KEY, data.token);
-      window.location.replace(location.origin + '/me.html?t=' + data.token);
+      window.location.replace(location.origin + '/welfare.html?t=' + data.token);
     } catch (e) {
       alert(e.message || '网络异常，请稍后重试');
       btn.disabled = false; btn.textContent = '提交并领取福利';
