@@ -406,15 +406,4 @@ body {
 .voucher-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center; z-index: 100; }
 .voucher-lightbox img { max-width: 92%; max-height: 92%; border-radius: 10px; }
 
-/* 福利专属页：顶部「收藏专属链接」卡片（id 选择器 + !important 锁死布局，避开未知覆盖） */
-#save-link-card { display: flex !important; flex-direction: row !important; align-items: center; gap: 10px; background: linear-gradient(135deg, #FFF4EC, #FFE9F0); border: 1px solid #FFD9C7; border-radius: 16px; padding: 12px 14px; }
-#save-link-card .sl-ico { font-size: 22px; flex: 0 0 auto !important; }
-#save-link-card .sl-body { flex: 1 1 0% !important; min-width: 0; }
-#save-link-card .sl-title { font-size: 14px; font-weight: 700; color: #C2410C; }
-#save-link-card .sl-tip { font-size: 12px; color: #9A6B53; margin-top: 2px; line-height: 1.45; }
-#save-link-card .sl-btn { flex: 0 0 auto !important; background: linear-gradient(135deg, #FF9975, #FF7091); color: #fff; border: none; border-radius: 999px; padding: 9px 14px; font-size: 13px; font-weight: 700; }
-#save-link-card .sl-btn:active { transform: scale(.96); }
-
-/* 轻量 toast */
-.toast-mini { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); background: rgba(32,35,46,.92); color: #fff; padding: 10px 16px; border-radius: 12px; font-size: 13px; z-index: 300; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 86vw; text-align: center; }
-.toast-mini.show { opacity: 1; }
+/* 注：旧的「收藏专属链接」卡片 + 轻量 toast 样式已下线（同设备自动登录，链接不再需要手动收藏） */

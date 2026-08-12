@@ -189,15 +189,8 @@
     const retryBtn = document.getElementById('retryBtn');
     if (retryBtn) retryBtn.addEventListener('click', () => { err.style.display = 'none'; if (viewport) viewport.style.display = 'block'; if (tabbar) tabbar.style.display = 'flex'; load(); });
   }
-  // 轻量 toast：复用页面里的 #toast-mini（me.html 已放置），没有则动态创建
-  function toast(msg) {
-    let el = document.getElementById('toast-mini');
-    if (!el) { el = document.createElement('div'); el.id = 'toast-mini'; el.className = 'toast-mini'; document.body.appendChild(el); }
-    el.textContent = msg;
-    el.classList.add('show');
-    clearTimeout(el._t);
-    el._t = setTimeout(() => el.classList.remove('show'), 2400);
-  }
+  // 注：旧的「收藏专属链接」卡片已下线（同设备自动登录，链接不再需要手动收藏），
+  // 原 toast() 帮助函数随之移除；如后续需要轻量提示，可在 me.html 自行放置 #toast-mini。
 
   async function load() {
     if (!TOKEN) { showErr('链接无效', '链接里没有 token。请使用完整的专属链接（应形如 ' + location.origin + '/me.html?t=...）。'); return; }
@@ -299,14 +292,6 @@
 
     document.getElementById('view-home').innerHTML = `
       ${notifyHtml}
-      <div class="me-card save-link-card" id="save-link-card" style="display:flex !important; flex-direction:row !important; align-items:center !important; gap:10px;">
-        <div class="sl-ico" style="flex:0 0 auto !important;">🔗</div>
-        <div class="sl-body" style="flex:1 1 0% !important; min-width:0;">
-          <div class="sl-title">这是你的专属福利页</div>
-          <div class="sl-tip">收藏此链接，下次直接打开就能看物流、领福利（微信 / 备忘录均可）</div>
-        </div>
-        <button class="sl-btn" id="copy-link-btn" style="flex:0 0 auto !important;">复制链接</button>
-      </div>
       <div class="me-card">
         <div class="hero">
           <div class="hero-icon">🎁</div>
@@ -440,19 +425,7 @@
       });
     });
 
-    // 复制专属链接（顶部收藏卡片）
-    const copyBtn = document.getElementById('copy-link-btn');
-    if (copyBtn) {
-      copyBtn.addEventListener('click', () => {
-        const link = location.origin + '/me.html?t=' + encodeURIComponent(TOKEN);
-        const flash = () => { copyBtn.textContent = '已复制 ✓'; setTimeout(() => copyBtn.textContent = '复制链接', 1500); toast('链接已复制，去微信 / 备忘录粘贴保存吧～'); };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(link).then(flash).catch(() => prompt('复制此链接：', link));
-        } else {
-          prompt('复制此链接：', link);
-        }
-      });
-    }
+    // 注：旧的「复制专属链接」按钮已下线（同设备自动登录，不需要手动复制保存链接）
 
     // 整个礼品物流卡片一键折叠/展开
     const shipHeadRow = document.getElementById('ship-head-row');
@@ -492,16 +465,6 @@
     if (typeof Api !== 'undefined' && Api && typeof Api.touchSeen === 'function') {
       try { Api.touchSeen(TOKEN); } catch (e) {}
     }
-    // 首次进入尝试自动复制专属链接（最佳努力，失败则靠上方按钮手动复制）
-    try {
-      if (!sessionStorage.getItem('me_autocopy_done') && navigator.clipboard && navigator.clipboard.writeText) {
-        const link = location.origin + '/me.html?t=' + encodeURIComponent(TOKEN);
-        navigator.clipboard.writeText(link).then(() => {
-          sessionStorage.setItem('me_autocopy_done', '1');
-          toast('🔗 专属链接已自动复制，去微信粘贴保存即可');
-        }).catch(() => {});
-      }
-    } catch (e) {}
   }
 
   async function saveAddr() {
