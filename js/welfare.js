@@ -52,20 +52,20 @@
               <span class="rc">100积分</span>
             </div>
           </div>
-          <div class="rd" data-cost="300" data-item="大号礼品盲盒">
-            <img class="rd-img" src="img/box-large.jpg" alt="大号礼品盲盒">
-            <div class="rd-body">
-              <div class="rd-name">大号礼品盲盒</div>
-              <div class="rd-sub">超值惊喜大礼</div>
-              <span class="rc">300积分</span>
-            </div>
-          </div>
           <div class="rd" data-cost="200" data-item="中号礼品盲盒">
             <img class="rd-img" src="img/box-medium.jpg" alt="中号礼品盲盒">
             <div class="rd-body">
               <div class="rd-name">中号礼品盲盒</div>
               <div class="rd-sub">诚意满满好礼</div>
               <span class="rc">200积分</span>
+            </div>
+          </div>
+          <div class="rd" data-cost="300" data-item="大号礼品盲盒">
+            <img class="rd-img" src="img/box-large.jpg" alt="大号礼品盲盒">
+            <div class="rd-body">
+              <div class="rd-name">大号礼品盲盒</div>
+              <div class="rd-sub">超值惊喜大礼</div>
+              <span class="rc">300积分</span>
             </div>
           </div>
         </div>
