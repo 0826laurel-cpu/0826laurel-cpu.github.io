@@ -71,6 +71,14 @@
   <script src="config.js"></script>
   <script src="vendor/supabase.js"></script>
   <script src="js/sb.js"></script>
-  <script src="js/welfare.js?v=2"></script>
+  <script src="js/welfare.js?v=3"></script>
+  <script>
+  (function(){
+    function report(){ if(window.parent!==window) window.parent.postMessage({type:'setHeight',page:'welfare',height:document.body.scrollHeight},'*'); }
+    window.addEventListener('load',report);
+    window.addEventListener('resize',report);
+    setInterval(report,500);
+  })();
+  </script>
 </body>
 </html>

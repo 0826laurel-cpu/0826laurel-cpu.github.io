@@ -1,5 +1,14 @@
 // me.js — 伙伴专属自助页（底部 Tab 多视图版）
 (function () {
+  // iframe 内嵌页高度自适应：接收子页面报告的实际高度并调整容器
+  window.addEventListener('message', function(e) {
+    if (!e.data || e.data.type !== 'setHeight') return;
+    const wrap = e.data.page === 'rebate' ? document.getElementById('rebate-wrap') : (e.data.page === 'welfare' ? document.getElementById('welfare-wrap') : null);
+    if (wrap && typeof e.data.height === 'number' && e.data.height > 0) {
+      wrap.style.height = e.data.height + 'px';
+    }
+  });
+
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const TOKEN = new URLSearchParams(location.search).get('t') || '';
   const SHIP_STATUS = { pending: '待发货', collected: '已揽收', transit: '运输中', delivering: '派送中', signed: '已签收' };
@@ -315,8 +324,8 @@
   function renderRebate() {
     document.getElementById('view-rebate').innerHTML = `
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
-        <div class="iframe-wrap">
-          <iframe src="rebate/?v=8" title="返款公示台" allow="clipboard-write" scrolling="no" style="overflow:hidden"></iframe>
+        <div class="iframe-wrap" id="rebate-wrap">
+          <iframe id="rebate-frame" src="rebate/?v=9" title="返款公示台" allow="clipboard-write"></iframe>
         </div>
       </div>`;
   }
@@ -324,8 +333,8 @@
   function renderWelfare() {
     document.getElementById('view-welfare').innerHTML = `
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
-        <div class="iframe-wrap">
-          <iframe src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=2" title="互动福利中心" allow="clipboard-write" scrolling="no" style="overflow:hidden"></iframe>
+        <div class="iframe-wrap" id="welfare-wrap">
+          <iframe id="welfare-frame" src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=3" title="互动福利中心" allow="clipboard-write"></iframe>
         </div>
       </div>`;
   }

@@ -60,5 +60,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js?v=6"></script>
 <script src="js/app.js?v=6"></script>
+<script>
+(function(){
+  function report(){ if(window.parent!==window) window.parent.postMessage({type:'setHeight',page:'rebate',height:document.body.scrollHeight},'*'); }
+  window.addEventListener('load',report);
+  window.addEventListener('resize',report);
+  setInterval(report,500);
+})();
+</script>
 </body>
 </html>

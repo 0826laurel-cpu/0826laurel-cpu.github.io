@@ -243,10 +243,12 @@
 
     /* === iframe 内嵌页（返款 / 福利） === */
     .iframe-wrap {
-      width: 100%; height: calc(100vh - 170px);
+      width: 100%; height: 500px;
+      min-height: 300px;
       border-radius: 18px; overflow: hidden;
       background: #fff; border: 1px solid #FFE3DC;
       box-shadow: 0 8px 22px rgba(255,107,92,.10);
+      transition: height .2s ease;
     }
     .iframe-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
 
@@ -314,6 +316,6 @@
   <script src="vendor/supabase.js"></script>
   <script src="js/sb.js"></script>
   <script src="js/api.js?v=3"></script>
-  <script src="js/me.js?v=24"></script>
+  <script src="js/me.js?v=25"></script>
 </body>
 </html>
