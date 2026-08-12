@@ -538,17 +538,21 @@
 
   async function savePayoutQrToServer(dataUrl) {
     payoutQrMsg('上传中…');
+    console.log('[payout-qr] sending RPC', { p_token_len: (TOKEN || '').length, dataUrl_len: (dataUrl || '').length, dataUrl_prefix: (dataUrl || '').slice(0, 30) });
     try {
       const { data, error } = await window.sb.rpc('update_my_partner_payout_qr', {
         p_token: TOKEN, p_payout_qr_url: dataUrl
       });
-      if (error) throw new Error(error.message);
-      if (!data || !data.ok) throw new Error((data && data.error) || '保存失败');
+      console.log('[payout-qr] RPC result', { data, error });
+      if (error) throw new Error(JSON.stringify({ message: error.message, code: error.code, hint: error.hint, details: error.details }));
+      if (!data || !data.ok) throw new Error(JSON.stringify(data) || '保存失败');
       PAYOUT_QR_URL = dataUrl;
       payoutQrMsg('已上传 ✅');
       setTimeout(() => { render(); bindEvents(); }, 600);
     } catch (e) {
-      alert('上传失败：' + (e.message || e) + '\n\n请确认 Supabase 已执行 supabase_partner_payout_qr.sql');
+      const msg = (e && (e.message || e)) || '未知错误';
+      alert('上传失败：' + msg + '\n\n请确认 Supabase 已执行 supabase_partner_payout_qr.sql');
+      console.error('[payout-qr] FULL ERROR', e);
       payoutQrMsg('', false);
     }
   }
