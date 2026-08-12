@@ -798,6 +798,9 @@ function renderPartners() {
           <div class="meta sub-line">${esc(p.wechat || '')} · ${p.lastContact || '未联系'} · ${STATUS_LABEL[p.status] || ''}</div>
         </div>
         <div class="pcard-head-act">
+          ${p.payout_qr_url
+            ? `<img class="qr-thumb" src="${p.payout_qr_url}" data-act="qr-zoom" data-id="${p.id}" title="查看收款码" alt="收款码">`
+            : `<span class="qr-none" title="模特尚未上传收款码">无码</span>`}
           <button class="btn-icon" data-act="detail" data-id="${p.id}" title="查看详情">📝</button>
           <span class="arrow">▼</span>
         </div>
@@ -1386,6 +1389,23 @@ function openDetail(id) {
   document.getElementById('ov-detail').classList.add('show');
 }
 
+// ---------- 收款码放大 ----------
+function openQrZoom(id) {
+  const p = DB.partners.find(x => x.id == id);
+  if (!p) return;
+  if (!p.payout_qr_url) { toast('该伙伴尚未上传收款码', { err: true }); return; }
+  const sheet = document.getElementById('sheet-qr');
+  sheet.innerHTML = `
+    <h3>💰 ${esc(p.name)} 的收款码</h3>
+    <div class="qr-zoom-wrap"><img class="qr-zoom-img" src="${p.payout_qr_url}" alt="收款码"></div>
+    <div class="qr-zoom-tip">支付宝收款码 · 仅福利派送官可见，方便后续打款</div>
+    <div class="qr-zoom-acts">
+      <button class="btn-add" data-act="copy-link" data-token="${esc(p.token || '')}">📋 复制福利页链接</button>
+      <button class="btn-line" data-act="close" data-ov="ov-qr">关闭</button>
+    </div>`;
+  document.getElementById('ov-qr').classList.add('show');
+}
+
 // ---------- 新增伙伴 ----------
 function openAdd() {
   document.getElementById('sheet-add').innerHTML = `
@@ -1508,6 +1528,7 @@ document.addEventListener('click', async e => {
     else if (act === 'rebate-edit') { await fillRebateForPay(el.dataset.order, null); }
     else if (act === 'add') openAdd();
     else if (act === 'detail') openDetail(el.dataset.id);
+    else if (act === 'qr-zoom') openQrZoom(el.dataset.id);
     else if (act === 'gift') {
       if (el.dataset.pid) openGift(null, 0, el.dataset.pid);
       else openGift(el.dataset.name, el.dataset.price, null);
