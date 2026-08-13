@@ -244,7 +244,7 @@ function renderStats(s) {
     STATS_KEYS.forEach(k => {
       const el = statEl[k].el;
       // overshoot 弹性缓动：先冲过头再弹回，营造活泼老虎机感
-      el._railMap.forEach(r => { r.style.transition = 'transform 1.1s cubic-bezier(0.34, 1.45, 0.64, 1)'; });
+      el._railMap.forEach(r => { r.style.transition = 'transform 1.1s cubic-bezier(0.34, 1.3, 0.64, 1)'; });
       rollOdometer(el, s[k]);
     });
     // 入场动画结束后启动持续实时滚动
