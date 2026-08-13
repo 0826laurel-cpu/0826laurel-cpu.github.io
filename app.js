@@ -876,7 +876,11 @@ function partnerCardHtml(p, shipCountMap) {
         ${p.payout_qr_url
           ? `<img class="qr-thumb" src="${p.payout_qr_url}" data-act="qr-zoom" data-id="${p.id}" title="查看收款码" alt="收款码">`
           : `<span class="qr-none" title="模特尚未上传收款码">无码</span>`}
-        <button class="btn-icon" data-act="detail" data-id="${p.id}" title="查看详情">📝</button>
+        <div class="pcard-quick-acts">
+          <button class="btn-icon" data-act="ship-new" data-pid="${p.id}" title="发货">📦</button>
+          ${hasAddress(p.address) ? `<button class="btn-icon" data-act="copy-address" data-addr="${addrText(p.address, true)}" title="复制地址">📋</button>` : ''}
+          <button class="btn-icon" data-act="detail" data-id="${p.id}" title="查看详情">📝</button>
+        </div>
         <span class="arrow">▼</span>
       </div>
     </div>
@@ -1522,6 +1526,10 @@ function openDetail(id) {
       <div class="av" style="background:${avColor(p.tier, p.name)}">${esc((p.name || '?').slice(0, 1))}</div>
       <div><div class="nm">${esc(p.name)}</div><div class="mt">${esc(p.wechat || '')} · ${p.tier === 'new' ? '新提交' : (TIER_LABEL[p.tier] || '')} · ${STATUS_LABEL[p.status] || ''}</div></div>
     </div>
+    <div class="detail-actions-top">
+      <button class="btn-primary detail-act-main" data-act="ship-new" data-pid="${p.id}">📦 发货</button>
+      ${hasAddress(p.address) ? `<button class="btn-line detail-act-sub" data-act="copy-address" data-addr="${addrText(p.address, true)}">📋 复制地址</button>` : ''}
+    </div>
     <div class="field"><label>备注</label><div style="font-size:13px;color:var(--ink)">${esc(p.note || '—')}</div></div>
     <div class="field"><label>标签</label><div>${(p.tags && p.tags.length) ? p.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('') : '<span style="color:var(--gray);font-size:12px">无</span>'}</div></div>
     <div class="field"><label>来源</label><div style="font-size:13px;color:var(--ink)">${p.source === 'self' ? '伙伴自主入驻' : '手动录入'}</div></div>
@@ -1535,14 +1543,13 @@ function openDetail(id) {
       <div style="font-size:12px;color:var(--coral);word-break:break-all">${(/^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(p.token || '')) ? (location.origin + '/me.html?t=' + esc(p.token)) : '<span style="color:#E5454F">⚠️ 该伙伴的 token 异常，请重新保存伙伴信息后再复制</span>'}</div>
       <button class="btn-line" style="width:auto;padding:6px 12px;color:var(--coral);margin-top:6px" data-act="copy-link" data-token="${esc(p.token)}">复制链接发给伙伴</button></div>
     <div style="display:flex;gap:10px;margin-top:8px">
-      <button class="btn-primary" style="flex:1" data-act="gift" data-pid="${p.id}">送礼品</button>
-      <button class="btn-ghost" style="flex:1" data-act="ship-new" data-pid="${p.id}">发货</button>
+      <button class="btn-primary" style="flex:1;background:#E58A3F" data-act="gift" data-pid="${p.id}">🎁 送礼品</button>
+      <button class="btn-line" style="flex:1;color:var(--coral);border:1px solid var(--coral-light)" data-act="edit" data-id="${p.id}">编辑资料</button>
     </div>
     <div style="display:flex;gap:10px;margin-top:8px">
-      <button class="btn-line" style="flex:1;color:var(--coral);border:1px solid var(--coral-light)" data-act="edit" data-id="${p.id}">编辑资料</button>
       <button class="btn-line" style="flex:1;color:#5B7CFA;border:1px solid #E8EEFF" data-act="interact" data-id="${p.id}">记互动</button>
-    </div>
-    <button class="btn-line" style="color:var(--gray)" data-act="del" data-id="${p.id}">删除伙伴</button>`;
+      <button class="btn-line" style="flex:1;color:var(--gray)" data-act="del" data-id="${p.id}">删除伙伴</button>
+    </div>`;
   document.getElementById('ov-detail').classList.add('show');
 }
 
