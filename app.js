@@ -312,7 +312,7 @@ function renderAll() {
   safe(renderGift);
   safe(renderInteraction);
   safe(renderMe);
-  safe(renderWool);
+  safe(renderShipTab);
   safe(renderOps);
   safe(renderRebate);
 }
@@ -1095,6 +1095,41 @@ async function renderShipments() {
   body.innerHTML = `<button class="btn-primary" style="margin-bottom:12px" data-act="ship-new" data-pid="">新建发货</button>${items}`;
 }
 
+// ---------- 发货管理 Tab ----------
+async function renderShipTab() {
+  const view = document.getElementById('view-ship');
+  if (!view) return;
+  view.innerHTML = `<div class="sec-title" style="font-size:22px">发货管理</div>
+    <div class="card" style="text-align:center;color:var(--gray);font-size:13px;padding:20px">加载中…</div>`;
+  let data;
+  try { data = await api('/admin/shipments'); } catch (e) {
+    view.innerHTML = '<div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载失败</div>'; return;
+  }
+  SHIPS = data.shipments || [];
+  const pending = SHIPS.filter(s => effStatus(s) !== 'delivered' && effStatus(s) !== 'signed').length;
+  const items = SHIPS.length ? SHIPS.map(s => {
+    const last = (s.logs && s.logs[0]) ? s.logs[0] : null;
+    const trackDate = s.trackingAddedAt ? ' · ' + fmtShipDate(s.trackingAddedAt) : '';
+    return `<div class="ship-item">
+      <div class="si-top"><div><div class="nm">${esc(s.partnerName)} · ${esc(s.giftName)}</div>
+      <div class="mt">${esc(s.carrier || '未填快递')}${s.trackingNo ? ' · 单号 ' + esc(s.trackingNo) + trackDate : ''}</div></div>
+      <span class="badge" style="background:${SHIP_COLOR[effStatus(s)] || '#9AA0AD'}">${SHIP_STATUS[effStatus(s)] || effStatus(s)}</span></div>
+      ${s.productLink ? `<div class="si-link"><a href="${esc(s.productLink)}" target="_blank" rel="noopener">🔗 拼多多商品链接</a></div>` : ''}
+      <div class="si-last">${last ? '最新: ' + esc(last.desc) + ' · ' + fmtTime(last.time) : ''}</div>
+      <div class="si-act">
+        <button class="btn-sm" data-act="ship" data-id="${s.id}">更新物流</button>
+        <button class="btn-line" style="width:auto;padding:6px 12px;color:#FF6B5C" data-act="ship-del" data-id="${s.id}">删除</button>
+      </div></div>`;
+  }).join('') : '<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有发货记录，点击上方「新建发货」开始</div>';
+  view.innerHTML = `
+    <div class="header">
+      <div class="row"><div class="hi">发货管理</div><div class="avatar" style="background:linear-gradient(135deg,#FF8A6B,#FF6B5C)">📦</div></div>
+      <div class="sub">共 ${SHIPS.length} 条发货记录 · ${pending} 条在途中</div>
+    </div>
+    <button class="btn-primary ship-new-main" data-act="ship-new" data-pid="">＋ 新建发货</button>
+    ${items}`;
+}
+
 function openShip(ship, pid) {
   const create = !ship;
   const partnersOpts = DB.partners.slice().sort((a, b) => b.createdAt - a.createdAt).map(p =>
@@ -1679,7 +1714,7 @@ function switchTab(name, opts) {
   document.getElementById('view-' + name).classList.add('active');
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
   if (name === 'home') renderHome();
-  if (name === 'wool') renderWool();
+  if (name === 'ship') renderShipTab();
   if (name === 'ops') renderOps();
   if (name === 'rebate') {
     if (opts && opts.rebateTab) REBATE_TAB = opts.rebateTab;
