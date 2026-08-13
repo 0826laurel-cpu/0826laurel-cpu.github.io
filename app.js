@@ -1070,64 +1070,84 @@ function addrText(a, plain) {
 }
 function hasAddress(a) { return !!(a && (a.name || a.detail)); }
 
+// 发货记录列表渲染（复用：礼品页子 tab + 发货管理 tab）
+function shipListItemsHtml(ships) {
+  if (!ships.length) return '<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有发货记录</div>';
+  return ships.map(s => {
+    const last = (s.logs && s.logs[0]) ? s.logs[0] : null;
+    const trackDate = s.trackingAddedAt ? ' · ' + fmtShipDate(s.trackingAddedAt) : '';
+    return `<div class="ship-item">
+      <div class="si-top"><div><div class="nm">${esc(s.partnerName)} · ${esc(s.giftName)}</div>
+      <div class="mt">${esc(s.carrier || '未填快递')}${s.trackingNo ? ' · 单号 ' + esc(s.trackingNo) + trackDate : ''}</div></div>
+      <span class="badge" style="background:${SHIP_COLOR[effStatus(s)] || '#9AA0AD'}">${SHIP_STATUS[effStatus(s)] || effStatus(s)}</span></div>
+      ${s.productLink ? `<div class="si-link"><a href="${esc(s.productLink)}" target="_blank" rel="noopener">🔗 拼多多商品链接</a></div>` : ''}
+      <div class="si-last">${last ? '最新: ' + esc(last.desc) + ' · ' + fmtTime(last.time) : ''}</div>
+      <div class="si-act">
+        <button class="btn-sm" data-act="ship" data-id="${s.id}">更新物流</button>
+        <button class="btn-line" style="width:auto;padding:6px 12px;color:#FF6B5C" data-act="ship-del" data-id="${s.id}">删除</button>
+      </div></div>`;
+  }).join('');
+}
+function shipSkeletonHtml() {
+  return `<div class="ship-skeleton">
+    <div class="sk-head"><div class="sk-title"></div><div class="sk-circle"></div></div>
+    <div class="sk-btn"></div>
+    <div class="sk-item"><div class="sk-line"></div><div class="sk-line short"></div></div>
+    <div class="sk-item"><div class="sk-line"></div><div class="sk-line short"></div></div>
+    <div class="sk-item"><div class="sk-line"></div><div class="sk-line short"></div></div>
+  </div>`;
+}
+
 async function renderShipments() {
   const body = document.getElementById('gift-body');
   if (!body) return;
-  let data;
-  try { data = await api('/admin/shipments'); } catch (e) {
-    body.innerHTML = '<div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载失败</div>'; return;
+  // 复用 DB 缓存秒开；无缓存时再走网络
+  const cached = DB.shipments || [];
+  if (cached.length) {
+    body.innerHTML = `<button class="btn-primary" style="margin-bottom:12px" data-act="ship-new" data-pid="">新建发货</button>${shipListItemsHtml(cached)}`;
+    return;
   }
-  SHIPS = data.shipments || [];
-  const items = SHIPS.length ? SHIPS.map(s => {
-    const last = (s.logs && s.logs[0]) ? s.logs[0] : null;
-    const trackDate = s.trackingAddedAt ? ' · ' + fmtShipDate(s.trackingAddedAt) : '';
-    return `<div class="ship-item">
-      <div class="si-top"><div><div class="nm">${esc(s.partnerName)} · ${esc(s.giftName)}</div>
-      <div class="mt">${esc(s.carrier || '未填快递')}${s.trackingNo ? ' · 单号 ' + esc(s.trackingNo) + trackDate : ''}</div></div>
-      <span class="badge" style="background:${SHIP_COLOR[effStatus(s)] || '#9AA0AD'}">${SHIP_STATUS[effStatus(s)] || effStatus(s)}</span></div>
-      ${s.productLink ? `<div class="si-link"><a href="${esc(s.productLink)}" target="_blank" rel="noopener">🔗 拼多多商品链接</a></div>` : ''}
-      <div class="si-last">${last ? '最新: ' + esc(last.desc) + ' · ' + fmtTime(last.time) : ''}</div>
-      <div class="si-act">
-        <button class="btn-sm" data-act="ship" data-id="${s.id}">更新物流</button>
-        <button class="btn-line" style="width:auto;padding:6px 12px;color:#FF6B5C" data-act="ship-del" data-id="${s.id}">删除</button>
-      </div></div>`;
-  }).join('') : '<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有发货记录</div>';
-  body.innerHTML = `<button class="btn-primary" style="margin-bottom:12px" data-act="ship-new" data-pid="">新建发货</button>${items}`;
+  body.innerHTML = shipSkeletonHtml();
+  try {
+    const data = await api('/admin/shipments');
+    SHIPS = data.shipments || [];
+    body.innerHTML = `<button class="btn-primary" style="margin-bottom:12px" data-act="ship-new" data-pid="">新建发货</button>${shipListItemsHtml(SHIPS)}`;
+  } catch (e) {
+    body.innerHTML = '<div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载失败</div>';
+  }
 }
 
 // ---------- 发货管理 Tab ----------
+function renderShipTabContent(view, ships) {
+  SHIPS = ships;
+  const pending = ships.filter(s => effStatus(s) !== 'delivered' && effStatus(s) !== 'signed').length;
+  view.innerHTML = `
+    <div class="header">
+      <div class="row">
+        <div>
+          <div class="hi">发货管理</div>
+          <div class="sub">共 ${ships.length} 条发货记录 · ${pending} 条在途中</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="header-refresh" data-act="refresh-ship" title="刷新发货数据">↻</button>
+          <div class="avatar" style="background:linear-gradient(135deg,#FF8A6B,#FF6B5C)">📦</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn-primary ship-new-main" data-act="ship-new" data-pid="">＋ 新建发货</button>
+    ${ships.length ? shipListItemsHtml(ships) : '<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有发货记录，点击上方「新建发货」开始</div>'}`;
+}
 async function renderShipTab() {
   const view = document.getElementById('view-ship');
   if (!view) return;
-  view.innerHTML = `<div class="sec-title" style="font-size:22px">发货管理</div>
-    <div class="card" style="text-align:center;color:var(--gray);font-size:13px;padding:20px">加载中…</div>`;
-  let data;
-  try { data = await api('/admin/shipments'); } catch (e) {
-    view.innerHTML = '<div class="card" style="text-align:center;color:var(--gray);font-size:13px">加载失败</div>'; return;
+  // 优先用 DB 缓存（loadData 初始化/刷新时已拉取），切 tab 不再重复请求
+  const cached = DB.shipments || [];
+  if (cached.length || (DB.partners && DB.partners.length)) {
+    renderShipTabContent(view, cached);
+    return;
   }
-  SHIPS = data.shipments || [];
-  const pending = SHIPS.filter(s => effStatus(s) !== 'delivered' && effStatus(s) !== 'signed').length;
-  const items = SHIPS.length ? SHIPS.map(s => {
-    const last = (s.logs && s.logs[0]) ? s.logs[0] : null;
-    const trackDate = s.trackingAddedAt ? ' · ' + fmtShipDate(s.trackingAddedAt) : '';
-    return `<div class="ship-item">
-      <div class="si-top"><div><div class="nm">${esc(s.partnerName)} · ${esc(s.giftName)}</div>
-      <div class="mt">${esc(s.carrier || '未填快递')}${s.trackingNo ? ' · 单号 ' + esc(s.trackingNo) + trackDate : ''}</div></div>
-      <span class="badge" style="background:${SHIP_COLOR[effStatus(s)] || '#9AA0AD'}">${SHIP_STATUS[effStatus(s)] || effStatus(s)}</span></div>
-      ${s.productLink ? `<div class="si-link"><a href="${esc(s.productLink)}" target="_blank" rel="noopener">🔗 拼多多商品链接</a></div>` : ''}
-      <div class="si-last">${last ? '最新: ' + esc(last.desc) + ' · ' + fmtTime(last.time) : ''}</div>
-      <div class="si-act">
-        <button class="btn-sm" data-act="ship" data-id="${s.id}">更新物流</button>
-        <button class="btn-line" style="width:auto;padding:6px 12px;color:#FF6B5C" data-act="ship-del" data-id="${s.id}">删除</button>
-      </div></div>`;
-  }).join('') : '<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有发货记录，点击上方「新建发货」开始</div>';
-  view.innerHTML = `
-    <div class="header">
-      <div class="row"><div class="hi">发货管理</div><div class="avatar" style="background:linear-gradient(135deg,#FF8A6B,#FF6B5C)">📦</div></div>
-      <div class="sub">共 ${SHIPS.length} 条发货记录 · ${pending} 条在途中</div>
-    </div>
-    <button class="btn-primary ship-new-main" data-act="ship-new" data-pid="">＋ 新建发货</button>
-    ${items}`;
+  // 无缓存（如刚登录还没拉完）则展示骨架屏并等待
+  view.innerHTML = shipSkeletonHtml();
 }
 
 function openShip(ship, pid) {
@@ -1890,7 +1910,7 @@ document.addEventListener('click', async e => {
         value
       }) });
       document.getElementById('ov-ship').classList.remove('show');
-      toast('已发货 📦'); renderShipments();
+      toast('已发货 📦'); await loadData();
     }
     else if (act === 'ship-log') {
       const stEl = document.querySelector('#sh-status .chip.on');
@@ -1901,13 +1921,20 @@ document.addEventListener('click', async e => {
         id: el.dataset.id, status, desc: document.getElementById('sh-desc').value.trim(),
         trackingNo: document.getElementById('sh-no2').value.trim(), value
       }) });
-      toast('已更新物流'); openShip(r.shipment);
+      toast('已更新物流'); openShip(r.shipment); await loadData();
     }
     else if (act === 'ship-del') {
       if (!confirm('确定删除该发货记录？')) return;
       await api('/admin/shipment/' + el.dataset.id, { method: 'DELETE' });
       document.getElementById('ov-ship').classList.remove('show');
-      toast('已删除'); renderShipments();
+      toast('已删除'); await loadData();
+    }
+    else if (act === 'refresh-ship') {
+      const btn = el;
+      btn.classList.add('spin');
+      try { await loadData(); toast('已刷新'); }
+      catch (e) { toast('刷新失败：' + (e.message || ''), { err: true }); }
+      finally { btn.classList.remove('spin'); }
     }
     else if (act === 'copy-link') {
       const raw = (el.dataset.token || '').trim();
