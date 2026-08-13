@@ -397,9 +397,30 @@ function renderHome() {
   renderCharts();
 }
 
+let _chartJsPromise = null;
+function loadChartJs() {
+  // 懒加载图表库：首屏不阻塞登录框，登录后 dashboard 渲染时再按需加载
+  if (window.Chart) return Promise.resolve();
+  if (!_chartJsPromise) {
+    _chartJsPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'chart.umd.min.js';
+      s.async = true;
+      s.onload = () => resolve(window.Chart);
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+  return _chartJsPromise;
+}
+
 function renderCharts() {
   if (!DASH) return;
-  if (typeof Chart === 'undefined') { console.warn('Chart.js 未加载，跳过图表渲染'); return; }
+  if (typeof Chart === 'undefined') {
+    // 图表库未加载：触发懒加载，加载完成后再重画（首屏数据先秒出，图表稍后填充）
+    loadChartJs().then(() => renderCharts()).catch(() => {});
+    return;
+  }
   // 销毁旧图表
   Object.values(charts).forEach(c => { try { c.destroy(); } catch (e) {} });
   charts = {};
