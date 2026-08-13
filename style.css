@@ -116,10 +116,28 @@ body {
 .ship-mini .st { font-size: 10px; font-weight: 700; color: #fff; padding: 3px 8px; border-radius: 10px; flex: 0 0 auto; }
 .ship-mini .act { background: transparent; border: none; color: var(--gray); font-size: 13px; padding: 2px 4px; cursor: pointer; text-decoration: none; line-height: 1; }
 .ship-mini .act:hover { color: var(--coral); }
-/* 全部展开/折叠按钮 */
+/* 全部展开/折叠按钮 + 批量管理 */
 .pcards-bar { display:flex; justify-content:space-between; align-items:center; padding: 0 4px 10px; }
 .pcards-bar .left { font-size: 12px; color: var(--gray); }
+.pcards-bar .right-group { display: flex; gap: 8px; }
 .pcards-bar .right { font-size: 12px; font-weight: 600; color: var(--coral); background: transparent; border: 1px solid #FFD9D2; padding: 5px 10px; border-radius: 10px; cursor: pointer; }
+.pcards-bar .right.batch-btn { background: var(--coral); color: #fff; border-color: var(--coral); }
+
+/* 批量管理 */
+.batch-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 0 4px 10px; }
+.batch-bar .batch-left { display: flex; align-items: center; gap: 10px; }
+.batch-bar .batch-count { font-size: 12px; color: var(--gray); }
+.batch-bar .batch-right { display: flex; gap: 6px; }
+.btn-batch-action { font-size: 12px; font-weight: 600; color: #fff; background: var(--coral); border: none; padding: 6px 10px; border-radius: 10px; cursor: pointer; }
+.btn-batch-action.danger { background: #FF4D4F; }
+.btn-batch-action.ghost { background: transparent; color: var(--coral); border: 1px solid #FFD9D2; }
+.pcard.batching .pcard-head { cursor: pointer; }
+.pcard.selected { box-shadow: 0 0 0 2px var(--coral); }
+.pcard.selected .pcard-head { background: rgba(255,235,229,.55); }
+.batch-cb { width: 20px; height: 20px; border: 2px solid #D3D6DE; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; background: #fff; }
+.batch-cb input { display: none; }
+.batch-cb.on { background: var(--coral); border-color: var(--coral); }
+.batch-cb.on::after { content: '✓'; color: #fff; font-size: 12px; font-weight: 700; }
 
 /* 福利 */
 .hero-card { background: linear-gradient(135deg, #FF9975, #FF7091); border-radius: 20px; padding: 20px; color: #fff; margin-bottom: 14px; }

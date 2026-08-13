@@ -7,6 +7,10 @@ let filterCity = 'all';
 let searchQ = '';
 let charts = {};
 
+// 批量管理状态
+let BATCH_MODE = false;
+let BATCH_SEL = new Set();
+
 // 返款模块状态（内存，不持久化）
 let REBATE_PW = '';
 let REBATE_LOGGED_IN = false;
@@ -92,6 +96,51 @@ function rebateMaskName(name) {
   if (!name || name.length <= 1) return name || '*';
   return name[0] + '*'.repeat(name.length - 1);
 }
+
+// ---------- 批量管理 ----------
+async function runBatch(label, fn) {
+  const ids = Array.from(BATCH_SEL);
+  let ok = 0, fail = 0;
+  for (const id of ids) {
+    try { await fn(id); ok++; }
+    catch (e) { console.error(`${label} ${id} 失败:`, e); fail++; }
+  }
+  BATCH_SEL.clear(); BATCH_MODE = false;
+  await loadData(); await loadStats();
+  if (fail) toast(`${label}完成：成功 ${ok} 个，失败 ${fail} 个`, { err: fail > 0 });
+  else toast(`${label}完成：${ok} 个伙伴`);
+  renderPartners();
+}
+function openBatchTier() {
+  const sheet = document.getElementById('sheet-batch');
+  sheet.innerHTML = `
+    <h3>修改分组（已选 ${BATCH_SEL.size} 个）</h3>
+    <div class="tier-row" style="margin-bottom:18px">
+      ${[['vip','VIP'],['core','核心'],['normal','普通'],['sleep','待激活'],['new','新提交']].map(([t,l]) => `<button class="chip ${BATCH_TIER_TEMP === t ? 'on' : ''}" data-act="batch-tier-opt" data-tier="${t}">${l}</button>`).join('')}
+    </div>
+    <button class="btn-primary" data-act="batch-tier-save">确认修改</button>
+    <button class="btn-line" data-act="close" data-ov="ov-batch">取消</button>`;
+  BATCH_TIER_TEMP = 'normal';
+  document.querySelectorAll('#sheet-batch .chip').forEach(c => c.classList.toggle('on', c.dataset.tier === BATCH_TIER_TEMP));
+  document.getElementById('ov-batch').classList.add('show');
+}
+function openBatchStatus() {
+  const sheet = document.getElementById('sheet-batch');
+  sheet.innerHTML = `
+    <h3>修改状态（已选 ${BATCH_SEL.size} 个）</h3>
+    <div class="tier-row" style="margin-bottom:18px">
+      ${[['new','新提交'],['contacted','已联系'],['active','活跃']].map(([s,l]) => `<button class="chip ${BATCH_STATUS_TEMP === s ? 'on' : ''}" data-act="batch-status-opt" data-status="${s}">${l}</button>`).join('')}
+    </div>
+    <button class="btn-primary" data-act="batch-status-save">确认修改</button>
+    <button class="btn-line" data-act="close" data-ov="ov-batch">取消</button>`;
+  BATCH_STATUS_TEMP = 'contacted';
+  document.querySelectorAll('#sheet-batch .chip').forEach(c => c.classList.toggle('on', c.dataset.status === BATCH_STATUS_TEMP));
+  document.getElementById('ov-batch').classList.add('show');
+}
+
+// 批量管理临时值
+let BATCH_TIER_TEMP = 'normal';
+let BATCH_STATUS_TEMP = 'contacted';
 
 // 兼容层：把旧的 /api/... 路径映射到新的 Supabase Api（渲染逻辑无需改动）
 async function api(path, opts = {}) {
@@ -789,8 +838,14 @@ function renderPartners() {
     const trackDate = myShips.length
       ? `<div style="font-size:10px;color:#9AA0AD;margin-top:2px">最新发货：${esc(fmtShipDate(myShips[0].trackingAddedAt || myShips[0].createdAt))}</div>`
       : '';
-    return `<div class="pcard" data-id="${p.id}">
-      <div class="pcard-head" data-act="toggle-pcard" data-id="${p.id}">
+    const batchCb = BATCH_MODE
+      ? `<label class="batch-cb ${BATCH_SEL.has(p.id) ? 'on' : ''}" data-act="batch-check" data-id="${p.id}" onclick="event.stopPropagation()">
+          <input type="checkbox" ${BATCH_SEL.has(p.id) ? 'checked' : ''}>
+        </label>`
+      : '';
+    return `<div class="pcard ${BATCH_MODE ? 'batching' : ''} ${BATCH_SEL.has(p.id) ? 'selected' : ''}" data-id="${p.id}">
+      <div class="pcard-head" data-act="${BATCH_MODE ? 'batch-check' : 'toggle-pcard'}" data-id="${p.id}">
+        ${batchCb}
         <div class="av" style="background:${avColor(p.tier, p.name)}">${esc((p.name || '?').slice(0, 1))}</div>
         <div class="info">
           <div class="nm">${esc(p.name)} ${tierTag} ${shipTag}</div>
@@ -821,15 +876,32 @@ function renderPartners() {
     </div>`;
   }).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">没有匹配的伙伴</div>`;
 
+  const batchBar = BATCH_MODE
+    ? `<div class="batch-bar">
+        <div class="batch-left">
+          <button class="chip" data-act="batch-select-all">全选</button>
+          <span class="batch-count">已选 ${BATCH_SEL.size} 个</span>
+        </div>
+        <div class="batch-right">
+          <button class="btn-batch-action danger" data-act="batch-delete">删除</button>
+          <button class="btn-batch-action" data-act="batch-tier">改分组</button>
+          <button class="btn-batch-action" data-act="batch-status">改状态</button>
+          <button class="btn-batch-action ghost" data-act="batch-toggle">完成</button>
+        </div>
+      </div>`
+    : `<div class="pcards-bar">
+        <div class="left">点击伙伴行展开看单号，点击「📝」直接看详情</div>
+        <div class="right-group">
+          <button class="right" data-act="toggle-all">全部展开 / 折叠</button>
+          <button class="right batch-btn" data-act="batch-toggle">批量管理</button>
+        </div>
+      </div>`;
   document.getElementById('view-partners').innerHTML = `
     <div class="sec-title" style="font-size:22px">我的伙伴</div>
     <div class="search">🔍<input id="search-input" placeholder="搜索昵称 / 微信 / 模特ID / 备注" value="${esc(searchQ)}"></div>
     <div class="chips">${chips}</div>
     <div class="chips city-chips">${cityChips}</div>
-    <div class="pcards-bar">
-      <div class="left">点击伙伴行展开看单号，点击「📝」直接看详情</div>
-      <button class="right" data-act="toggle-all">全部展开 / 折叠</button>
-    </div>
+    ${batchBar}
     ${cards}`;
   const si = document.getElementById('search-input');
   if (si) {
@@ -1582,6 +1654,61 @@ document.addEventListener('click', async e => {
       if (!cards.length) return;
       const anyOpen = Array.from(cards).some(c => c.classList.contains('open'));
       cards.forEach(c => c.classList.toggle('open', !anyOpen));
+    }
+    else if (act === 'batch-toggle') {
+      BATCH_MODE = !BATCH_MODE;
+      if (!BATCH_MODE) BATCH_SEL.clear();
+      renderPartners();
+    }
+    else if (act === 'batch-check') {
+      const id = Number(el.dataset.id);
+      if (BATCH_SEL.has(id)) BATCH_SEL.delete(id); else BATCH_SEL.add(id);
+      renderPartners();
+    }
+    else if (act === 'batch-select-all') {
+      const visibleIds = (DB.partners || [])
+        .filter(p => {
+          if (filterTier === 'shipped') return shipCountMap.has(p.id);
+          if (filterTier === 'unshipped') return !shipCountMap.has(p.id);
+          if (filterTier !== 'all') return p.tier === filterTier;
+          return true;
+        })
+        .filter(p => filterCity === 'all' || partnerCity(p) === filterCity)
+        .filter(p => !searchQ || (p.name + p.wechat + (p.note || '') + (p.platform || '') + (p.modelId || '')).toLowerCase().includes(searchQ.toLowerCase()))
+        .map(p => p.id);
+      const allSelected = visibleIds.every(id => BATCH_SEL.has(id));
+      if (allSelected) visibleIds.forEach(id => BATCH_SEL.delete(id));
+      else visibleIds.forEach(id => BATCH_SEL.add(id));
+      renderPartners();
+    }
+    else if (act === 'batch-delete') {
+      if (BATCH_SEL.size === 0) { toast('请先选择伙伴'); return; }
+      if (!confirm(`确定删除选中的 ${BATCH_SEL.size} 个伙伴？此操作不可恢复`)) return;
+      await runBatch('删除伙伴', async id => { await api('/admin/partners/' + id, { method: 'DELETE' }); });
+    }
+    else if (act === 'batch-tier') {
+      if (BATCH_SEL.size === 0) { toast('请先选择伙伴'); return; }
+      openBatchTier();
+    }
+    else if (act === 'batch-status') {
+      if (BATCH_SEL.size === 0) { toast('请先选择伙伴'); return; }
+      openBatchStatus();
+    }
+    else if (act === 'batch-tier-opt') {
+      BATCH_TIER_TEMP = el.dataset.tier;
+      document.querySelectorAll('#sheet-batch .chip').forEach(c => c.classList.toggle('on', c === el));
+    }
+    else if (act === 'batch-tier-save') {
+      await runBatch('修改分组', async id => { await Api.updatePartner(id, { tier: BATCH_TIER_TEMP }); });
+      document.getElementById('ov-batch').classList.remove('show');
+    }
+    else if (act === 'batch-status-opt') {
+      BATCH_STATUS_TEMP = el.dataset.status;
+      document.querySelectorAll('#sheet-batch .chip').forEach(c => c.classList.toggle('on', c === el));
+    }
+    else if (act === 'batch-status-save') {
+      await runBatch('修改状态', async id => { await Api.updatePartner(id, { status: BATCH_STATUS_TEMP }); });
+      document.getElementById('ov-batch').classList.remove('show');
     }
     else if (act === 'copy-track') {
       const no = el.dataset.no || '';
