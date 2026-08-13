@@ -808,6 +808,73 @@ window.openRebateVoucher = function (url) {
 };
 
 // ---------- 伙伴 ----------
+// 单张伙伴卡片（供「我的伙伴」扁平 / 按日期分组两种模式复用）
+function partnerCardHtml(p, shipCountMap) {
+  const cnt = shipCountMap.get(p.id) || 0;
+  const tierTag = p.tier !== 'new' ? `<span class="tag">${TIER_LABEL[p.tier] || ''}</span>` : `<span class="tag" style="background:#FFE3EA;color:#FF7091">新提交</span>`;
+  const shipTag = cnt > 0
+    ? `<span class="tag" style="background:#E8F5E9;color:#2BB673">🚚 已发货${cnt > 1 ? ' ×' + cnt : ''}</span>`
+    : `<span class="tag" style="background:#FFF3E0;color:#E58A3F">📦 待发货</span>`;
+  const myShips = (DB.shipments || [])
+    .filter(s => s.partnerId === p.id)
+    .slice()
+    .sort((a, b) => (b.trackingAddedAt || b.createdAt || 0) - (a.trackingAddedAt || a.createdAt || 0));
+  const shipsHtml = myShips.length
+    ? myShips.map(s => {
+        const no = s.trackingNo || '';
+        const kd = no
+          ? `<button class="act" data-act="copy-track" data-no="${esc(no)}" title="复制单号">📋</button>
+             <a class="act" href="https://m.kuaidi100.com/index_all.html?postid=${encodeURIComponent(no)}" target="_blank" rel="noopener" title="快递100">🔎</a>`
+          : `<span class="act" title="待承运商分配单号">⏳</span>`;
+        return `<div class="ship-mini">
+          <span class="carrier">${esc(s.carrier || '未填')}</span>
+          <span class="no${no ? '' : ' empty'}">${esc(no || '待分配单号')}</span>
+          <span class="st" style="background:${SHIP_COLOR[effStatus(s)] || '#9AA0AD'}">${SHIP_STATUS[effStatus(s)] || ''}</span>
+          ${kd}
+        </div>`;
+      }).join('')
+    : '<div class="ship-mini empty">📦 还没发货</div>';
+  const trackDate = myShips.length
+    ? `<div style="font-size:10px;color:#9AA0AD;margin-top:2px">最新发货：${esc(fmtShipDate(myShips[0].trackingAddedAt || myShips[0].createdAt))}</div>`
+    : '';
+  const batchCb = BATCH_MODE
+    ? `<label class="batch-cb ${BATCH_SEL.has(p.id) ? 'on' : ''}" data-act="batch-check" data-id="${p.id}" onclick="event.stopPropagation()">
+        <input type="checkbox" ${BATCH_SEL.has(p.id) ? 'checked' : ''}>
+      </label>`
+    : '';
+  return `<div class="pcard ${BATCH_MODE ? 'batching' : ''} ${BATCH_SEL.has(p.id) ? 'selected' : ''}" data-id="${p.id}">
+    <div class="pcard-head" data-act="${BATCH_MODE ? 'batch-check' : 'toggle-pcard'}" data-id="${p.id}">
+      ${batchCb}
+      <div class="av" style="background:${avColor(p.tier, p.name)}">${esc((p.name || '?').slice(0, 1))}</div>
+      <div class="info">
+        <div class="nm">${esc(p.name)} ${tierTag} ${shipTag}</div>
+        <div class="meta">${partnerModelText(p)} · ${partnerCity(p)}</div>
+        <div class="meta sub-line">${esc(p.wechat || '')} · ${p.lastContact || '未联系'} · ${STATUS_LABEL[p.status] || ''}</div>
+      </div>
+      <div class="pcard-head-act">
+        ${p.payout_qr_url
+          ? `<img class="qr-thumb" src="${p.payout_qr_url}" data-act="qr-zoom" data-id="${p.id}" title="查看收款码" alt="收款码">`
+          : `<span class="qr-none" title="模特尚未上传收款码">无码</span>`}
+        <button class="btn-icon" data-act="detail" data-id="${p.id}" title="查看详情">📝</button>
+        <span class="arrow">▼</span>
+      </div>
+    </div>
+    <div class="pcard-body">
+      <div class="ships-summary">
+        <div>
+          <div class="left">📦 该伙伴 <span class="cnt">${myShips.length}</span> 单发货</div>
+          ${trackDate}
+        </div>
+        <div class="right">
+          <button class="btn-add" data-act="ship-new" data-pid="${p.id}" title="给该伙伴新建发货">➕ 发货</button>
+          <button class="btn-detail" data-act="detail" data-id="${p.id}">详情</button>
+        </div>
+      </div>
+      ${shipsHtml}
+    </div>
+  </div>`;
+}
+
 function renderPartners() {
   const s = STATS || {};
   // 发货统计（客户端聚合：每个伙伴的发货单数）
@@ -838,72 +905,33 @@ function renderPartners() {
   if (filterCity !== 'all') list = list.filter(p => partnerCity(p) === filterCity);
   if (searchQ) list = list.filter(p => (p.name + p.wechat + (p.note || '') + (p.platform || '') + (p.modelId || '')).toLowerCase().includes(searchQ.toLowerCase()));
   list = list.slice().sort((a, b) => b.createdAt - a.createdAt);
-  const cards = list.length ? list.map(p => {
-    const cnt = shipCountMap.get(p.id) || 0;
-    const tierTag = p.tier !== 'new' ? `<span class="tag">${TIER_LABEL[p.tier] || ''}</span>` : `<span class="tag" style="background:#FFE3EA;color:#FF7091">新提交</span>`;
-    const shipTag = cnt > 0
-      ? `<span class="tag" style="background:#E8F5E9;color:#2BB673">🚚 已发货${cnt > 1 ? ' ×' + cnt : ''}</span>`
-      : `<span class="tag" style="background:#FFF3E0;color:#E58A3F">📦 待发货</span>`;
-    // 该伙伴的所有发货（按 tracking_added_at / created_at DESC，最新在前）
-    const myShips = (DB.shipments || [])
-      .filter(s => s.partnerId === p.id)
-      .slice()
-      .sort((a, b) => (b.trackingAddedAt || b.createdAt || 0) - (a.trackingAddedAt || a.createdAt || 0));
-    const shipsHtml = myShips.length
-      ? myShips.map(s => {
-          const no = s.trackingNo || '';
-          const kd = no
-            ? `<button class="act" data-act="copy-track" data-no="${esc(no)}" title="复制单号">📋</button>
-               <a class="act" href="https://m.kuaidi100.com/index_all.html?postid=${encodeURIComponent(no)}" target="_blank" rel="noopener" title="快递100">🔎</a>`
-            : `<span class="act" title="待承运商分配单号">⏳</span>`;
-          return `<div class="ship-mini">
-            <span class="carrier">${esc(s.carrier || '未填')}</span>
-            <span class="no${no ? '' : ' empty'}">${esc(no || '待分配单号')}</span>
-            <span class="st" style="background:${SHIP_COLOR[effStatus(s)] || '#9AA0AD'}">${SHIP_STATUS[effStatus(s)] || ''}</span>
-            ${kd}
-          </div>`;
-        }).join('')
-      : '<div class="ship-mini empty">📦 还没发货</div>';
-    const trackDate = myShips.length
-      ? `<div style="font-size:10px;color:#9AA0AD;margin-top:2px">最新发货：${esc(fmtShipDate(myShips[0].trackingAddedAt || myShips[0].createdAt))}</div>`
-      : '';
-    const batchCb = BATCH_MODE
-      ? `<label class="batch-cb ${BATCH_SEL.has(p.id) ? 'on' : ''}" data-act="batch-check" data-id="${p.id}" onclick="event.stopPropagation()">
-          <input type="checkbox" ${BATCH_SEL.has(p.id) ? 'checked' : ''}>
-        </label>`
-      : '';
-    return `<div class="pcard ${BATCH_MODE ? 'batching' : ''} ${BATCH_SEL.has(p.id) ? 'selected' : ''}" data-id="${p.id}">
-      <div class="pcard-head" data-act="${BATCH_MODE ? 'batch-check' : 'toggle-pcard'}" data-id="${p.id}">
-        ${batchCb}
-        <div class="av" style="background:${avColor(p.tier, p.name)}">${esc((p.name || '?').slice(0, 1))}</div>
-        <div class="info">
-          <div class="nm">${esc(p.name)} ${tierTag} ${shipTag}</div>
-          <div class="meta">${partnerModelText(p)} · ${partnerCity(p)}</div>
-          <div class="meta sub-line">${esc(p.wechat || '')} · ${p.lastContact || '未联系'} · ${STATUS_LABEL[p.status] || ''}</div>
+  // 卡片渲染：扁平模式直接用 partnerCardHtml；分组模式按入驻日期聚合（组内 ≥4 默认折叠）
+  let cards;
+  if (GROUP_BY_DATE) {
+    const dayMap = new Map();
+    list.forEach(p => {
+      const ds = fmtDate(p.createdAt);
+      if (!ds) return;
+      if (!dayMap.has(ds)) dayMap.set(ds, { label: fmtHomeDate(p.createdAt), list: [] });
+      dayMap.get(ds).list.push(p);
+    });
+    cards = dayMap.size ? Array.from(dayMap.entries()).map(([ds, g]) => {
+      const collapsed = COLLAPSED_GROUPS.has(ds);
+      const rows = g.list.map(p => partnerCardHtml(p, shipCountMap)).join('');
+      const expandTip = collapsed && g.list.length > 0
+        ? `<div class="join-expand" data-act="group-toggle" data-ds="${esc(ds)}">展开 ${g.list.length} 个伙伴 ▼</div>`
+        : '';
+      return `<div class="join-group ${collapsed ? 'collapsed' : ''}" data-ds="${esc(ds)}">
+        <div class="join-date" data-act="group-toggle" data-ds="${esc(ds)}">
+          <span>${esc(g.label)} <span class="join-count">${g.list.length} 人</span></span>
+          <span class="join-toggle ${collapsed ? '' : 'open'}">${collapsed ? '▶' : '▼'}</span>
         </div>
-        <div class="pcard-head-act">
-          ${p.payout_qr_url
-            ? `<img class="qr-thumb" src="${p.payout_qr_url}" data-act="qr-zoom" data-id="${p.id}" title="查看收款码" alt="收款码">`
-            : `<span class="qr-none" title="模特尚未上传收款码">无码</span>`}
-          <button class="btn-icon" data-act="detail" data-id="${p.id}" title="查看详情">📝</button>
-          <span class="arrow">▼</span>
-        </div>
-      </div>
-      <div class="pcard-body">
-        <div class="ships-summary">
-          <div>
-            <div class="left">📦 该伙伴 <span class="cnt">${myShips.length}</span> 单发货</div>
-            ${trackDate}
-          </div>
-          <div class="right">
-            <button class="btn-add" data-act="ship-new" data-pid="${p.id}" title="给该伙伴新建发货">➕ 发货</button>
-            <button class="btn-detail" data-act="detail" data-id="${p.id}">详情</button>
-          </div>
-        </div>
-        ${shipsHtml}
-      </div>
-    </div>`;
-  }).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">没有匹配的伙伴</div>`;
+        ${collapsed ? expandTip : rows}
+      </div>`;
+    }).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">没有匹配的伙伴</div>`;
+  } else {
+    cards = list.length ? list.map(p => partnerCardHtml(p, shipCountMap)).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">没有匹配的伙伴</div>`;
+  }
 
   const batchBar = BATCH_MODE
     ? `<div class="batch-bar">
@@ -921,6 +949,7 @@ function renderPartners() {
     : `<div class="pcards-bar">
         <div class="left">点击伙伴行展开看单号，点击「📝」直接看详情</div>
         <div class="right-group">
+          <button class="right" data-act="toggle-group-by-date">${GROUP_BY_DATE ? '切换扁平列表' : '按入驻日期分组'}</button>
           <button class="right" data-act="toggle-all">全部展开 / 折叠</button>
           <button class="right batch-btn" data-act="batch-toggle">批量管理</button>
         </div>
@@ -1076,6 +1105,7 @@ function openShip(ship, pid) {
       <div class="field"><label>快递公司</label><div style="font-size:13px">${esc(ship.carrier || '—')}</div></div>
       <div class="field"><label>快递单号</label><div style="font-size:13px;color:var(--coral)">${esc(ship.trackingNo || '未填')}</div></div>
       <div class="field"><label>当前状态</label><span class="badge" style="background:${SHIP_COLOR[effStatus(ship)] || '#9AA0AD'}">${SHIP_STATUS[effStatus(ship)] || effStatus(ship)}</span></div>
+      <div class="field"><label>礼品价值（元）<span style="color:var(--coral)">*</span></label><input id="sh-value2" type="number" min="0.01" step="0.01" value="${Number(ship.value || 0).toFixed(2)}" placeholder="填写后才会累计到「累计福利价值」"></div>
       <div class="field"><label>物流轨迹</label><div class="tl">${logs}</div></div>
       <div class="field"><label>添加节点：状态</label><div class="tier-row" id="sh-status">
         ${Object.keys(SHIP_STATUS).map(k => `<button class="chip ${k === 'transit' ? 'on' : ''}" data-status="${k}">${SHIP_STATUS[k]}</button>`).join('')}
@@ -1631,7 +1661,7 @@ document.addEventListener('click', async e => {
     else if (act === 'group-toggle') {
       const ds = el.dataset.ds;
       if (COLLAPSED_GROUPS.has(ds)) COLLAPSED_GROUPS.delete(ds); else COLLAPSED_GROUPS.add(ds);
-      renderHome();
+      renderPartners();
     }
     else if (act === 'rebate-tab') { REBATE_TAB = el.dataset.tab; renderRebate(); }
     else if (act === 'rebate-logout') { REBATE_LOGGED_IN = false; REBATE_PW = ''; REBATE_TAB = 'form'; renderRebate(); }
@@ -1689,6 +1719,10 @@ document.addEventListener('click', async e => {
       if (!cards.length) return;
       const anyOpen = Array.from(cards).some(c => c.classList.contains('open'));
       cards.forEach(c => c.classList.toggle('open', !anyOpen));
+    }
+    else if (act === 'toggle-group-by-date') {
+      GROUP_BY_DATE = !GROUP_BY_DATE;
+      renderPartners();
     }
     else if (act === 'batch-toggle') {
       BATCH_MODE = !BATCH_MODE;

@@ -399,6 +399,10 @@ body {
 .join-row .nm { font-size: 13px; font-weight: 600; }
 .join-row .tg { font-size: 11px; color: var(--gray); margin-top: 2px; }
 
+/* 首页「查看全部」入口按钮 */
+.view-all-btn { display: block; width: 100%; margin: 6px 0 2px; padding: 12px 0; border: none; border-radius: 14px; background: linear-gradient(135deg, #FF8A6B, #FF6B5C); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 16px rgba(255, 107, 92, .28); }
+.view-all-btn:active { transform: scale(.98); }
+
 /* 伙伴页：城市筛选 + 信息展示 */
 .city-chips { padding-top: 0; margin-top: -4px; }
 .pcard .meta.sub-line { margin-top: 4px; }
