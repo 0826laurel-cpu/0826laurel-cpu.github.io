@@ -61,17 +61,17 @@ function maskStatus(s){ return s||'待返'; }
 
 // ---- 按日期计算四个公示指标 ----
 const MODEL_BASE = 586;          // 合作模特人数起点
-const MODEL_DAILY_INC = 12;      // 模特人数每天增加量（每周约 +84，落在 70-100 区间），只增不减
+const MODEL_DAILY_INC = 240;     // 模特人数每天增加量（约每秒 +0.003），入场时也会活泼滚动
 const STATS_START_DATE = new Date('2026-08-11T00:00:00'); // 累计口径起点日
 
 // 累计金额：调快日吞吐，让最低位持续快速滚动；HIST_BASE 已按原 130 万口径平滑修正，避免跳变
 const HIST_BASE = 1067000;       // 历史累计基线（元）
-const TOTAL_DAILY_INC = 86400;   // 累计金额每日吞吐（元/天）→ 每秒约 +1 元，最低位每秒滚动 1 格
+const TOTAL_DAILY_INC = 1728000; // 累计金额每日吞吐（元/天）→ 每秒约 +20 元，最低位滚动明显
 
-const WEEK_DAILY_INC = 8600;     // 本周新增每日吞吐（元/天），保持原约定（周一~周日封顶约 6 万）
+const WEEK_DAILY_INC = 172800;   // 本周新增每日吞吐（元/天）→ 每秒约 +2 元，约为累计的 1/10，差异清晰
 
 const COUNT_BASE = 30;           // 已结算笔数起点（笔）
-const COUNT_DAILY_INC = 3;       // 已结算笔数每天递增（笔/天）
+const COUNT_DAILY_INC = 60;      // 已结算笔数每天递增（笔/天）→ 约每 24 分钟 +1 笔，可见滚动
 const COUNT_MAX = 240;           // 已结算笔数封顶（200-250 区间）
 
 // 基于当前时间统一计算公示指标（含当天内平滑递增，保证任何用户同一时刻数值一致）
@@ -123,10 +123,10 @@ function bindStatEls() {
 // ---- 数字滚轮（odometer）：每位数字独立上下平滑滚动，入场 + 实时持续滚动 ----
 (function () {
   const css = `
-  .odo{display:inline-flex; align-items:flex-end; line-height:1.1; font-variant-numeric:tabular-nums; font-feature-settings:"tnum";}
-  .odo-digit{height:1.1em; overflow:hidden; display:inline-block; vertical-align:bottom;}
-  .odo-rail{display:flex; flex-direction:column; transition:transform 1.3s cubic-bezier(.22,.61,.36,1); will-change:transform;}
-  .odo-cell{height:1.1em; line-height:1.1; display:flex; align-items:center; justify-content:center;}
+  .odo{display:inline-flex; align-items:center; line-height:1; font-variant-numeric:tabular-nums; font-feature-settings:"tnum";}
+  .odo-digit{height:1.35em; overflow:hidden; display:inline-flex; align-items:center; vertical-align:middle;}
+  .odo-rail{display:flex; flex-direction:column; will-change:transform;}
+  .odo-cell{height:1.35em; line-height:1.35; display:flex; align-items:center; justify-content:center;}
   .odo-sep{display:inline-block;}
   `;
   const st = document.createElement('style');
@@ -134,12 +134,18 @@ function bindStatEls() {
   document.head.appendChild(st);
 })();
 
-// 统计数字格式化：统一显示整数（不显示小数点），但 odometer 仍按内部小数做平滑滚动
+// 统计数字格式化：统一显示整数（不显示小数点），内部保留小数做平滑滚动
 function statsStr(el, value) {
   const floor = Math.floor(value);
   return (el._isMoney ? '¥' : '') + floor.toLocaleString('zh-CN');
 }
 
+// 每位数字的实时滚动倍率：数值越大，最低位滚动越快
+const SPEED = { total_amount: 30, week_amount: 18, total_count: 25, model_count: 25 };
+const CELL_H = 1.35; // 必须与 CSS 中 .odo-digit / .odo-cell 高度一致
+const RAIL_LOOPS = 5; // 0-9 重复轮数（50 格），撑住入场多圈滚动 + overshoot
+
+// 构建 odometer 轨道
 // startAtZero: true → 所有数字从 0 开始（入场）；false → 直接定位到目标值（重建/实时）
 function buildOdometer(el, value, startAtZero) {
   const str = statsStr(el, value);
@@ -150,10 +156,12 @@ function buildOdometer(el, value, startAtZero) {
     if (ch >= '0' && ch <= '9') {
       const d = document.createElement('span'); d.className = 'odo-digit';
       const rail = document.createElement('span'); rail.className = 'odo-rail';
-      // 0-9 + 末尾多一个 0：方便 overshoot/回弹时不会露出空白，也让 9→0 的进位更自然
-      for (let i = 0; i <= 10; i++) {
-        const c = document.createElement('span'); c.className = 'odo-cell';
-        c.textContent = i === 10 ? 0 : i; rail.appendChild(c);
+      // 重复多轮 0-9，方便入场转多圈和 overshoot 不露出空白
+      for (let loop = 0; loop < RAIL_LOOPS; loop++) {
+        for (let i = 0; i < 10; i++) {
+          const c = document.createElement('span'); c.className = 'odo-cell';
+          c.textContent = i; rail.appendChild(c);
+        }
       }
       d.appendChild(rail); el.appendChild(d); el._railMap.push(rail);
     } else {
@@ -162,37 +170,39 @@ function buildOdometer(el, value, startAtZero) {
     }
   }
   el._str = str;
-  // 初始定位：入场从 0 开始，其余情况直接定位到目标值（不播放过渡）
-  setRailPositions(el, value, startAtZero ? 0 : null, true);
+  // 入场时强制停在 0（不播放过渡）
+  if (startAtZero) {
+    el._railMap.forEach(r => { r.style.transition = 'none'; r.style.transform = 'translateY(0)'; });
+  } else {
+    setRailPositions(el, value, { noTransition: true });
+  }
 }
 
 // 设置每一位轨道的 translateY
-// basePos: 若指定，则每位从 basePos（该位整数）开始；null 表示用目标值的整数位
-// noTransition: true 时关闭 transition（用于初始定位 / 实时驱动）
-function setRailPositions(el, value, basePos, noTransition) {
+// opts: { noTransition, spinOffset }
+// spinOffset: 额外多转的圈数×10，用于入场活泼滚动
+function setRailPositions(el, value, opts) {
+  opts = opts || {};
   const str = el._str;
-  // 计算小数位数（最后一个 "." 之后的数字个数），用于正确换算最低位的过渡小数
-  let decimalPlaces = 0;
-  const dotIdx = str.lastIndexOf('.');
-  if (dotIdx >= 0) decimalPlaces = str.length - dotIdx - 1;
-  const lastUnit = Math.pow(10, decimalPlaces);
-  const fracForLast = (value * lastUnit) % 1; // 最低位（最小单位）的过渡小数 0~1
+  const spinOffset = (opts.spinOffset || 0);
   // 找到最后一位数字的索引
   let lastDigitIdx = -1, idx = 0;
   for (const ch of str) {
     if (ch >= '0' && ch <= '9') lastDigitIdx = idx++;
   }
+  const speed = SPEED[el._statKey] || 15;
+  // 最低位过渡小数（0~1），乘 speed 让滚动更快更明显
+  const frac = value - Math.floor(value);
+  const lastFrac = (frac * speed) % 1;
   idx = 0;
   for (const ch of str) {
     if (ch >= '0' && ch <= '9') {
       const rail = el._railMap[idx];
       const targetDigit = Number(ch);
-      // 最低位（角位/个位）叠加过渡小数，实现持续平滑滚动
-      const digitWithFrac = targetDigit + (idx === lastDigitIdx ? fracForLast : 0);
-      const baseDigit = basePos !== null ? basePos : targetDigit;
-      const baseWithFrac = baseDigit + (idx === lastDigitIdx && basePos !== null ? fracForLast : 0);
-      if (noTransition) rail.style.transition = 'none';
-      rail.style.transform = 'translateY(-' + ((basePos !== null ? baseWithFrac : digitWithFrac) * 1.1) + 'em)';
+      // 只有最低位持续滚动；高位只显示整数，避免全屏数字乱动
+      const pos = targetDigit + spinOffset + (idx === lastDigitIdx ? lastFrac : 0);
+      if (opts.noTransition) rail.style.transition = 'none';
+      rail.style.transform = 'translateY(-' + (pos * CELL_H) + 'em)';
       idx++;
     }
   }
@@ -203,14 +213,14 @@ function rollOdometer(el, value) {
   const str = statsStr(el, value);
   if (el._str !== str) {
     if (el._str && el._str.length === str.length) {
-      // 结构没变，仅数字进位（如 1303583→1303584）：复用轨道，避免每秒重建闪烁
+      // 结构没变，仅数字进位：复用轨道，避免每秒重建闪烁
       el._str = str;
     } else {
       buildOdometer(el, value, false);
       return;
     }
   }
-  setRailPositions(el, value, null, false);
+  setRailPositions(el, value, {});
 }
 
 let liveTimer = null;
@@ -234,21 +244,25 @@ function renderStats(s) {
   bindStatEls();
   // 入场：用目标值结构建轨道，但全部停在 0
   STATS_KEYS.forEach(k => {
-    statEl[k].el._isMoney = statEl[k].isMoney;
-    buildOdometer(statEl[k].el, s[k], true);
+    const el = statEl[k].el;
+    el._isMoney = statEl[k].isMoney;
+    el._statKey = k;
+    buildOdometer(el, s[k], true);
   });
   // 强制重排，确保“0”状态已渲染
   void document.body.offsetWidth;
-  // 下一帧开启弹性过渡并滚动到真实值（所有数字一起活泼滚入）
+  // 下一帧开启弹性过渡并滚动到真实值（所有数字一起活泼滚入，多转 2~3 圈）
   requestAnimationFrame(() => requestAnimationFrame(() => {
     STATS_KEYS.forEach(k => {
       const el = statEl[k].el;
       // overshoot 弹性缓动：先冲过头再弹回，营造活泼老虎机感
-      el._railMap.forEach(r => { r.style.transition = 'transform 1.1s cubic-bezier(0.34, 1.3, 0.64, 1)'; });
-      rollOdometer(el, s[k]);
+      el._railMap.forEach(r => { r.style.transition = 'transform 1.4s cubic-bezier(0.34, 1.7, 0.64, 1)'; });
+      // 数字位越多，多转的圈数越多，制造“全员滚动”的热烈感
+      const loops = Math.max(2, 6 - el._railMap.length);
+      setRailPositions(el, s[k], { spinOffset: loops * 10 });
     });
     // 入场动画结束后启动持续实时滚动
-    setTimeout(startLiveTicker, 1200);
+    setTimeout(startLiveTicker, 1500);
   }));
 }
 
