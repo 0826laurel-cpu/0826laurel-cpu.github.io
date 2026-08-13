@@ -192,6 +192,27 @@
   // 注：旧的「收藏专属链接」卡片已下线（同设备自动登录，链接不再需要手动收藏），
   // 原 toast() 帮助函数随之移除；如后续需要轻量提示，可在 me.html 自行放置 #toast-mini。
 
+  // —— 性能优化：本地缓存（反复打开秒开）+ 收款码懒加载 ——
+  const CACHE_TTL = 5 * 60 * 1000;
+  function readCache(token) {
+    try {
+      const raw = localStorage.getItem('me_cache_' + token);
+      if (!raw) return null;
+      const c = JSON.parse(raw);
+      if (!c || !c.ts || Date.now() - c.ts > CACHE_TTL) return null;
+      return c;
+    } catch (e) { return null; }
+  }
+  function writeCache(token, data) {
+    try { localStorage.setItem('me_cache_' + token, JSON.stringify({ ts: Date.now(), partner: data.partner, ships: data.ships })); } catch (e) {}
+  }
+  async function loadPayoutQr() {
+    try {
+      const qr = await window.sb.rpc('get_my_partner_payout_qr', { p_token: TOKEN });
+      if (qr && qr.data && qr.data.ok) { PAYOUT_QR_URL = qr.data.payout_qr_url || null; render(); }
+    } catch (e) {}
+  }
+
   async function load() {
     if (!TOKEN) { showErr('链接无效', '链接里没有 token。请使用完整的专属链接（应形如 ' + location.origin + '/me.html?t=...）。'); return; }
     if (TOKEN === 'TOKEN' || !/^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(TOKEN)) { showErr('链接无效', '链接里的 token 不正确（看到了占位符 "TOKEN" 或格式不对）。请使用你收到的<b>真实</b>专属链接，<b>不要手动修改链接</b>。'); return; }
@@ -200,22 +221,36 @@
       return;
     }
     try {
-      const { data: pd, error: e1 } = await window.sb.rpc('get_my_partner', { p_token: TOKEN });
-      if (e1 || !pd || !pd.ok) { showErr('链接无效', '找不到对应的伙伴记录。可能链接已失效，请联系福利派送官重新发送你的专属链接。' + (e1 ? ' (' + esc(e1.message || e1) + ')' : '')); return; }
-      const { data: sd, error: e2 } = await window.sb.rpc('my_shipments', { p_token: TOKEN });
-      if (e2) { showErr('加载失败', '物流信息加载失败，请稍后刷新重试。' + (e2.message ? ' (' + esc(e2.message) + ')' : '')); return; }
+      // ① 先读本地缓存，命中则瞬时渲染（模特反复打开自己页 ≈ 0 延迟）
+      const cached = readCache(TOKEN);
+      if (cached) {
+        PARTNER = cached.partner; SHIPS = cached.ships || [];
+        render();
+      }
+      // ② 主数据并行拉取：get_my_partner + my_shipments 同时发，省掉一次往返
+      const [pdRes, sdRes] = await Promise.all([
+        window.sb.rpc('get_my_partner', { p_token: TOKEN }),
+        window.sb.rpc('my_shipments', { p_token: TOKEN })
+      ]);
+      const pd = pdRes.data, e1 = pdRes.error;
+      if (e1 || !pd || !pd.ok) {
+        if (!cached) showErr('链接无效', '找不到对应的伙伴记录。可能链接已失效，请联系福利派送官重新发送你的专属链接。' + (e1 ? ' (' + esc(e1.message || e1) + ')' : ''));
+        return;
+      }
+      const sd = sdRes.data, e2 = sdRes.error;
+      if (e2) {
+        if (!cached) showErr('加载失败', '物流信息加载失败，请稍后刷新重试。' + (e2.message ? ' (' + esc(e2.message) + ')' : ''));
+        return;
+      }
       PARTNER = pd.partner; SHIPS = ((sd && sd.shipments) || []).map(normShip);
-      // 动态标题：让浏览器 Tab / 微信收藏名都变成「{名字}模特专属后台」
       try { document.title = (PARTNER && PARTNER.name ? PARTNER.name + '模特专属后台' : '模特专属后台'); } catch (e) {}
       const wall = generateWallData();
       WALL_FEED = wall.feed;
       WALL_STATS = wall.stats;
-      // 收款码（支付宝）：独立 RPC，失败不阻塞主流程
-      try {
-        const qr = await window.sb.rpc('get_my_partner_payout_qr', { p_token: TOKEN });
-        if (qr && qr.data && qr.data.ok) PAYOUT_QR_URL = qr.data.payout_qr_url || null;
-      } catch (e) { /* SQL 未执行时静默忽略 */ }
+      writeCache(TOKEN, { partner: PARTNER, ships: SHIPS });
       render();
+      // ③ 收款码独立懒加载，不阻塞首屏
+      loadPayoutQr();
     } catch (e) {
       const msg = (e && (e.message || e)) || '未知错误';
       const detail = '类型: ' + (e && e.name ? e.name : typeof e) + '\n信息: ' + msg + '\n时间: ' + new Date().toLocaleString();
