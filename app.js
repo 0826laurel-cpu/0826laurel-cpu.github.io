@@ -887,11 +887,12 @@ function renderGiftBody(g) {
 }
 
 // ---------- 发货 / 物流 ----------
-function addrText(a) {
+function addrText(a, plain) {
   if (!a || (!a.name && !a.detail)) return '尚未填写收件地址';
   const parts = [a.name, a.phone, [a.province, a.city, a.district].filter(Boolean).join(''), a.detail, a.postal].filter(Boolean);
-  return esc(parts.join(' · '));
+  return esc(parts.join(plain ? ' ' : ' · '));
 }
+function hasAddress(a) { return !!(a && (a.name || a.detail)); }
 
 async function renderShipments() {
   const body = document.getElementById('gift-body');
@@ -1373,7 +1374,10 @@ function openDetail(id) {
     <div class="field"><label>来源</label><div style="font-size:13px;color:var(--ink)">${p.source === 'self' ? '伙伴自主入驻' : '手动录入'}</div></div>
     <div class="field"><label>互动时间线</label><div class="tl">${tl}</div></div>
     ${glog ? `<div class="field"><label>礼物流水</label><div class="tl">${glog}</div></div>` : ''}
-    <div class="field"><label>收件地址</label><div style="font-size:13px;color:var(--ink)">${addrText(p.address)}</div></div>
+    <div class="field"><label>收件地址</label>
+      <div style="font-size:13px;color:var(--ink)">${addrText(p.address)}</div>
+      ${hasAddress(p.address) ? `<button class="btn-line" style="width:auto;padding:5px 10px;color:var(--coral);margin-top:6px;font-size:12px" data-act="copy-address" data-addr="${addrText(p.address, true)}" data-name="${esc((p.name || ''))}">📋 一键复制地址</button>` : ''}
+    </div>
     <div class="field"><label>专属链接（发给伙伴：自助填地址 / 看物流）</label>
       <div style="font-size:12px;color:var(--coral);word-break:break-all">${(/^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(p.token || '')) ? (location.origin + '/me.html?t=' + esc(p.token)) : '<span style="color:#E5454F">⚠️ 该伙伴的 token 异常，请重新保存伙伴信息后再复制</span>'}</div>
       <button class="btn-line" style="width:auto;padding:6px 12px;color:var(--coral);margin-top:6px" data-act="copy-link" data-token="${esc(p.token)}">复制链接发给伙伴</button></div>
@@ -1632,6 +1636,12 @@ document.addEventListener('click', async e => {
       const link = location.origin + '/me.html?t=' + raw;
       try { await navigator.clipboard.writeText(link); toast('已复制专属链接'); }
       catch (e) { prompt('复制此链接发给伙伴：', link); }
+    }
+    else if (act === 'copy-address') {
+      const text = (el.dataset.addr || '').trim();
+      if (!text) return;
+      try { await navigator.clipboard.writeText(text); toast('已复制收件地址'); }
+      catch (e) { prompt('复制此地址：', text); }
     }
     else if (act === 'edit') openEdit(el.dataset.id);
     else if (act === 'interact') openInteract(el.dataset.id);
