@@ -225,7 +225,27 @@ async function init() {
   await loadData();
   renderAll();
 }
+// 运营后台数据缓存（登录后/刷新秒开；写操作后 loadData 会覆盖；TTL 短保证实时性）
+const ADMIN_CACHE_KEY = 'admin_cache';
+const ADMIN_CACHE_TTL = 120 * 1000;
+function readAdminCache() {
+  try {
+    const raw = localStorage.getItem(ADMIN_CACHE_KEY);
+    if (!raw) return null;
+    const c = JSON.parse(raw);
+    if (!c || !c.ts || Date.now() - c.ts > ADMIN_CACHE_TTL) return null;
+    return c;
+  } catch (e) { return null; }
+}
+function writeAdminCache() {
+  try { localStorage.setItem(ADMIN_CACHE_KEY, JSON.stringify({ ts: Date.now(), DB, STATS, DASH })); } catch (e) {}
+}
+
 async function loadData() {
+  // ① 缓存优先：秒开（避免每次登录/刷新都等 5 个跨境 REST 查询）
+  const cached = readAdminCache();
+  if (cached) { DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH; renderAll(); }
+  // ② 后台拉取最新（listPartners 已不再重复查 interactions，整体并行）
   const [partners, gifts, shipments, interactions, deals] = await Promise.all([
     Api.listPartners(), Api.listGifts(), Api.listShipments(), Api.listInteractions(), Api.listDeals()
   ]);
@@ -235,6 +255,7 @@ async function loadData() {
   DASH = computeDashboard();
   // 首次加载时，将人数 ≥4 的日期组默认折叠
   if (COLLAPSED_GROUPS.size === 0) initCollapsedGroups();
+  writeAdminCache();
   renderAll();
 }
 function initCollapsedGroups() {

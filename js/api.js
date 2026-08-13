@@ -117,10 +117,8 @@ const Api = {
 
   // ---- 伙伴 ----
   async listPartners() {
-    const partners = await sbSelect('partners', normPartner);
-    const interactions = await sbSelect('interactions', normInteraction);
-    partners.forEach(p => { p.interactions = interactions.filter(i => i.partnerId == p.id); });
-    return partners;
+    // 仅查伙伴；互动数据由 loadData 统一并行拉取（去掉重复查询，省一次跨境 REST 请求）
+    return await sbSelect('partners', normPartner);
   },
   async createPartner(b) {
     const { error } = await sb.from('partners').insert({
