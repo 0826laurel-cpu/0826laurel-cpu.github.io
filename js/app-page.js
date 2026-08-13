@@ -16,8 +16,8 @@
   const TOKEN = new URLSearchParams(location.search).get('t') || '';
   // 同步写入本机会话，使「打开 join 链接」也能自动回到本页（两链接互通）
   if (TOKEN) { try { localStorage.setItem('p_token', TOKEN); } catch (e) {} }
-  const SHIP_STATUS = { pending: '待发货', collected: '已揽收', transit: '运输中', delivering: '派送中', signed: '已签收' };
-  const SHIP_COLOR = { pending: '#9AA0AD', collected: '#5B7CFA', transit: '#E58A3F', delivering: '#FF8FA3', signed: '#2BB673' };
+  const SHIP_STATUS = { pending: '待发货', collected: '已揽收', transit: '运输中', delivering: '派送中', signed: '已签收', delivered: '已签收' };
+  const SHIP_COLOR = { pending: '#9AA0AD', collected: '#5B7CFA', transit: '#E58A3F', delivering: '#FF8FA3', signed: '#2BB673', delivered: '#2BB673' };
   function effStatus(s) {
     if (s && s.status === 'pending' && s.trackingNo && String(s.trackingNo).trim() !== '') return 'collected';
     return s ? s.status : '';
@@ -265,11 +265,13 @@
     }).join('') : '<div style="text-align:center;color:#9AA0AD;font-size:13px;padding:14px">还没有收到礼品发货～</div>';
   }
 
+  const signedSet = new Set(['signed', 'delivered']);
+  function isSigned(s) { return signedSet.has(s && s.status); }
   function buildOverviewHtml() {
     const now = new Date(), y = now.getFullYear(), m = now.getMonth();
-    const monthSigned = SHIPS.filter(s => s.status === 'signed' && (() => { const d = new Date(s.createdAt); return d.getFullYear() === y && d.getMonth() === m; })()).length;
-    const pendingCount = SHIPS.filter(s => s.status !== 'signed').length;
-    const totalValue = SHIPS.filter(s => s.status === 'signed').reduce((a, s) => a + (Number(s.value) || 0), 0);
+    const monthSigned = SHIPS.filter(s => isSigned(s) && (() => { const d = new Date(s.createdAt); return d.getFullYear() === y && d.getMonth() === m; })()).length;
+    const pendingCount = SHIPS.filter(s => !isSigned(s)).length;
+    const totalValue = SHIPS.filter(s => isSigned(s)).reduce((a, s) => a + (Number(s.value) || 0), 0);
     return `
       <div class="me-card overview-card">
         <div class="block-title">📊 我的福利概览</div>

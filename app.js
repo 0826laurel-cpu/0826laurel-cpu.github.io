@@ -18,6 +18,28 @@ let REBATE_TAB = 'form'; // form | pending | paid | public
 
 const TIER_LABEL = { vip: 'VIP', core: '核心', normal: '普通', sleep: '待激活', new: '新提交' };
 const TIER_COLOR = { vip: '#FF6B5C', core: '#7C6CF0', normal: '#FFB36B', sleep: '#9AA0AD', new: '#FF8FA3' };
+
+// 通用复制文本：优先 Clipboard API，失败用 execCommand，最后 fallback prompt
+async function copyText(text, okMsg) {
+  if (!text) return false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      if (okMsg) toast(okMsg);
+      return true;
+    }
+  } catch (e) {}
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px'; ta.style.top = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (ok) { if (okMsg) toast(okMsg); return true; }
+  } catch (e) {}
+  prompt('请手动复制：', text);
+  return false;
+}
 const STATUS_LABEL = { new: '新提交', contacted: '已联系', active: '活跃' };
 const SHIP_STATUS = { pending: '待发货', collected: '已揽收', transit: '运输中', delivering: '派送中', signed: '已签收' };
 const SHIP_COLOR = { pending: '#9AA0AD', collected: '#5B7CFA', transit: '#E58A3F', delivering: '#FF8FA3', signed: '#2BB673' };
@@ -996,10 +1018,11 @@ function openShip(ship, pid) {
   const partnersOpts = DB.partners.slice().sort((a, b) => b.createdAt - a.createdAt).map(p =>
     `<option value="${p.id}" ${pid && p.id == pid ? 'selected' : ''}>${esc(p.name)}（${p.tier === 'new' ? '新提交' : (TIER_LABEL[p.tier] || '')}）</option>`).join('');
   if (create) {
+    const todayStr = (new Date()).toISOString().slice(0, 10).replace(/-/g, '');
     document.getElementById('sheet-ship').innerHTML = `
       <h3>新建发货</h3>
       <div class="field"><label>选择伙伴 *</label><select id="sh-pid">${partnersOpts}</select></div>
-      <div class="field"><label>礼品名称 *</label><input id="sh-gift" placeholder="如：定制礼盒"></div>
+      <div class="field"><label>礼品名称 *</label><input id="sh-gift" value="${todayStr}-模特礼品" readonly style="background:#F7F8FA;color:#5F626A"></div>
       <div class="field"><label>拼多多商品链接（选填）</label><input id="sh-link" placeholder="在拼多多买好后，粘贴商品/订单链接，模特可在专属页一键查看"></div>
       <div class="field"><label>快递公司 *</label><select id="sh-carrier">
         <option value="">请选择快递公司</option>
@@ -1017,7 +1040,7 @@ function openShip(ship, pid) {
         <input id="sh-phone" maxlength="4" inputmode="numeric" placeholder="选伙伴后自动从收件地址取后四位">
         <div style="font-size:11px;color:var(--gray);margin-top:4px">快递100实时查询需要此字段；如未填则无法同步物流</div>
       </div>
-      <div class="field"><label>礼品价值（元，选填）</label><input id="sh-value" type="number" min="0" step="0.01" placeholder="如：99，用于福利概览累计价值"></div>
+      <div class="field"><label>礼品价值（元，必填）<span style="color:var(--coral)">*</span></label><input id="sh-value" type="number" min="0.01" step="0.01" placeholder="填写后才会累计到「累计福利价值」"></div>
       <div class="field"><label>备注 / 首批物流信息</label><textarea id="sh-note" placeholder="如：已揽收，今日发出"></textarea></div>
       <button class="btn-primary" data-act="ship-create">确认发货</button>
       <button class="btn-line" data-act="close" data-ov="ov-ship">取消</button>`;
@@ -1725,14 +1748,16 @@ document.addEventListener('click', async e => {
     else if (act === 'ship-create') {
       const pid = document.getElementById('sh-pid').value;
       const giftName = document.getElementById('sh-gift').value.trim();
+      const value = Number(document.getElementById('sh-value').value || 0);
       if (!pid) { toast('请选择伙伴'); return; }
       if (!giftName) { toast('请填写礼品名称'); return; }
+      if (!value || value <= 0) { toast('请填写礼品价值，否则累计福利价值无法增加'); return; }
       await api('/admin/shipment', { method: 'POST', body: JSON.stringify({
         partnerId: pid, giftName, carrier: document.getElementById('sh-carrier').value.trim(),
         trackingNo: document.getElementById('sh-no').value.trim(), phone: document.getElementById('sh-phone').value.trim(),
         note: document.getElementById('sh-note').value.trim(),
         productLink: document.getElementById('sh-link').value.trim(),
-        value: Number(document.getElementById('sh-value').value || 0)
+        value
       }) });
       document.getElementById('ov-ship').classList.remove('show');
       toast('已发货 📦'); renderShipments();
@@ -1766,9 +1791,7 @@ document.addEventListener('click', async e => {
     }
     else if (act === 'copy-address') {
       const text = (el.dataset.addr || '').trim();
-      if (!text) return;
-      try { await navigator.clipboard.writeText(text); toast('已复制收件地址'); }
-      catch (e) { prompt('复制此地址：', text); }
+      await copyText(text, '已复制收件地址');
     }
     else if (act === 'edit') openEdit(el.dataset.id);
     else if (act === 'interact') openInteract(el.dataset.id);

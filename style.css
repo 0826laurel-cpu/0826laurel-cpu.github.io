@@ -425,3 +425,10 @@ body {
 .voucher-lightbox img { max-width: 92%; max-height: 92%; border-radius: 10px; }
 
 /* 注：旧的「收藏专属链接」卡片 + 轻量 toast 样式已下线（同设备自动登录，链接不再需要手动收藏） */
+
+/* 移动端遮罩层固定到视口，避免底部弹窗被浏览器工具栏或 100vh 折叠遮住 */
+@media (max-width: 480px) {
+  html, body { height: 100%; overflow: hidden; }
+  .phone { height: 100%; min-height: 100%; max-height: 100%; }
+  .overlay { position: fixed; }
+}

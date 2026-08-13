@@ -227,7 +227,7 @@ const Api = {
     return data; // {ok:true, shipment:{trackingNo, carrier, logs}} | {ok:false, message}
   },
   async saveShipLogs(id, logs) {
-    const status = (Array.isArray(logs) && logs.some(l => l.desc && /签收/.test(l.desc))) ? 'delivered' : 'transit';
+    const status = (Array.isArray(logs) && logs.some(l => l.desc && /签收/.test(l.desc))) ? 'signed' : 'transit';
     const { error } = await sb.from('shipments').update({ logs, status }).eq('id', id);
     if (error) throw new Error(error.message);
   },
