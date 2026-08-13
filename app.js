@@ -11,6 +11,9 @@ let charts = {};
 let BATCH_MODE = false;
 let BATCH_SEL = new Set();
 
+// 我的伙伴页：是否按入驻日期分组（默认开，长列表用折叠消化）
+let GROUP_BY_DATE = true;
+
 // 首页按入驻日期分组的折叠状态（内存，按日期 ds 缓存；≥4 人默认折叠）
 let COLLAPSED_GROUPS = new Set();
 
@@ -311,24 +314,14 @@ function dynamicGreeting() {
 }
 
 function renderHome() {
-  // 按入驻日期分组：最近 14 天（或全部，若不足）
-  const dayMap = new Map();
+  // 首页只展示「最近入驻」前 N 位（扁平）；完整列表交给「我的伙伴」页
   const ps = DB.partners.slice().sort((a, b) => b.createdAt - a.createdAt);
-  const cutoff = Date.now() - 14 * 86400000;
-  ps.forEach(p => {
-    const d = new Date(p.createdAt);
-    if (isNaN(d.getTime())) return;
-    const ds = fmtDate(p.createdAt);
-    if (!ds) return;
-    const label = fmtHomeDate(p.createdAt);
-    if (!dayMap.has(ds)) dayMap.set(ds, { label, list: [] });
-    dayMap.get(ds).list.push(p);
-  });
-  const recentGroups = Array.from(dayMap.entries()).filter(([_, g]) => g.list.some(p => p.createdAt >= cutoff || ps.length <= 14));
-
-  const todos = recentGroups.length ? recentGroups.map(([ds, g]) => {
-    const collapsed = COLLAPSED_GROUPS.has(ds);
-    const rows = g.list.map(p => `
+  // 首页只展示「最近入驻」前 8 位（扁平，不复用日期分组）；完整列表交给「我的伙伴」页
+  const RECENT_LIMIT = 8;
+  const recentList = ps.slice(0, RECENT_LIMIT);
+  const todos = `
+    <div class="sec-title">最近入驻 <span class="join-count">${ps.length} 人</span></div>
+    ${recentList.length ? recentList.map(p => `
       <div class="join-row" data-act="detail" data-id="${p.id}">
         <div class="av" style="background:${avColor(p.tier, p.name)}">${esc((p.name || '?').slice(0, 1))}</div>
         <div class="info">
@@ -336,19 +329,8 @@ function renderHome() {
           <div class="tg">${partnerModelText(p)} · ${partnerCity(p)} · ${p.tier === 'new' ? '新提交' : (TIER_LABEL[p.tier] || '')}</div>
         </div>
         <button class="btn-sm" data-act="detail" data-id="${p.id}">查看</button>
-      </div>`).join('');
-    const expandTip = collapsed && g.list.length > 0
-      ? `<div class="join-expand" data-act="group-toggle" data-ds="${esc(ds)}">展开 ${g.list.length} 个伙伴 ▼</div>`
-      : '';
-    return `
-      <div class="join-group ${collapsed ? 'collapsed' : ''}" data-ds="${esc(ds)}">
-        <div class="join-date" data-act="group-toggle" data-ds="${esc(ds)}">
-          <span>${esc(g.label)} <span class="join-count">${g.list.length} 人</span></span>
-          <span class="join-toggle ${collapsed ? '' : 'open'}">${collapsed ? '▶' : '▼'}</span>
-        </div>
-        ${collapsed ? expandTip : rows}
-      </div>`;
-  }).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有伙伴入驻 🎉</div>`;
+      </div>`).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有伙伴入驻 🎉</div>`}
+    ${ps.length > RECENT_LIMIT ? `<button class="view-all-btn" data-act="tab" data-tab="partners">查看全部 ${ps.length} 位伙伴 →</button>` : ''}`;
 
   const d = DASH || {};
   document.getElementById('view-home').innerHTML = `
@@ -382,7 +364,7 @@ function renderHome() {
         <div class="qa" data-act="tab" data-tab="rebate"><div class="ic" style="background:#E8F5E9">💰</div><div class="t">返款后台</div></div>
         <div class="qa" data-act="tab" data-tab="rebate" data-rebate="public"><div class="ic" style="background:#E3F2FD">📢</div><div class="t">返款公示</div></div>
     </div>
-    <div class="sec-title">按入驻日期查看</div>
+    <div class="sec-title">最近入驻</div>
     ${todos}`;
   // 填充统计数字
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };

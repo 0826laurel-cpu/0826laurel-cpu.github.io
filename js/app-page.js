@@ -306,7 +306,8 @@
     const now = new Date(), y = now.getFullYear(), m = now.getMonth();
     const monthSigned = SHIPS.filter(s => isSigned(s) && (() => { const d = new Date(s.createdAt); return d.getFullYear() === y && d.getMonth() === m; })()).length;
     const pendingCount = SHIPS.filter(s => !isSigned(s)).length;
-    const totalValue = SHIPS.filter(s => isSigned(s)).reduce((a, s) => a + (Number(s.value) || 0), 0);
+    // 累计福利价值：只要已发货（无论待收货/运输中/已签收）都计入，因为礼品价值在发货时即产生
+    const totalValue = SHIPS.reduce((a, s) => a + (Number(s.value) || 0), 0);
     return `
       <div class="me-card overview-card">
         <div class="block-title">📊 我的福利概览</div>
@@ -412,7 +413,7 @@
     document.getElementById('view-rebate').innerHTML = `
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap" id="rebate-wrap">
-          <iframe id="rebate-frame" src="rebate/?v=13" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
+          <iframe id="rebate-frame" src="rebate/?v=14" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
         </div>
       </div>`;
   }

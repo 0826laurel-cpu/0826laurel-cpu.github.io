@@ -1,19 +1,23 @@
 // ============ 公开返款页逻辑（单页长滚动版） ============
 
 /*
- * 核心数据计算逻辑（按 2026-08-12 需求截图约定）：
+ * 核心数据计算逻辑（按 2026-08-13 需求截图约定）：
  *
  * 1. 合作模特人数：只增不减，起点 586 人。
  *    以 2026-08-11 为基准日，之后每过 1 天固定增加 MODEL_DAILY_INC 人。
  *    公式：model_count = 586 + max(0, 今天 - 2026-08-11 的天数) × MODEL_DAILY_INC
  *
- * 2. 其余三个指标按「自然周」累计：
- *    - 一周从周一 00:00:00 开始，到周日 23:59:59 结束。
- *    - 每周一从 0 重新计算，随时间线性增长到本周目标值。
- *    - 本周目标（可按业务需要调整）：
- *        · 累计返款金额 TOTAL_WEEK_TARGET = 15624
- *        · 已结算笔数   COUNT_WEEK_TARGET = 22
- *        · 本周返款     MONTH_WEEK_TARGET = 15624（原“本月返款”语义改为按本周累计）
+ * 2. 其余三个指标采用「滚动 7 天累计 + 每日目标递增」，确保：
+ *    - 同一个人不同时间打开页面，数字只增不减；
+ *    - 呈现的是最近 7 天的数据，保留时效性；
+ *    - 每天 0 点会因为“新增一天目标 > 移除 7 天前目标”而跳增。
+ *
+ *    每日目标随日期递增：
+ *      返款金额目标 = AMOUNT_BASE + dayIndex × AMOUNT_INC
+ *      结算笔数目标 = COUNT_BASE  + dayIndex × COUNT_INC
+ *    其中 dayIndex = 今天 - 2026-08-11 的天数。
+ *
+ *    近 7 日累计 = 前 6 天（完整天）目标之和 + 今天实时进度 × 今天目标。
  *
  * 3. 页面上的“实时滚动” ticker 仅在前述基础值上做小幅随机波动，
  *    用于营造热闹氛围；刷新页面后会重新按日期计算，保证逻辑可预期。
@@ -64,22 +68,39 @@ const MODEL_BASE = 586;          // 合作模特人数起点
 const MODEL_DAILY_INC = 3;       // 模特人数每天固定增加量（只增不减）
 const MODEL_START_DATE = new Date('2026-08-11T00:00:00'); // 模特人数起点日（北京时间/本地时间）
 
-const TOTAL_WEEK_TARGET = 15624; // 每周累计返款金额目标
-const COUNT_WEEK_TARGET = 22;    // 每周已结算笔数目标
-const MONTH_WEEK_TARGET = 15624; // 本周返款目标（原“本月返款”按本周累计）
+// 滚动 7 天累计：每日目标递增，确保累计值随时间单调递增
+const BASE_DATE = new Date('2026-08-11T00:00:00');
+const AMOUNT_BASE = 1500;        // 每日返款金额目标基数（元）
+const AMOUNT_INC  = 40;          // 每日返款金额目标递增（元/天）
+const COUNT_BASE  = 2;           // 每日结算笔数目标基数
+const COUNT_INC   = 1;           // 每日结算笔数目标递增（笔/天）
 
-// 获取指定日期所在周的周一 00:00:00
-function getWeekMonday(d = new Date()){
+function dayStart(d) {
   const date = new Date(d);
-  const day = date.getDay(); // 0=周日, 1=周一, ...
-  const diff = day === 0 ? -6 : 1 - day; // 回到本周一
-  const mon = new Date(date);
-  mon.setDate(date.getDate() + diff);
-  mon.setHours(0, 0, 0, 0);
-  return mon;
+  date.setHours(0, 0, 0, 0);
+  return date;
 }
 
-// 基于当前日期计算公示指标（周一 ~ 周日线性累计，模特人数只增不减）
+// 第 dayIndex 天（从 BASE_DATE 开始 0 索引）的返款金额目标
+function dailyAmountTarget(dayIndex) {
+  return Math.max(0, AMOUNT_BASE + dayIndex * AMOUNT_INC);
+}
+// 第 dayIndex 天的结算笔数目标
+function dailyCountTarget(dayIndex) {
+  return Math.max(0, COUNT_BASE + dayIndex * COUNT_INC);
+}
+
+// 求和：从 fromDay 到 toDay（含）的 dailyTarget
+function sumRange(fromDay, toDay, targetFn) {
+  // 用等差数列公式，避免循环
+  const n = toDay - fromDay + 1;
+  if (n <= 0) return 0;
+  const first = targetFn(fromDay);
+  const last = targetFn(toDay);
+  return Math.floor((first + last) * n / 2);
+}
+
+// 基于当前日期计算公示指标（滚动 7 天累计，模特人数只增不减）
 function computeStats(now = new Date()){
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -87,15 +108,23 @@ function computeStats(now = new Date()){
   const daysSinceBase = Math.floor((now - MODEL_START_DATE) / MS_PER_DAY);
   const model_count = MODEL_BASE + Math.max(0, daysSinceBase) * MODEL_DAILY_INC;
 
-  // 2) 其余三个指标：按自然周线性累计，周一从 0 开始
-  const mon = getWeekMonday(now);
-  const weekProgress = Math.min(1, Math.max(0, (now - mon) / (7 * MS_PER_DAY)));
+  // 2) 滚动 7 天累计：前 6 个完整天 + 今天实时进度
+  const curDay = Math.floor((now - BASE_DATE) / MS_PER_DAY);
+  const todayStart = dayStart(now);
+  const todayProgress = Math.max(0, Math.min(1, (now - todayStart) / MS_PER_DAY));
+
+  const startDay = Math.max(0, curDay - 6);
+  const prev6Amount = sumRange(startDay, curDay - 1, dailyAmountTarget);
+  const prev6Count  = sumRange(startDay, curDay - 1, dailyCountTarget);
+
+  const total_amount = Math.floor(prev6Amount + todayProgress * dailyAmountTarget(curDay));
+  const total_count  = Math.floor(prev6Count  + todayProgress * dailyCountTarget(curDay));
 
   return {
-    total_amount: Math.floor(TOTAL_WEEK_TARGET * weekProgress),
-    total_count:  Math.floor(COUNT_WEEK_TARGET * weekProgress),
+    total_amount,
+    total_count,
     model_count,
-    month_amount: Math.floor(MONTH_WEEK_TARGET * weekProgress)
+    month_amount: total_amount // “本周返款”与“累计返款金额”同义，都取近7日累计
   };
 }
 
