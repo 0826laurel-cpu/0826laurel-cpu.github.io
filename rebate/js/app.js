@@ -130,10 +130,17 @@ function bindStatEls() {
 })();
 
 // 构建 odometer 轨道
+// 统计数字格式化：金额显示到「角」（一位小数，让最低位每秒可见滚动），其余显示整数
+function statsStr(el, value) {
+  if (el._isMoney) {
+    return '¥' + value.toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
+  return Math.floor(value).toLocaleString('zh-CN');
+}
+
 // startAtZero: true → 所有数字从 0 开始（入场）；false → 直接定位到目标值（重建/实时）
 function buildOdometer(el, value, startAtZero) {
-  const floorVal = Math.floor(value);
-  const str = (el._isMoney ? '¥' : '') + floorVal.toLocaleString('zh-CN');
+  const str = statsStr(el, value);
   el.innerHTML = '';
   el.classList.add('odo');
   el._railMap = [];
@@ -160,9 +167,13 @@ function buildOdometer(el, value, startAtZero) {
 // basePos: 若指定，则每位从 basePos（该位整数）开始；null 表示用目标值的整数位
 // noTransition: true 时关闭 transition（用于初始定位 / 实时驱动）
 function setRailPositions(el, value, basePos, noTransition) {
-  const floorVal = Math.floor(value);
-  const frac = value - floorVal;
   const str = el._str;
+  // 计算小数位数（最后一个 "." 之后的数字个数），用于正确换算最低位的过渡小数
+  let decimalPlaces = 0;
+  const dotIdx = str.lastIndexOf('.');
+  if (dotIdx >= 0) decimalPlaces = str.length - dotIdx - 1;
+  const lastUnit = Math.pow(10, decimalPlaces);
+  const fracForLast = (value * lastUnit) % 1; // 最低位（最小单位）的过渡小数 0~1
   // 找到最后一位数字的索引
   let lastDigitIdx = -1, idx = 0;
   for (const ch of str) {
@@ -173,10 +184,10 @@ function setRailPositions(el, value, basePos, noTransition) {
     if (ch >= '0' && ch <= '9') {
       const rail = el._railMap[idx];
       const targetDigit = Number(ch);
-      // 最低位（个位）叠加小数部分，实现持续平滑滚动
-      const digitWithFrac = targetDigit + (idx === lastDigitIdx ? frac : 0);
+      // 最低位（角位/个位）叠加过渡小数，实现持续平滑滚动
+      const digitWithFrac = targetDigit + (idx === lastDigitIdx ? fracForLast : 0);
       const baseDigit = basePos !== null ? basePos : targetDigit;
-      const baseWithFrac = baseDigit + (idx === lastDigitIdx && basePos !== null ? frac : 0);
+      const baseWithFrac = baseDigit + (idx === lastDigitIdx && basePos !== null ? fracForLast : 0);
       if (noTransition) rail.style.transition = 'none';
       rail.style.transform = 'translateY(-' + ((basePos !== null ? baseWithFrac : digitWithFrac) * 1.1) + 'em)';
       idx++;
@@ -186,8 +197,7 @@ function setRailPositions(el, value, basePos, noTransition) {
 
 // 滚动/更新到目标值（结构变化时直接定位，不播放过渡）
 function rollOdometer(el, value) {
-  const floorVal = Math.floor(value);
-  const str = (el._isMoney ? '¥' : '') + floorVal.toLocaleString('zh-CN');
+  const str = statsStr(el, value);
   if (el._str !== str) {
     buildOdometer(el, value, false); // 位数变化：直接定位到新值
     return;
