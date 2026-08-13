@@ -1811,9 +1811,11 @@ document.addEventListener('click', async e => {
     else if (act === 'ship-log') {
       const stEl = document.querySelector('#sh-status .chip.on');
       const status = stEl ? stEl.dataset.status : 'transit';
+      const value = Number(document.getElementById('sh-value2').value || 0);
+      if (!value || value <= 0) { toast('请填写礼品价值，否则累计福利价值无法增加'); return; }
       const r = await api('/admin/shipment/log', { method: 'POST', body: JSON.stringify({
         id: el.dataset.id, status, desc: document.getElementById('sh-desc').value.trim(),
-        trackingNo: document.getElementById('sh-no2').value.trim()
+        trackingNo: document.getElementById('sh-no2').value.trim(), value
       }) });
       toast('已更新物流'); openShip(r.shipment);
     }

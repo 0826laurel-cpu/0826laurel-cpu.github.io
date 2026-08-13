@@ -179,6 +179,7 @@ const Api = {
       const { data: cur2 } = await sb.from('shipments').select('tracking_no').eq('id', id).single();
       if (cur2 && cur2.tracking_no) upd.tracking_no = cur2.tracking_no;
     }
+    if (typeof b.value === 'number' && b.value > 0) upd.value = b.value;
     const { data, error } = await sb.from('shipments').update(upd).eq('id', id).select().single();
     if (error) throw new Error(error.message);
     return normShipment(data);
