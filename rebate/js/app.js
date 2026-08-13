@@ -130,53 +130,58 @@ function bindStatEls() {
   document.head.appendChild(st);
 })();
 
-// 设置/更新一个 odometer 元素的值（首次构建显示 0，后续仅滚动到目标）
-function setOdometer(el, value) {
+// 用目标值的结构构建 odometer（轨道初始停在 0，不立刻滚动）
+function buildOdometer(el, value) {
   const str = (el._isMoney ? '¥' : '') + Number(value).toLocaleString('zh-CN');
-  if (el._str !== str) {
-    // 结构变化（位数/分隔符不同）才重建 DOM
-    el.innerHTML = '';
-    el.classList.add('odo');
-    el._railMap = [];
-    for (const ch of str) {
-      if (ch >= '0' && ch <= '9') {
-        const d = document.createElement('span'); d.className = 'odo-digit';
-        const rail = document.createElement('span'); rail.className = 'odo-rail';
-        for (let i = 0; i < 10; i++) {
-          const c = document.createElement('span'); c.className = 'odo-cell';
-          c.textContent = i; rail.appendChild(c);
-        }
-        d.appendChild(rail); el.appendChild(d); el._railMap.push(rail);
-      } else {
-        const s = document.createElement('span'); s.className = 'odo-sep';
-        s.textContent = ch; el.appendChild(s);
+  el.innerHTML = '';
+  el.classList.add('odo');
+  el._railMap = [];
+  for (const ch of str) {
+    if (ch >= '0' && ch <= '9') {
+      const d = document.createElement('span'); d.className = 'odo-digit';
+      const rail = document.createElement('span'); rail.className = 'odo-rail';
+      for (let i = 0; i < 10; i++) {
+        const c = document.createElement('span'); c.className = 'odo-cell';
+        c.textContent = i; rail.appendChild(c);
       }
+      d.appendChild(rail); el.appendChild(d); el._railMap.push(rail);
+    } else {
+      const s = document.createElement('span'); s.className = 'odo-sep';
+      s.textContent = ch; el.appendChild(s);
     }
-    el._str = str;
   }
-  // 每个数字轨道滚动到目标位（从当前位置平滑过渡）
+  el._str = str;
+  // 先全部停在 0（显示 000…），关闭过渡
+  el._railMap.forEach(r => { r.style.transition = 'none'; r.style.transform = 'translateY(0)'; });
+}
+
+// 把轨道滚动到目标值（从当前位置平滑过渡）
+function rollOdometer(el, value) {
+  const str = (el._isMoney ? '¥' : '') + Number(value).toLocaleString('zh-CN');
+  if (el._str !== str) buildOdometer(el, value); // 位数/分隔符变了才重建
   let idx = 0;
   for (const ch of str) {
     if (ch >= '0' && ch <= '9') {
-      const rail = el._railMap[idx++];
-      rail.style.transform = 'translateY(-' + (Number(ch) * 1.1) + 'em)';
+      el._railMap[idx++].style.transform = 'translateY(-' + (Number(ch) * 1.1) + 'em)';
     }
   }
 }
 
 function renderStats(s) {
   bindStatEls();
-  // 先构建并全部显示 0（轨道在顶部）
+  // 用目标值的结构建好轨道，但先停在 0（无过渡）
   STATS_KEYS.forEach(k => {
     statEl[k].el._isMoney = statEl[k].isMoney;
-    setOdometer(statEl[k].el, 0);
-    statEl[k].el._railMap.forEach(r => { r.style.transition = 'none'; r.style.transform = 'translateY(0)'; });
+    buildOdometer(statEl[k].el, s[k]);
   });
-  // 下一帧开启 transition 并滚动到真实值（上下滚动入场）
+  // 强制重排，确保“0”状态已渲染
+  void document.body.offsetWidth;
+  // 下一帧开启过渡并滚动到真实值（同一批元素 → 平滑上下滚动入场）
   requestAnimationFrame(() => requestAnimationFrame(() => {
     STATS_KEYS.forEach(k => {
-      statEl[k].el._railMap.forEach(r => { r.style.transition = ''; });
-      setOdometer(statEl[k].el, s[k]);
+      const el = statEl[k].el;
+      el._railMap.forEach(r => { r.style.transition = ''; });
+      rollOdometer(el, s[k]);
     });
   }));
   // 入场后定格，不再持续跳动
