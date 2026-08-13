@@ -1,25 +1,19 @@
 // ============ 公开返款页逻辑（单页长滚动版） ============
 
 /*
- * 核心数据计算逻辑（按 2026-08-13 最新参数约定）：
+ * 核心数据计算逻辑（按 2026-08-13 调整）：
  *
- * 1. 合作模特人数：持续累计、只增不减，起点 586 人。
- *    以 2026-08-11 为起点日，之后每天固定增加 MODEL_DAILY_INC（=12）人，
- *    平均每周约 +84 人（落在 70-100 区间）。
- *    公式：model_count = 586 + max(0, 今天 - 2026-08-11 的天数) × 12
+ * 让「累计返款金额」与「本周新增」成为两个天然不同的数字：
+ *   - 累计返款金额 = 历史总累计（上线前已累计 HIST_BASE + 每日吞吐 DAILY_TOTAL，无封顶，只增不减）
+ *   - 本周新增     = 本周内（周一 00:00 起）累计的返款，按周重置（周一=0 … 周日=6×日吞吐）
+ *                   因为只统计本周，所以必然远小于“累计”，两者差异一目了然。
  *
- * 2. 返款金额（累计返款金额 / 本周返款）：
- *    从 8000 元起，每天递增 AMOUNT_DAILY_INC（=700）元，封顶 AMOUNT_MAX（=60000，即 5-6 万）。
+ * 其余指标：
+ *   - 合作模特人数：起点 586，每天 +12（每周约 +84），只增不减。
+ *   - 已结算笔数：起点 30，每天 +3，封顶 240。
  *
- * 3. 已结算笔数（订单数量）：
- *    从 30 笔起，每天递增 COUNT_DAILY_INC（=3）笔，封顶 COUNT_MAX（=240，即 200-250 区间）。
- *
- * 4. 以上三个“金额 / 笔数”指标自起点持续累计，达到上限后封顶，保证：
- *    - 同一个人不同时间打开页面，数字只增不减；
- *    - 达到上限后稳定在该值不再增长。
- *
- * 5. 页面上的“实时滚动” ticker 仅在前述基础值上做小幅随机波动，
- *    用于营造热闹氛围；刷新页面后会重新按日期计算，保证逻辑可预期。
+ * 页面上的“实时滚动” ticker 仅在前述基础值上做小幅随机波动，用于营造热闹氛围；
+ * 刷新页面后会重新按日期计算，保证逻辑可预期。
  */
 
 const DEMO = {
@@ -62,20 +56,19 @@ function relTime(t){
 }
 function maskStatus(s){ return s||'待返'; }
 
-// ---- 按日期计算四个公示指标（持续累计 + 封顶）----
+// ---- 按日期计算四个公示指标 ----
 const MODEL_BASE = 586;          // 合作模特人数起点
 const MODEL_DAILY_INC = 12;      // 模特人数每天增加量（每周约 +84，落在 70-100 区间），只增不减
-const STATS_START_DATE = new Date('2026-08-11T00:00:00'); // 所有指标的起点日
+const STATS_START_DATE = new Date('2026-08-11T00:00:00'); // 累计口径起点日
 
-const AMOUNT_BASE = 8000;        // 返款金额起点（元）
-const AMOUNT_DAILY_INC = 700;    // 返款金额每天递增（元/天）
-const AMOUNT_MAX = 60000;        // 返款金额封顶（5-6 万）
+const HIST_BASE = 1280000;       // 历史累计基线（元）：系统上线前已累计返款金额
+const DAILY_TOTAL = 8600;        // 每日返款吞吐（元/天），累计与本周共用此速率
 
 const COUNT_BASE = 30;           // 已结算笔数起点（笔）
 const COUNT_DAILY_INC = 3;       // 已结算笔数每天递增（笔/天）
 const COUNT_MAX = 240;           // 已结算笔数封顶（200-250 区间）
 
-// 基于当前日期计算公示指标（自起点持续累计，达到上限后封顶，保证只增不减）
+// 基于当前日期计算公示指标
 function computeStats(now = new Date()){
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
   const days = Math.max(0, Math.floor((now - STATS_START_DATE) / MS_PER_DAY));
@@ -83,16 +76,17 @@ function computeStats(now = new Date()){
   // 1) 合作模特人数：起点 586 + 每天固定增加，持续累计
   const model_count = MODEL_BASE + days * MODEL_DAILY_INC;
 
-  // 2) 返款金额 / 笔数：从起点每天递增，封顶后不再增长
-  const total_amount = Math.min(AMOUNT_MAX, Math.floor(AMOUNT_BASE + days * AMOUNT_DAILY_INC));
-  const total_count  = Math.min(COUNT_MAX,  Math.floor(COUNT_BASE  + days * COUNT_DAILY_INC));
+  // 2) 累计返款金额：历史总累计，无封顶，只增不减（大数）
+  const total_amount = HIST_BASE + Math.floor(days * DAILY_TOTAL);
 
-  return {
-    total_amount,
-    total_count,
-    model_count,
-    month_amount: total_amount // “本周返款”与“累计返款金额”同义，都从 8000 起持续累计到封顶
-  };
+  // 3) 本周新增：本周内（周一 00:00 起）累计的返款，按周重置，远小于累计
+  const dow = (now.getDay() + 6) % 7; // 周一=0 … 周日=6
+  const week_amount = dow * DAILY_TOTAL;
+
+  // 4) 已结算笔数：从起点每天递增，封顶后不再增长
+  const total_count = Math.min(COUNT_MAX, Math.floor(COUNT_BASE + days * COUNT_DAILY_INC));
+
+  return { total_amount, total_count, model_count, week_amount };
 }
 
 // ---- 统计 count-up ----
@@ -107,15 +101,15 @@ function countUp(el, target, isMoney){
 }
 
 // ---- 实时 ticker：让 4 个数字持续滚动增加（营造热闹氛围） ----
-const STATS_KEYS = ['total_amount', 'total_count', 'model_count', 'month_amount'];
-const liveStats = { total_amount: 0, total_count: 0, model_count: 0, month_amount: 0 };
+const STATS_KEYS = ['total_amount', 'total_count', 'model_count', 'week_amount'];
+const liveStats = { total_amount: 0, total_count: 0, model_count: 0, week_amount: 0 };
 const statEl = {}; // { total_amount: { el, isMoney } }
 
 function bindStatEls() {
   statEl.total_amount = { el: document.getElementById('s-amount'), isMoney: true };
   statEl.total_count = { el: document.getElementById('s-count'), isMoney: false };
   statEl.model_count = { el: document.getElementById('s-model'), isMoney: false };
-  statEl.month_amount = { el: document.getElementById('s-month'), isMoney: true };
+  statEl.week_amount = { el: document.getElementById('s-week'), isMoney: true };
 }
 
 // 滚动到目标值（含平滑动画 + 闪烁）
@@ -146,7 +140,7 @@ function startStatsTicker() {
   tickerTimer = setInterval(() => {
     const inc = Math.floor(Math.random() * 30) + 1;
     setStat('total_amount', liveStats.total_amount + inc);
-    setStat('month_amount', liveStats.month_amount + inc);
+    setStat('week_amount', liveStats.week_amount + inc);
     if (Math.random() < 0.25) setStat('total_count', liveStats.total_count + 1);
     if (Math.random() < 1/12) setStat('model_count', liveStats.model_count + 1);
   }, 2500);
@@ -177,11 +171,11 @@ function renderStats(s){
   liveStats.total_amount = s.total_amount;
   liveStats.total_count = s.total_count;
   liveStats.model_count = s.model_count;
-  liveStats.month_amount = s.month_amount;
+  liveStats.week_amount = s.week_amount;
   countUp(statEl.total_amount.el, s.total_amount, true);
   countUp(statEl.total_count.el, s.total_count, false);
   countUp(statEl.model_count.el, s.model_count, false);
-  countUp(statEl.month_amount.el, s.month_amount, true);
+  countUp(statEl.week_amount.el, s.week_amount, true);
   startStatsTicker(); // 启动实时滚动 ticker
 }
 function feedItem(r){

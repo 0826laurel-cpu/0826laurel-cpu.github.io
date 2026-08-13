@@ -303,6 +303,12 @@ const Api = {
     if (error) throw new Error(error.message);
     return data || [];
   },
+  // 模特专属页首页「返款进度」：按 model_id 拉取该模特全部返款记录
+  async getRebatesByModel(modelId) {
+    const { data, error } = await sb.rpc('get_my_rebates_by_model', { p_model_id: modelId });
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
   async uploadRebateVoucher(file) {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `voucher/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;

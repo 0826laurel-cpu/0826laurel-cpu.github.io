@@ -24,6 +24,7 @@
   }
   let PARTNER = null, SHIPS = [], WALL_FEED = [], WALL_STATS = { total_sent: 0, total_receivers: 0, total_signed: 0 };
   let PAYOUT_QR_URL = null;
+  let REBATES = []; // 该模特的返款记录（首页「返款进度」用）
 
   function fmtTime(ts) {
     if (!ts) return '';
@@ -247,6 +248,8 @@
       const wall = generateWallData();
       WALL_FEED = wall.feed;
       WALL_STATS = wall.stats;
+      // ②.5 拉取该模特返款进度（失败不影响主流程，保持空数组即可）
+      try { if (PARTNER.model_id) REBATES = (await Api.getRebatesByModel(PARTNER.model_id) || []).map(r => ({ ...r, amount: Number(r.amount) || 0 })); } catch (e) { REBATES = []; }
       writeCache(TOKEN, { partner: PARTNER, ships: SHIPS });
       render();
       // ③ 收款码独立懒加载，不阻塞首屏
@@ -263,6 +266,19 @@
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
     const viewport = document.getElementById('viewport');
     if (viewport) viewport.scrollTop = 0;
+    // 切回首页时实时刷新返款进度（后台改了状态，模特立刻能看到）
+    if (name === 'home') {
+      loadRebatesForModel().then(() => { renderHome(); bindEvents(); });
+    }
+  }
+
+  // 按 model_id 重新拉取该模特返款记录（失败保持现状，不阻塞）
+  async function loadRebatesForModel() {
+    if (!PARTNER || !PARTNER.model_id) { REBATES = []; return; }
+    try {
+      const rows = await Api.getRebatesByModel(PARTNER.model_id);
+      REBATES = (rows || []).map(r => ({ ...r, amount: Number(r.amount) || 0 }));
+    } catch (e) { /* 保持原值 */ }
   }
 
   function buildShipsHtml() {
@@ -319,6 +335,46 @@
       </div>`;
   }
 
+  function buildRebateProgressHtml() {
+    if (!REBATES.length) {
+      return `<div class="me-card">
+        <div class="block-title">💰 我的返款进度</div>
+        <div style="text-align:center;color:#9AA0AD;font-size:13px;padding:16px 0">暂无返款任务～<br><span style="color:#C7CAD3">福利派送官在后台录入后，这里会实时显示进度</span></div>
+      </div>`;
+    }
+    const total = REBATES.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    const items = REBATES.map(r => {
+      const st = r.status || '待返';
+      const step = st === '已返' ? 3 : (st === '处理中' ? 2 : 1);
+      const color = step === 3 ? '#2BB673' : (step === 2 ? '#5B7CFA' : '#FF6B5C');
+      const stepStyle = n => `flex:0 0 auto;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;background:${step >= n ? color : '#F0F1F4'};color:${step >= n ? '#fff' : '#9AA0AD'}`;
+      const barStyle = on => `flex:1;height:3px;border-radius:2px;background:${on ? color : '#EDEDF0'}`;
+      return `<div style="background:#FAFBFC;border:1px solid #EDEDF0;border-radius:14px;padding:13px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+          <div style="font-size:14px;font-weight:700">${esc(r.item || '返款任务')}</div>
+          <div style="font-size:15px;font-weight:800;color:${color};white-space:nowrap">${money(r.amount)}</div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;color:#9AA0AD">
+          <span>📦 订单 ${esc(r.order_no || '-')}</span>
+          <span style="color:${color};font-weight:700">${esc(st)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:11px">
+          <span style="${stepStyle(1)}">待返</span>
+          <span style="${barStyle(step >= 2)}"></span>
+          <span style="${stepStyle(2)}">处理中</span>
+          <span style="${barStyle(step >= 3)}"></span>
+          <span style="${stepStyle(3)}">已返</span>
+        </div>
+        ${r.rebate_date ? `<div style="font-size:11px;color:#9AA0AD;margin-top:8px">返款日期：${esc(r.rebate_date)}</div>` : ''}
+        ${r.voucher_url ? `<a href="${esc(r.voucher_url)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:12px;color:#5B7CFA;text-decoration:none">🧾 查看返款凭证</a>` : ''}
+      </div>`;
+    }).join('');
+    return `<div class="me-card">
+      <div class="block-title">💰 我的返款进度 <span style="font-size:12px;color:#9AA0AD;font-weight:normal;margin-left:6px">共 ${REBATES.length} 笔 · 累计 ${money(total)}</span></div>
+      ${items}
+    </div>`;
+  }
+
   function renderHome() {
     const p = PARTNER, a = p.address || {}, addr = addrText(a);
     const lastSeen = Number(p.lastSeenAt) || 0;
@@ -343,6 +399,7 @@
         </div>
       </div>
       ${buildOverviewHtml()}
+      ${buildRebateProgressHtml()}
       <div class="me-card">
         <div class="addr-head">
           <div class="addr-title">收件地址</div>
@@ -413,7 +470,7 @@
     document.getElementById('view-rebate').innerHTML = `
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap" id="rebate-wrap">
-          <iframe id="rebate-frame" src="rebate/?v=15" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
+          <iframe id="rebate-frame" src="rebate/?v=16" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
         </div>
       </div>`;
   }
