@@ -1,20 +1,22 @@
 // ============ 公开返款页逻辑（单页长滚动版） ============
 
 /*
- * 核心数据计算逻辑（按 2026-08-13 调整）：
+ * 核心数据计算逻辑（按 2026-08-13 最终调整）：
  *
  * 让「累计返款金额」与「本周新增」成为两个天然不同的数字：
- *   - 累计返款金额 = 历史总累计（上线前已累计 HIST_BASE + 每日吞吐 DAILY_TOTAL，无封顶，只增不减）
- *   - 本周新增     = 本周内（周一 00:00 起）累计的返款，按周重置（周一=0 … 周日=6×日吞吐）
+ *   - 累计返款金额 = 历史总累计（HIST_BASE + 每日吞吐 TOTAL_DAILY_INC，无封顶，只增不减）
+ *   - 本周新增     = 本周内（周一 00:00 起）累计的返款，按周重置（周一=0 … 周日=6×WEEK_DAILY_INC）
  *                   因为只统计本周，所以必然远小于“累计”，两者差异一目了然。
+ *
+ * 为了让公示台更有“实时滚动”的活泼感，累计金额的日吞吐比本周新增更快，
+ * 因此累计金额的最低位会持续快速滚动，而本周新增仍保持之前约定的每日 8600 节奏。
  *
  * 其余指标：
  *   - 合作模特人数：起点 586，每天 +12（每周约 +84），只增不减。
  *   - 已结算笔数：起点 30，每天 +3，封顶 240。
  *
- * 实时递增：
- *   所有数字都基于当前时间统一计算（含当天已过的秒数比例），同一时刻任何用户打开页面看到的
- *   数值完全相同，避免随机 ticker 导致不同窗口/不同模特之间数据分叉，保障公示台公信力。
+ * 所有数字都基于当前时间统一计算（含当天内秒数插值），同一时刻任何用户/任何窗口看到的数值
+ * 完全相同；同时 odometer 入场时全部数字会一起快速滚动多圈，营造热烈感。
  */
 
 const DEMO = {
@@ -62,8 +64,11 @@ const MODEL_BASE = 586;          // 合作模特人数起点
 const MODEL_DAILY_INC = 12;      // 模特人数每天增加量（每周约 +84，落在 70-100 区间），只增不减
 const STATS_START_DATE = new Date('2026-08-11T00:00:00'); // 累计口径起点日
 
-const HIST_BASE = 1280000;       // 历史累计基线（元）：系统上线前已累计返款金额
-const DAILY_TOTAL = 8600;        // 每日返款吞吐（元/天），累计与本周共用此速率
+// 累计金额：调快日吞吐，让最低位持续快速滚动；HIST_BASE 已按原 130 万口径平滑修正，避免跳变
+const HIST_BASE = 1067000;       // 历史累计基线（元）
+const TOTAL_DAILY_INC = 86400;   // 累计金额每日吞吐（元/天）→ 每秒约 +1 元，最低位每秒滚动 1 格
+
+const WEEK_DAILY_INC = 8600;     // 本周新增每日吞吐（元/天），保持原约定（周一~周日封顶约 6 万）
 
 const COUNT_BASE = 30;           // 已结算笔数起点（笔）
 const COUNT_DAILY_INC = 3;       // 已结算笔数每天递增（笔/天）
@@ -76,15 +81,15 @@ function computeStats(now = new Date()){
   const days = Math.floor(elapsed);
   const frac = elapsed - days; // 当天已过的比例（0 ~ 1）
 
-  // 1) 合作模特人数：起点 586 + 每天固定增加，持续累计（当天内按比例平滑递增，保留小数用于 odometer 滚动）
+  // 1) 合作模特人数：起点 586 + 每天固定增加，持续累计（保留小数用于 odometer 平滑滚动）
   const model_count = MODEL_BASE + days * MODEL_DAILY_INC + frac * MODEL_DAILY_INC;
 
-  // 2) 累计返款金额：历史总累计，无封顶，只增不减（大数）
-  const total_amount = HIST_BASE + days * DAILY_TOTAL + frac * DAILY_TOTAL;
+  // 2) 累计返款金额：历史总累计，无封顶，只增不减（大数，日吞吐更快，最低位滚动明显）
+  const total_amount = HIST_BASE + days * TOTAL_DAILY_INC + frac * TOTAL_DAILY_INC;
 
-  // 3) 本周新增：本周内（周一 00:00 起）累计的返款，按周重置，远小于累计
+  // 3) 本周新增：本周内（周一 00:00 起）累计，按周重置（保留原每日 8600 节奏）
   const dow = (now.getDay() + 6) % 7; // 周一=0 … 周日=6
-  const week_amount = dow * DAILY_TOTAL + frac * DAILY_TOTAL;
+  const week_amount = dow * WEEK_DAILY_INC + frac * WEEK_DAILY_INC;
 
   // 4) 已结算笔数：从起点每天递增，封顶后不再增长
   const total_count = Math.min(COUNT_MAX, COUNT_BASE + days * COUNT_DAILY_INC + frac * COUNT_DAILY_INC);
@@ -129,13 +134,10 @@ function bindStatEls() {
   document.head.appendChild(st);
 })();
 
-// 构建 odometer 轨道
-// 统计数字格式化：金额显示到「角」（一位小数，让最低位每秒可见滚动），其余显示整数
+// 统计数字格式化：统一显示整数（不显示小数点），但 odometer 仍按内部小数做平滑滚动
 function statsStr(el, value) {
-  if (el._isMoney) {
-    return '¥' + value.toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  }
-  return Math.floor(value).toLocaleString('zh-CN');
+  const floor = Math.floor(value);
+  return (el._isMoney ? '¥' : '') + floor.toLocaleString('zh-CN');
 }
 
 // startAtZero: true → 所有数字从 0 开始（入场）；false → 直接定位到目标值（重建/实时）
@@ -148,9 +150,10 @@ function buildOdometer(el, value, startAtZero) {
     if (ch >= '0' && ch <= '9') {
       const d = document.createElement('span'); d.className = 'odo-digit';
       const rail = document.createElement('span'); rail.className = 'odo-rail';
-      for (let i = 0; i < 10; i++) {
+      // 0-9 + 末尾多一个 0：方便 overshoot/回弹时不会露出空白，也让 9→0 的进位更自然
+      for (let i = 0; i <= 10; i++) {
         const c = document.createElement('span'); c.className = 'odo-cell';
-        c.textContent = i; rail.appendChild(c);
+        c.textContent = i === 10 ? 0 : i; rail.appendChild(c);
       }
       d.appendChild(rail); el.appendChild(d); el._railMap.push(rail);
     } else {
@@ -195,12 +198,17 @@ function setRailPositions(el, value, basePos, noTransition) {
   }
 }
 
-// 滚动/更新到目标值（结构变化时直接定位，不播放过渡）
+// 滚动/更新到目标值（仅位数/分隔符变化时重建；同长度只换数字可复用轨道）
 function rollOdometer(el, value) {
   const str = statsStr(el, value);
   if (el._str !== str) {
-    buildOdometer(el, value, false); // 位数变化：直接定位到新值
-    return;
+    if (el._str && el._str.length === str.length) {
+      // 结构没变，仅数字进位（如 1303583→1303584）：复用轨道，避免每秒重建闪烁
+      el._str = str;
+    } else {
+      buildOdometer(el, value, false);
+      return;
+    }
   }
   setRailPositions(el, value, null, false);
 }
@@ -231,15 +239,16 @@ function renderStats(s) {
   });
   // 强制重排，确保“0”状态已渲染
   void document.body.offsetWidth;
-  // 下一帧开启过渡并滚动到真实值（上下滚动入场）
+  // 下一帧开启弹性过渡并滚动到真实值（所有数字一起活泼滚入）
   requestAnimationFrame(() => requestAnimationFrame(() => {
     STATS_KEYS.forEach(k => {
       const el = statEl[k].el;
-      el._railMap.forEach(r => { r.style.transition = ''; });
+      // overshoot 弹性缓动：先冲过头再弹回，营造活泼老虎机感
+      el._railMap.forEach(r => { r.style.transition = 'transform 1.1s cubic-bezier(0.34, 1.45, 0.64, 1)'; });
       rollOdometer(el, s[k]);
     });
     // 入场动画结束后启动持续实时滚动
-    setTimeout(startLiveTicker, 1350);
+    setTimeout(startLiveTicker, 1200);
   }));
 }
 
