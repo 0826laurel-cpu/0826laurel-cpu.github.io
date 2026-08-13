@@ -11,6 +11,9 @@ let charts = {};
 let BATCH_MODE = false;
 let BATCH_SEL = new Set();
 
+// 首页按入驻日期分组的折叠状态（内存，按日期 ds 缓存；≥4 人默认折叠）
+let COLLAPSED_GROUPS = new Set();
+
 // 返款模块状态（内存，不持久化）
 let REBATE_PW = '';
 let REBATE_LOGGED_IN = false;
@@ -227,7 +230,19 @@ async function loadData() {
   DB = { partners, gifts, shipments, deals };
   STATS = computeStats();
   DASH = computeDashboard();
+  // 首次加载时，将人数 ≥4 的日期组默认折叠
+  if (COLLAPSED_GROUPS.size === 0) initCollapsedGroups();
   renderAll();
+}
+function initCollapsedGroups() {
+  const dayMap = new Map();
+  (DB.partners || []).forEach(p => {
+    const ds = fmtDate(p.createdAt);
+    if (!ds) return;
+    if (!dayMap.has(ds)) dayMap.set(ds, 0);
+    dayMap.set(ds, dayMap.get(ds) + 1);
+  });
+  dayMap.forEach((cnt, ds) => { if (cnt >= 4) COLLAPSED_GROUPS.add(ds); });
 }
 async function loadStats() { STATS = computeStats(); }
 async function loadDashboard() { DASH = computeDashboard(); }
@@ -311,19 +326,29 @@ function renderHome() {
   });
   const recentGroups = Array.from(dayMap.entries()).filter(([_, g]) => g.list.some(p => p.createdAt >= cutoff || ps.length <= 14));
 
-  const todos = recentGroups.length ? recentGroups.map(([ds, g]) => `
-    <div class="join-group">
-      <div class="join-date">${esc(g.label)} <span class="join-count">${g.list.length} 人</span></div>
-      ${g.list.map(p => `
-        <div class="join-row" data-act="detail" data-id="${p.id}">
-          <div class="av" style="background:${avColor(p.tier, p.name)}">${esc((p.name || '?').slice(0, 1))}</div>
-          <div class="info">
-            <div class="nm">${esc(p.name)} <span class="tag" style="background:${p.status === 'new' ? '#FFE3EA' : '#FFEAE5'};color:${p.status === 'new' ? '#FF7091' : '#FF6B5C'}">${STATUS_LABEL[p.status] || '新提交'}</span></div>
-            <div class="tg">${partnerModelText(p)} · ${partnerCity(p)} · ${p.tier === 'new' ? '新提交' : (TIER_LABEL[p.tier] || '')}</div>
-          </div>
-          <button class="btn-sm" data-act="detail" data-id="${p.id}">查看</button>
-        </div>`).join('')}
-    </div>`).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有伙伴入驻 🎉</div>`;
+  const todos = recentGroups.length ? recentGroups.map(([ds, g]) => {
+    const collapsed = COLLAPSED_GROUPS.has(ds);
+    const rows = g.list.map(p => `
+      <div class="join-row" data-act="detail" data-id="${p.id}">
+        <div class="av" style="background:${avColor(p.tier, p.name)}">${esc((p.name || '?').slice(0, 1))}</div>
+        <div class="info">
+          <div class="nm">${esc(p.name)} <span class="tag" style="background:${p.status === 'new' ? '#FFE3EA' : '#FFEAE5'};color:${p.status === 'new' ? '#FF7091' : '#FF6B5C'}">${STATUS_LABEL[p.status] || '新提交'}</span></div>
+          <div class="tg">${partnerModelText(p)} · ${partnerCity(p)} · ${p.tier === 'new' ? '新提交' : (TIER_LABEL[p.tier] || '')}</div>
+        </div>
+        <button class="btn-sm" data-act="detail" data-id="${p.id}">查看</button>
+      </div>`).join('');
+    const expandTip = collapsed && g.list.length > 0
+      ? `<div class="join-expand" data-act="group-toggle" data-ds="${esc(ds)}">展开 ${g.list.length} 个伙伴 ▼</div>`
+      : '';
+    return `
+      <div class="join-group ${collapsed ? 'collapsed' : ''}" data-ds="${esc(ds)}">
+        <div class="join-date" data-act="group-toggle" data-ds="${esc(ds)}">
+          <span>${esc(g.label)} <span class="join-count">${g.list.length} 人</span></span>
+          <span class="join-toggle ${collapsed ? '' : 'open'}">${collapsed ? '▶' : '▼'}</span>
+        </div>
+        ${collapsed ? expandTip : rows}
+      </div>`;
+  }).join('') : `<div class="card" style="text-align:center;color:var(--gray);font-size:13px">还没有伙伴入驻 🎉</div>`;
 
   const d = DASH || {};
   document.getElementById('view-home').innerHTML = `
@@ -1621,6 +1646,11 @@ document.addEventListener('click', async e => {
   const act = el.dataset.act;
   try {
     if (act === 'tab') switchTab(el.dataset.tab, { rebateTab: el.dataset.rebate || 'form' });
+    else if (act === 'group-toggle') {
+      const ds = el.dataset.ds;
+      if (COLLAPSED_GROUPS.has(ds)) COLLAPSED_GROUPS.delete(ds); else COLLAPSED_GROUPS.add(ds);
+      renderHome();
+    }
     else if (act === 'rebate-tab') { REBATE_TAB = el.dataset.tab; renderRebate(); }
     else if (act === 'rebate-logout') { REBATE_LOGGED_IN = false; REBATE_PW = ''; REBATE_TAB = 'form'; renderRebate(); }
     else if (act === 'rebate-pay') { await fillRebateForPay(el.dataset.order, '已返'); }

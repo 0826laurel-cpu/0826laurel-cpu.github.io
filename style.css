@@ -389,8 +389,11 @@ body {
 
 /* 首页：按入驻日期分组 */
 .join-group { margin-bottom: 14px; }
-.join-date { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.join-date { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; user-select: none; padding: 4px 0; }
 .join-date .join-count { font-size: 11px; color: var(--gray); font-weight: 600; background: #F5F6FA; padding: 2px 8px; border-radius: 10px; }
+.join-date .join-toggle { font-size: 12px; color: var(--gray); transition: transform .2s ease; }
+.join-date .join-toggle.open { color: var(--coral); }
+.join-expand { text-align: center; font-size: 12px; color: var(--coral); background: var(--card); border-radius: 12px; padding: 10px; margin-bottom: 8px; cursor: pointer; font-weight: 600; }
 .join-row { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; }
 .join-row .info { flex: 1; min-width: 0; }
 .join-row .nm { font-size: 13px; font-weight: 600; }
