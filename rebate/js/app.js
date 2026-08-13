@@ -61,17 +61,17 @@ function maskStatus(s){ return s||'待返'; }
 
 // ---- 按日期计算四个公示指标 ----
 const MODEL_BASE = 586;          // 合作模特人数起点
-const MODEL_DAILY_INC = 240;     // 模特人数每天增加量（约每秒 +0.003），入场时也会活泼滚动
+const MODEL_DAILY_INC = 12;      // 模特人数每天增加量（每周约 +84，落在 70-100 区间），只增不减
 const STATS_START_DATE = new Date('2026-08-11T00:00:00'); // 累计口径起点日
 
-// 累计金额：调快日吞吐，让最低位持续快速滚动；HIST_BASE 已按原 130 万口径平滑修正，避免跳变
-const HIST_BASE = 1067000;       // 历史累计基线（元）
-const TOTAL_DAILY_INC = 1728000; // 累计金额每日吞吐（元/天）→ 每秒约 +20 元，最低位滚动明显
+// 累计金额：历史总累计，保持真实区间（几万元量级），避免 500 万+ 显得不真实
+const HIST_BASE = 80000;         // 历史累计基线（元）
+const TOTAL_DAILY_INC = 3000;    // 累计金额每日吞吐（元/天）
 
-const WEEK_DAILY_INC = 172800;   // 本周新增每日吞吐（元/天）→ 每秒约 +2 元，约为累计的 1/10，差异清晰
+const WEEK_DAILY_INC = 10000;    // 本周新增每日吞吐（元/天）→ 周一 0，周日封顶约 6 万
 
 const COUNT_BASE = 30;           // 已结算笔数起点（笔）
-const COUNT_DAILY_INC = 60;      // 已结算笔数每天递增（笔/天）→ 约每 24 分钟 +1 笔，可见滚动
+const COUNT_DAILY_INC = 3;       // 已结算笔数每天递增（笔/天）
 const COUNT_MAX = 240;           // 已结算笔数封顶（200-250 区间）
 
 // 基于当前时间统一计算公示指标（含当天内平滑递增，保证任何用户同一时刻数值一致）
