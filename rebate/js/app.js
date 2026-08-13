@@ -115,28 +115,35 @@ function bindStatEls() {
   statEl.week_amount = { el: document.getElementById('s-week'), isMoney: true };
 }
 
-// 直接渲染数字（无动画、无闪烁，避免一跳一跳）
-function renderStatValue(key, value) {
+// 滚动到目标值（含平滑动画 + 闪烁），恢复第一版的跳动观感
+function setStat(key, value, opts = {}) {
   const conf = statEl[key];
   if (!conf || !conf.el) return;
-  conf.el.textContent = conf.isMoney ? money(value) : value.toLocaleString('zh-CN');
+  const from = liveStats[key];
+  const dur = opts.duration ?? 600;
+  const t0 = performance.now();
+  function step(t) {
+    const p = Math.min(1, (t - t0) / dur);
+    const v = from + (value - from) * p;
+    conf.el.textContent = conf.isMoney ? money(Math.floor(v)) : Math.floor(v).toLocaleString('zh-CN');
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+  // 闪烁动画
+  conf.el.classList.remove('ticker-flash');
+  void conf.el.offsetWidth; // 强制重排，重新触发 animation
+  conf.el.classList.add('ticker-flash');
   liveStats[key] = value;
 }
 
-let rafTimer = null;
-let lastRenderAt = 0;
+let tickerTimer = null;
 function startStatsTicker() {
-  if (rafTimer) cancelAnimationFrame(rafTimer);
-  // 按真实时间持续平滑更新：约每 120ms 重新计算一次，数字线性递增，无跳动
-  function tick(ts) {
-    if (ts - lastRenderAt > 120) {
-      lastRenderAt = ts;
-      const s = computeStats();
-      STATS_KEYS.forEach(k => renderStatValue(k, s[k]));
-    }
-    rafTimer = requestAnimationFrame(tick);
-  }
-  rafTimer = requestAnimationFrame(tick);
+  if (tickerTimer) clearInterval(tickerTimer);
+  // 每秒按统一时间重新计算，所有用户/所有窗口向同一目标值跳动，既保留动态观感又保证数字对齐一致
+  tickerTimer = setInterval(() => {
+    const s = computeStats();
+    STATS_KEYS.forEach(k => setStat(k, s[k], { duration: 600 }));
+  }, 1000);
 }
 
 async function loadStats(){
