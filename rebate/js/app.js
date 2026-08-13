@@ -12,8 +12,9 @@
  *   - 合作模特人数：起点 586，每天 +12（每周约 +84），只增不减。
  *   - 已结算笔数：起点 30，每天 +3，封顶 240。
  *
- * 页面上的“实时滚动” ticker 仅在前述基础值上做小幅随机波动，用于营造热闹氛围；
- * 刷新页面后会重新按日期计算，保证逻辑可预期。
+ * 实时递增：
+ *   所有数字都基于当前时间统一计算（含当天已过的秒数比例），同一时刻任何用户打开页面看到的
+ *   数值完全相同，避免随机 ticker 导致不同窗口/不同模特之间数据分叉，保障公示台公信力。
  */
 
 const DEMO = {
@@ -68,23 +69,25 @@ const COUNT_BASE = 30;           // 已结算笔数起点（笔）
 const COUNT_DAILY_INC = 3;       // 已结算笔数每天递增（笔/天）
 const COUNT_MAX = 240;           // 已结算笔数封顶（200-250 区间）
 
-// 基于当前日期计算公示指标
+// 基于当前时间统一计算公示指标（含当天内平滑递增，保证任何用户同一时刻数值一致）
 function computeStats(now = new Date()){
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
-  const days = Math.max(0, Math.floor((now - STATS_START_DATE) / MS_PER_DAY));
+  const elapsed = Math.max(0, (now - STATS_START_DATE) / MS_PER_DAY); // 可含小数天
+  const days = Math.floor(elapsed);
+  const frac = elapsed - days; // 当天已过的比例（0 ~ 1）
 
-  // 1) 合作模特人数：起点 586 + 每天固定增加，持续累计
-  const model_count = MODEL_BASE + days * MODEL_DAILY_INC;
+  // 1) 合作模特人数：起点 586 + 每天固定增加，持续累计（当天内按比例平滑递增）
+  const model_count = MODEL_BASE + days * MODEL_DAILY_INC + Math.floor(frac * MODEL_DAILY_INC);
 
   // 2) 累计返款金额：历史总累计，无封顶，只增不减（大数）
-  const total_amount = HIST_BASE + Math.floor(days * DAILY_TOTAL);
+  const total_amount = HIST_BASE + days * DAILY_TOTAL + Math.floor(frac * DAILY_TOTAL);
 
   // 3) 本周新增：本周内（周一 00:00 起）累计的返款，按周重置，远小于累计
   const dow = (now.getDay() + 6) % 7; // 周一=0 … 周日=6
-  const week_amount = dow * DAILY_TOTAL;
+  const week_amount = dow * DAILY_TOTAL + Math.floor(frac * DAILY_TOTAL);
 
   // 4) 已结算笔数：从起点每天递增，封顶后不再增长
-  const total_count = Math.min(COUNT_MAX, Math.floor(COUNT_BASE + days * COUNT_DAILY_INC));
+  const total_count = Math.min(COUNT_MAX, Math.floor(COUNT_BASE + days * COUNT_DAILY_INC + frac * COUNT_DAILY_INC));
 
   return { total_amount, total_count, model_count, week_amount };
 }
@@ -136,14 +139,11 @@ function setStat(key, value, opts = {}) {
 let tickerTimer = null;
 function startStatsTicker() {
   if (tickerTimer) clearInterval(tickerTimer);
-  // 每 2.5 秒一次：金额 +1~30 随机，笔数 1/4 概率 +1，模特 1/12 概率 +1
+  // 每 1 秒按当前时间重新统一计算，所有用户/所有窗口看到的数字完全一致
   tickerTimer = setInterval(() => {
-    const inc = Math.floor(Math.random() * 30) + 1;
-    setStat('total_amount', liveStats.total_amount + inc);
-    setStat('week_amount', liveStats.week_amount + inc);
-    if (Math.random() < 0.25) setStat('total_count', liveStats.total_count + 1);
-    if (Math.random() < 1/12) setStat('model_count', liveStats.model_count + 1);
-  }, 2500);
+    const s = computeStats();
+    STATS_KEYS.forEach(k => setStat(k, s[k], { duration: 600 }));
+  }, 1000);
 }
 
 async function loadStats(){
