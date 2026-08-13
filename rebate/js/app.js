@@ -120,150 +120,46 @@ function bindStatEls() {
   statEl.week_amount = { el: document.getElementById('s-week'), isMoney: true };
 }
 
-// ---- 数字滚轮（odometer）：每位数字独立上下平滑滚动，入场 + 实时持续滚动 ----
-(function () {
-  const css = `
-  .odo{display:inline-flex; align-items:center; line-height:1; font-variant-numeric:tabular-nums; font-feature-settings:"tnum";}
-  .odo-digit{height:1.35em; overflow:hidden; display:inline-flex; align-items:center; vertical-align:middle;}
-  .odo-rail{display:flex; flex-direction:column; will-change:transform;}
-  .odo-cell{height:1.35em; line-height:1.35; display:flex; align-items:center; justify-content:center;}
-  .odo-sep{display:inline-block;}
-  `;
-  const st = document.createElement('style');
-  st.textContent = css;
-  document.head.appendChild(st);
-})();
-
-// 统计数字格式化：统一显示整数（不显示小数点），内部保留小数做平滑滚动
-function statsStr(el, value) {
-  const floor = Math.floor(value);
-  return (el._isMoney ? '¥' : '') + floor.toLocaleString('zh-CN');
+// 平滑滚动到目标值（无闪烁/缩放，避免“卡住”或“花屏”）
+function setStat(key, value, opts){
+  const conf = statEl[key];
+  if (!conf || !conf.el) return;
+  const from = liveStats[key];
+  const dur = (opts && opts.duration) || 600;
+  const t0 = performance.now();
+  function step(t){
+    const p = Math.min(1, (t - t0) / dur);
+    const v = from + (value - from) * p;
+    conf.el.textContent = conf.isMoney ? money(Math.floor(v)) : Math.floor(v).toLocaleString('zh-CN');
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+  liveStats[key] = value;
 }
 
-// 每位数字的实时滚动倍率：数值越大，最低位滚动越快
-const SPEED = { total_amount: 30, week_amount: 18, total_count: 25, model_count: 25 };
-const CELL_H = 1.35; // 必须与 CSS 中 .odo-digit / .odo-cell 高度一致
-const RAIL_LOOPS = 5; // 0-9 重复轮数（50 格），撑住入场多圈滚动 + overshoot
-
-// 构建 odometer 轨道
-// startAtZero: true → 所有数字从 0 开始（入场）；false → 直接定位到目标值（重建/实时）
-function buildOdometer(el, value, startAtZero) {
-  const str = statsStr(el, value);
-  el.innerHTML = '';
-  el.classList.add('odo');
-  el._railMap = [];
-  for (const ch of str) {
-    if (ch >= '0' && ch <= '9') {
-      const d = document.createElement('span'); d.className = 'odo-digit';
-      const rail = document.createElement('span'); rail.className = 'odo-rail';
-      // 重复多轮 0-9，方便入场转多圈和 overshoot 不露出空白
-      for (let loop = 0; loop < RAIL_LOOPS; loop++) {
-        for (let i = 0; i < 10; i++) {
-          const c = document.createElement('span'); c.className = 'odo-cell';
-          c.textContent = i; rail.appendChild(c);
-        }
-      }
-      d.appendChild(rail); el.appendChild(d); el._railMap.push(rail);
-    } else {
-      const s = document.createElement('span'); s.className = 'odo-sep';
-      s.textContent = ch; el.appendChild(s);
-    }
-  }
-  el._str = str;
-  // 入场时强制停在 0（不播放过渡）
-  if (startAtZero) {
-    el._railMap.forEach(r => { r.style.transition = 'none'; r.style.transform = 'translateY(0)'; });
-  } else {
-    setRailPositions(el, value, { noTransition: true });
-  }
-}
-
-// 设置每一位轨道的 translateY
-// opts: { noTransition, spinOffset }
-// spinOffset: 额外多转的圈数×10，用于入场活泼滚动
-function setRailPositions(el, value, opts) {
-  opts = opts || {};
-  const str = el._str;
-  const spinOffset = (opts.spinOffset || 0);
-  // 找到最后一位数字的索引
-  let lastDigitIdx = -1, idx = 0;
-  for (const ch of str) {
-    if (ch >= '0' && ch <= '9') lastDigitIdx = idx++;
-  }
-  const speed = SPEED[el._statKey] || 15;
-  // 最低位过渡小数（0~1），乘 speed 让滚动更快更明显
-  const frac = value - Math.floor(value);
-  const lastFrac = (frac * speed) % 1;
-  idx = 0;
-  for (const ch of str) {
-    if (ch >= '0' && ch <= '9') {
-      const rail = el._railMap[idx];
-      const targetDigit = Number(ch);
-      // 只有最低位持续滚动；高位只显示整数，避免全屏数字乱动
-      const pos = targetDigit + spinOffset + (idx === lastDigitIdx ? lastFrac : 0);
-      if (opts.noTransition) rail.style.transition = 'none';
-      rail.style.transform = 'translateY(-' + (pos * CELL_H) + 'em)';
-      idx++;
-    }
-  }
-}
-
-// 滚动/更新到目标值（仅位数/分隔符变化时重建；同长度只换数字可复用轨道）
-function rollOdometer(el, value) {
-  const str = statsStr(el, value);
-  if (el._str !== str) {
-    if (el._str && el._str.length === str.length) {
-      // 结构没变，仅数字进位：复用轨道，避免每秒重建闪烁
-      el._str = str;
-    } else {
-      buildOdometer(el, value, false);
-      return;
-    }
-  }
-  setRailPositions(el, value, {});
-}
-
-let liveTimer = null;
-function startLiveTicker() {
-  if (liveTimer) cancelAnimationFrame(liveTimer);
-  // 关闭 transition，直接用 RAF 驱动，保证实时滚动不抖动
-  STATS_KEYS.forEach(k => {
-    if (statEl[k] && statEl[k].el && statEl[k].el._railMap) {
-      statEl[k].el._railMap.forEach(r => { r.style.transition = 'none'; });
-    }
-  });
-  function tick() {
+let tickerTimer = null;
+function startStatsTicker() {
+  if (tickerTimer) clearInterval(tickerTimer);
+  // 每 1 秒按统一时间重新计算，所有用户/所有窗口向同一目标值递增，保证数字对齐一致
+  tickerTimer = setInterval(() => {
     const s = computeStats();
-    STATS_KEYS.forEach(k => rollOdometer(statEl[k].el, s[k]));
-    liveTimer = requestAnimationFrame(tick);
-  }
-  liveTimer = requestAnimationFrame(tick);
+    STATS_KEYS.forEach(k => setStat(k, s[k], { duration: 800 }));
+  }, 1000);
 }
 
-function renderStats(s) {
+function renderStats(s){
   bindStatEls();
-  // 入场：用目标值结构建轨道，但全部停在 0
-  STATS_KEYS.forEach(k => {
-    const el = statEl[k].el;
-    el._isMoney = statEl[k].isMoney;
-    el._statKey = k;
-    buildOdometer(el, s[k], true);
-  });
-  // 强制重排，确保“0”状态已渲染
-  void document.body.offsetWidth;
-  // 下一帧开启弹性过渡并滚动到真实值（所有数字一起活泼滚入，多转 2~3 圈）
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    STATS_KEYS.forEach(k => {
-      const el = statEl[k].el;
-      // overshoot 弹性缓动：先冲过头再弹回，营造活泼老虎机感
-      el._railMap.forEach(r => { r.style.transition = 'transform 1.4s cubic-bezier(0.34, 1.7, 0.64, 1)'; });
-      // 数字位越多，多转的圈数越多，制造“全员滚动”的热烈感
-      const loops = Math.max(2, 6 - el._railMap.length);
-      setRailPositions(el, s[k], { spinOffset: loops * 10 });
-    });
-    // 入场动画结束后启动持续实时滚动
-    setTimeout(startLiveTicker, 1500);
-  }));
+  liveStats.total_amount = 0;
+  liveStats.total_count = 0;
+  liveStats.model_count = 0;
+  liveStats.week_amount = 0;
+  // 入场：从 0 平滑滚到目标值，数字持续向上翻动
+  countUp(statEl.total_amount.el, s.total_amount, true);
+  countUp(statEl.total_count.el, s.total_count, false);
+  countUp(statEl.model_count.el, s.model_count, false);
+  countUp(statEl.week_amount.el, s.week_amount, true);
+  // 入场结束后启动持续实时滚动
+  setTimeout(startStatsTicker, 1300);
 }
 
 async function loadStats(){
