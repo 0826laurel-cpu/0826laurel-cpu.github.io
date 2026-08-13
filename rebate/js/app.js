@@ -115,35 +115,71 @@ function bindStatEls() {
   statEl.week_amount = { el: document.getElementById('s-week'), isMoney: true };
 }
 
-// 滚动到目标值（含平滑动画 + 闪烁），恢复第一版的跳动观感
-function setStat(key, value, opts = {}) {
-  const conf = statEl[key];
-  if (!conf || !conf.el) return;
-  const from = liveStats[key];
-  const dur = opts.duration ?? 600;
-  const t0 = performance.now();
-  function step(t) {
-    const p = Math.min(1, (t - t0) / dur);
-    const v = from + (value - from) * p;
-    conf.el.textContent = conf.isMoney ? money(Math.floor(v)) : Math.floor(v).toLocaleString('zh-CN');
-    if (p < 1) requestAnimationFrame(step);
+// ---- 数字滚轮（odometer）入场动画：每位数字独立上下平滑滚动，入场后定格 ----
+// 注入样式
+(function () {
+  const css = `
+  .odo{display:inline-flex; align-items:flex-end; line-height:1.1; font-variant-numeric:tabular-nums; font-feature-settings:"tnum";}
+  .odo-digit{height:1.1em; overflow:hidden; display:inline-block; vertical-align:bottom;}
+  .odo-rail{display:flex; flex-direction:column; transition:transform 1.3s cubic-bezier(.22,.61,.36,1); will-change:transform;}
+  .odo-cell{height:1.1em; line-height:1.1; display:flex; align-items:center; justify-content:center;}
+  .odo-sep{display:inline-block;}
+  `;
+  const st = document.createElement('style');
+  st.textContent = css;
+  document.head.appendChild(st);
+})();
+
+// 设置/更新一个 odometer 元素的值（首次构建显示 0，后续仅滚动到目标）
+function setOdometer(el, value) {
+  const str = (el._isMoney ? '¥' : '') + Number(value).toLocaleString('zh-CN');
+  if (el._str !== str) {
+    // 结构变化（位数/分隔符不同）才重建 DOM
+    el.innerHTML = '';
+    el.classList.add('odo');
+    el._railMap = [];
+    for (const ch of str) {
+      if (ch >= '0' && ch <= '9') {
+        const d = document.createElement('span'); d.className = 'odo-digit';
+        const rail = document.createElement('span'); rail.className = 'odo-rail';
+        for (let i = 0; i < 10; i++) {
+          const c = document.createElement('span'); c.className = 'odo-cell';
+          c.textContent = i; rail.appendChild(c);
+        }
+        d.appendChild(rail); el.appendChild(d); el._railMap.push(rail);
+      } else {
+        const s = document.createElement('span'); s.className = 'odo-sep';
+        s.textContent = ch; el.appendChild(s);
+      }
+    }
+    el._str = str;
   }
-  requestAnimationFrame(step);
-  // 闪烁动画
-  conf.el.classList.remove('ticker-flash');
-  void conf.el.offsetWidth; // 强制重排，重新触发 animation
-  conf.el.classList.add('ticker-flash');
-  liveStats[key] = value;
+  // 每个数字轨道滚动到目标位（从当前位置平滑过渡）
+  let idx = 0;
+  for (const ch of str) {
+    if (ch >= '0' && ch <= '9') {
+      const rail = el._railMap[idx++];
+      rail.style.transform = 'translateY(-' + (Number(ch) * 1.1) + 'em)';
+    }
+  }
 }
 
-let tickerTimer = null;
-function startStatsTicker() {
-  if (tickerTimer) clearInterval(tickerTimer);
-  // 每秒按统一时间重新计算，所有用户/所有窗口向同一目标值跳动，既保留动态观感又保证数字对齐一致
-  tickerTimer = setInterval(() => {
-    const s = computeStats();
-    STATS_KEYS.forEach(k => setStat(k, s[k], { duration: 600 }));
-  }, 1000);
+function renderStats(s) {
+  bindStatEls();
+  // 先构建并全部显示 0（轨道在顶部）
+  STATS_KEYS.forEach(k => {
+    statEl[k].el._isMoney = statEl[k].isMoney;
+    setOdometer(statEl[k].el, 0);
+    statEl[k].el._railMap.forEach(r => { r.style.transition = 'none'; r.style.transform = 'translateY(0)'; });
+  });
+  // 下一帧开启 transition 并滚动到真实值（上下滚动入场）
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    STATS_KEYS.forEach(k => {
+      statEl[k].el._railMap.forEach(r => { r.style.transition = ''; });
+      setOdometer(statEl[k].el, s[k]);
+    });
+  }));
+  // 入场后定格，不再持续跳动
 }
 
 async function loadStats(){
@@ -166,18 +202,6 @@ async function loadBoard(){
   return DEMO.leaderboard;
 }
 
-function renderStats(s){
-  bindStatEls();
-  liveStats.total_amount = s.total_amount;
-  liveStats.total_count = s.total_count;
-  liveStats.model_count = s.model_count;
-  liveStats.week_amount = s.week_amount;
-  countUp(statEl.total_amount.el, s.total_amount, true);
-  countUp(statEl.total_count.el, s.total_count, false);
-  countUp(statEl.model_count.el, s.model_count, false);
-  countUp(statEl.week_amount.el, s.week_amount, true);
-  startStatsTicker(); // 启动实时滚动 ticker
-}
 function feedItem(r){
   return `<div class="feed-item">
     <span class="fi-emoji">🎉</span>
