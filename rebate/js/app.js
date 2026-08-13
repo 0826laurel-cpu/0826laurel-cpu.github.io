@@ -1,25 +1,24 @@
 // ============ 公开返款页逻辑（单页长滚动版） ============
 
 /*
- * 核心数据计算逻辑（按 2026-08-13 需求截图约定）：
+ * 核心数据计算逻辑（按 2026-08-13 最新参数约定）：
  *
- * 1. 合作模特人数：只增不减，起点 586 人。
- *    以 2026-08-11 为基准日，之后每过 1 天固定增加 MODEL_DAILY_INC 人。
- *    公式：model_count = 586 + max(0, 今天 - 2026-08-11 的天数) × MODEL_DAILY_INC
+ * 1. 合作模特人数：持续累计、只增不减，起点 586 人。
+ *    以 2026-08-11 为起点日，之后每天固定增加 MODEL_DAILY_INC（=12）人，
+ *    平均每周约 +84 人（落在 70-100 区间）。
+ *    公式：model_count = 586 + max(0, 今天 - 2026-08-11 的天数) × 12
  *
- * 2. 其余三个指标采用「滚动 7 天累计 + 每日目标递增」，确保：
+ * 2. 返款金额（累计返款金额 / 本周返款）：
+ *    从 8000 元起，每天递增 AMOUNT_DAILY_INC（=700）元，封顶 AMOUNT_MAX（=60000，即 5-6 万）。
+ *
+ * 3. 已结算笔数（订单数量）：
+ *    从 30 笔起，每天递增 COUNT_DAILY_INC（=3）笔，封顶 COUNT_MAX（=240，即 200-250 区间）。
+ *
+ * 4. 以上三个“金额 / 笔数”指标自起点持续累计，达到上限后封顶，保证：
  *    - 同一个人不同时间打开页面，数字只增不减；
- *    - 呈现的是最近 7 天的数据，保留时效性；
- *    - 每天 0 点会因为“新增一天目标 > 移除 7 天前目标”而跳增。
+ *    - 达到上限后稳定在该值不再增长。
  *
- *    每日目标随日期递增：
- *      返款金额目标 = AMOUNT_BASE + dayIndex × AMOUNT_INC
- *      结算笔数目标 = COUNT_BASE  + dayIndex × COUNT_INC
- *    其中 dayIndex = 今天 - 2026-08-11 的天数。
- *
- *    近 7 日累计 = 前 6 天（完整天）目标之和 + 今天实时进度 × 今天目标。
- *
- * 3. 页面上的“实时滚动” ticker 仅在前述基础值上做小幅随机波动，
+ * 5. 页面上的“实时滚动” ticker 仅在前述基础值上做小幅随机波动，
  *    用于营造热闹氛围；刷新页面后会重新按日期计算，保证逻辑可预期。
  */
 
@@ -63,68 +62,36 @@ function relTime(t){
 }
 function maskStatus(s){ return s||'待返'; }
 
-// ---- 按日期计算四个公示指标 ----
+// ---- 按日期计算四个公示指标（持续累计 + 封顶）----
 const MODEL_BASE = 586;          // 合作模特人数起点
-const MODEL_DAILY_INC = 3;       // 模特人数每天固定增加量（只增不减）
-const MODEL_START_DATE = new Date('2026-08-11T00:00:00'); // 模特人数起点日（北京时间/本地时间）
+const MODEL_DAILY_INC = 12;      // 模特人数每天增加量（每周约 +84，落在 70-100 区间），只增不减
+const STATS_START_DATE = new Date('2026-08-11T00:00:00'); // 所有指标的起点日
 
-// 滚动 7 天累计：每日目标递增，确保累计值随时间单调递增
-const BASE_DATE = new Date('2026-08-11T00:00:00');
-const AMOUNT_BASE = 1500;        // 每日返款金额目标基数（元）
-const AMOUNT_INC  = 40;          // 每日返款金额目标递增（元/天）
-const COUNT_BASE  = 2;           // 每日结算笔数目标基数
-const COUNT_INC   = 1;           // 每日结算笔数目标递增（笔/天）
+const AMOUNT_BASE = 8000;        // 返款金额起点（元）
+const AMOUNT_DAILY_INC = 700;    // 返款金额每天递增（元/天）
+const AMOUNT_MAX = 60000;        // 返款金额封顶（5-6 万）
 
-function dayStart(d) {
-  const date = new Date(d);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
+const COUNT_BASE = 30;           // 已结算笔数起点（笔）
+const COUNT_DAILY_INC = 3;       // 已结算笔数每天递增（笔/天）
+const COUNT_MAX = 240;           // 已结算笔数封顶（200-250 区间）
 
-// 第 dayIndex 天（从 BASE_DATE 开始 0 索引）的返款金额目标
-function dailyAmountTarget(dayIndex) {
-  return Math.max(0, AMOUNT_BASE + dayIndex * AMOUNT_INC);
-}
-// 第 dayIndex 天的结算笔数目标
-function dailyCountTarget(dayIndex) {
-  return Math.max(0, COUNT_BASE + dayIndex * COUNT_INC);
-}
-
-// 求和：从 fromDay 到 toDay（含）的 dailyTarget
-function sumRange(fromDay, toDay, targetFn) {
-  // 用等差数列公式，避免循环
-  const n = toDay - fromDay + 1;
-  if (n <= 0) return 0;
-  const first = targetFn(fromDay);
-  const last = targetFn(toDay);
-  return Math.floor((first + last) * n / 2);
-}
-
-// 基于当前日期计算公示指标（滚动 7 天累计，模特人数只增不减）
+// 基于当前日期计算公示指标（自起点持续累计，达到上限后封顶，保证只增不减）
 function computeStats(now = new Date()){
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const days = Math.max(0, Math.floor((now - STATS_START_DATE) / MS_PER_DAY));
 
-  // 1) 合作模特人数：起点 586 + 自基准日起每天固定增加
-  const daysSinceBase = Math.floor((now - MODEL_START_DATE) / MS_PER_DAY);
-  const model_count = MODEL_BASE + Math.max(0, daysSinceBase) * MODEL_DAILY_INC;
+  // 1) 合作模特人数：起点 586 + 每天固定增加，持续累计
+  const model_count = MODEL_BASE + days * MODEL_DAILY_INC;
 
-  // 2) 滚动 7 天累计：前 6 个完整天 + 今天实时进度
-  const curDay = Math.floor((now - BASE_DATE) / MS_PER_DAY);
-  const todayStart = dayStart(now);
-  const todayProgress = Math.max(0, Math.min(1, (now - todayStart) / MS_PER_DAY));
-
-  const startDay = Math.max(0, curDay - 6);
-  const prev6Amount = sumRange(startDay, curDay - 1, dailyAmountTarget);
-  const prev6Count  = sumRange(startDay, curDay - 1, dailyCountTarget);
-
-  const total_amount = Math.floor(prev6Amount + todayProgress * dailyAmountTarget(curDay));
-  const total_count  = Math.floor(prev6Count  + todayProgress * dailyCountTarget(curDay));
+  // 2) 返款金额 / 笔数：从起点每天递增，封顶后不再增长
+  const total_amount = Math.min(AMOUNT_MAX, Math.floor(AMOUNT_BASE + days * AMOUNT_DAILY_INC));
+  const total_count  = Math.min(COUNT_MAX,  Math.floor(COUNT_BASE  + days * COUNT_DAILY_INC));
 
   return {
     total_amount,
     total_count,
     model_count,
-    month_amount: total_amount // “本周返款”与“累计返款金额”同义，都取近7日累计
+    month_amount: total_amount // “本周返款”与“累计返款金额”同义，都从 8000 起持续累计到封顶
   };
 }
 
