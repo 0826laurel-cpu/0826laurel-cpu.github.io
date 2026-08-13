@@ -76,18 +76,18 @@ function computeStats(now = new Date()){
   const days = Math.floor(elapsed);
   const frac = elapsed - days; // 当天已过的比例（0 ~ 1）
 
-  // 1) 合作模特人数：起点 586 + 每天固定增加，持续累计（当天内按比例平滑递增）
-  const model_count = MODEL_BASE + days * MODEL_DAILY_INC + Math.floor(frac * MODEL_DAILY_INC);
+  // 1) 合作模特人数：起点 586 + 每天固定增加，持续累计（当天内按比例平滑递增，保留小数用于 odometer 滚动）
+  const model_count = MODEL_BASE + days * MODEL_DAILY_INC + frac * MODEL_DAILY_INC;
 
   // 2) 累计返款金额：历史总累计，无封顶，只增不减（大数）
-  const total_amount = HIST_BASE + days * DAILY_TOTAL + Math.floor(frac * DAILY_TOTAL);
+  const total_amount = HIST_BASE + days * DAILY_TOTAL + frac * DAILY_TOTAL;
 
   // 3) 本周新增：本周内（周一 00:00 起）累计的返款，按周重置，远小于累计
   const dow = (now.getDay() + 6) % 7; // 周一=0 … 周日=6
-  const week_amount = dow * DAILY_TOTAL + Math.floor(frac * DAILY_TOTAL);
+  const week_amount = dow * DAILY_TOTAL + frac * DAILY_TOTAL;
 
   // 4) 已结算笔数：从起点每天递增，封顶后不再增长
-  const total_count = Math.min(COUNT_MAX, Math.floor(COUNT_BASE + days * COUNT_DAILY_INC + frac * COUNT_DAILY_INC));
+  const total_count = Math.min(COUNT_MAX, COUNT_BASE + days * COUNT_DAILY_INC + frac * COUNT_DAILY_INC);
 
   return { total_amount, total_count, model_count, week_amount };
 }
@@ -115,8 +115,7 @@ function bindStatEls() {
   statEl.week_amount = { el: document.getElementById('s-week'), isMoney: true };
 }
 
-// ---- 数字滚轮（odometer）入场动画：每位数字独立上下平滑滚动，入场后定格 ----
-// 注入样式
+// ---- 数字滚轮（odometer）：每位数字独立上下平滑滚动，入场 + 实时持续滚动 ----
 (function () {
   const css = `
   .odo{display:inline-flex; align-items:flex-end; line-height:1.1; font-variant-numeric:tabular-nums; font-feature-settings:"tnum";}
@@ -130,9 +129,11 @@ function bindStatEls() {
   document.head.appendChild(st);
 })();
 
-// 用目标值的结构构建 odometer（轨道初始停在 0，不立刻滚动）
-function buildOdometer(el, value) {
-  const str = (el._isMoney ? '¥' : '') + Number(value).toLocaleString('zh-CN');
+// 构建 odometer 轨道
+// startAtZero: true → 所有数字从 0 开始（入场）；false → 直接定位到目标值（重建/实时）
+function buildOdometer(el, value, startAtZero) {
+  const floorVal = Math.floor(value);
+  const str = (el._isMoney ? '¥' : '') + floorVal.toLocaleString('zh-CN');
   el.innerHTML = '';
   el.classList.add('odo');
   el._railMap = [];
@@ -151,40 +152,85 @@ function buildOdometer(el, value) {
     }
   }
   el._str = str;
-  // 先全部停在 0（显示 000…），关闭过渡
-  el._railMap.forEach(r => { r.style.transition = 'none'; r.style.transform = 'translateY(0)'; });
+  // 初始定位：入场从 0 开始，其余情况直接定位到目标值（不播放过渡）
+  setRailPositions(el, value, startAtZero ? 0 : null, true);
 }
 
-// 把轨道滚动到目标值（从当前位置平滑过渡）
-function rollOdometer(el, value) {
-  const str = (el._isMoney ? '¥' : '') + Number(value).toLocaleString('zh-CN');
-  if (el._str !== str) buildOdometer(el, value); // 位数/分隔符变了才重建
-  let idx = 0;
+// 设置每一位轨道的 translateY
+// basePos: 若指定，则每位从 basePos（该位整数）开始；null 表示用目标值的整数位
+// noTransition: true 时关闭 transition（用于初始定位 / 实时驱动）
+function setRailPositions(el, value, basePos, noTransition) {
+  const floorVal = Math.floor(value);
+  const frac = value - floorVal;
+  const str = el._str;
+  // 找到最后一位数字的索引
+  let lastDigitIdx = -1, idx = 0;
+  for (const ch of str) {
+    if (ch >= '0' && ch <= '9') lastDigitIdx = idx++;
+  }
+  idx = 0;
   for (const ch of str) {
     if (ch >= '0' && ch <= '9') {
-      el._railMap[idx++].style.transform = 'translateY(-' + (Number(ch) * 1.1) + 'em)';
+      const rail = el._railMap[idx];
+      const targetDigit = Number(ch);
+      // 最低位（个位）叠加小数部分，实现持续平滑滚动
+      const digitWithFrac = targetDigit + (idx === lastDigitIdx ? frac : 0);
+      const baseDigit = basePos !== null ? basePos : targetDigit;
+      const baseWithFrac = baseDigit + (idx === lastDigitIdx && basePos !== null ? frac : 0);
+      if (noTransition) rail.style.transition = 'none';
+      rail.style.transform = 'translateY(-' + ((basePos !== null ? baseWithFrac : digitWithFrac) * 1.1) + 'em)';
+      idx++;
     }
   }
 }
 
+// 滚动/更新到目标值（结构变化时直接定位，不播放过渡）
+function rollOdometer(el, value) {
+  const floorVal = Math.floor(value);
+  const str = (el._isMoney ? '¥' : '') + floorVal.toLocaleString('zh-CN');
+  if (el._str !== str) {
+    buildOdometer(el, value, false); // 位数变化：直接定位到新值
+    return;
+  }
+  setRailPositions(el, value, null, false);
+}
+
+let liveTimer = null;
+function startLiveTicker() {
+  if (liveTimer) cancelAnimationFrame(liveTimer);
+  // 关闭 transition，直接用 RAF 驱动，保证实时滚动不抖动
+  STATS_KEYS.forEach(k => {
+    if (statEl[k] && statEl[k].el && statEl[k].el._railMap) {
+      statEl[k].el._railMap.forEach(r => { r.style.transition = 'none'; });
+    }
+  });
+  function tick() {
+    const s = computeStats();
+    STATS_KEYS.forEach(k => rollOdometer(statEl[k].el, s[k]));
+    liveTimer = requestAnimationFrame(tick);
+  }
+  liveTimer = requestAnimationFrame(tick);
+}
+
 function renderStats(s) {
   bindStatEls();
-  // 用目标值的结构建好轨道，但先停在 0（无过渡）
+  // 入场：用目标值结构建轨道，但全部停在 0
   STATS_KEYS.forEach(k => {
     statEl[k].el._isMoney = statEl[k].isMoney;
-    buildOdometer(statEl[k].el, s[k]);
+    buildOdometer(statEl[k].el, s[k], true);
   });
   // 强制重排，确保“0”状态已渲染
   void document.body.offsetWidth;
-  // 下一帧开启过渡并滚动到真实值（同一批元素 → 平滑上下滚动入场）
+  // 下一帧开启过渡并滚动到真实值（上下滚动入场）
   requestAnimationFrame(() => requestAnimationFrame(() => {
     STATS_KEYS.forEach(k => {
       const el = statEl[k].el;
       el._railMap.forEach(r => { r.style.transition = ''; });
       rollOdometer(el, s[k]);
     });
+    // 入场动画结束后启动持续实时滚动
+    setTimeout(startLiveTicker, 1350);
   }));
-  // 入场后定格，不再持续跳动
 }
 
 async function loadStats(){
