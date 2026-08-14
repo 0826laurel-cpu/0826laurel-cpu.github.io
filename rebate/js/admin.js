@@ -57,10 +57,36 @@ async function resolveModelId(raw){
   }
 }
 
+// 从伙伴卡片直跳带过来的预填参数（?model=X&name=Y）。仅作为预算提示，用户仍在登录态内使用。
+const URL_PREFILL = (() => {
+  const u = new URL(location.href);
+  return {
+    model: u.searchParams.get('model') || '',
+    name: u.searchParams.get('name') || ''
+  };
+})();
+
 function enterPanel(){
   document.getElementById('gate').style.display = 'none';
   document.getElementById('panel').style.display = 'block';
   setVal('f-date', new Date().toISOString().slice(0,10));
+  // 来自伙伴卡片的预填 → 锁字段，杜绝误覆盖
+  if (URL_PREFILL.model){
+    setVal('f-model-id', URL_PREFILL.model);
+    if (URL_PREFILL.name) setVal('f-mask', URL_PREFILL.name);
+    const input = document.getElementById('f-model-id');
+    input.readOnly = true;
+    input.style.background = '#F0FAF4';
+    input.style.borderColor = '#2BB673';
+    input.style.color = '#1B5E20';
+    input.title = '已从伙伴卡片预填，请勿修改';
+    // 在字段下方显示绿色徽标提示
+    paintResolvedHint(URL_PREFILL.model);
+    const hint = document.getElementById('f-model-id-hint');
+    if (hint) hint.innerHTML = `✅ <b>已从伙伴卡片自动预填</b> · 模特编号 <code style="background:#fff;padding:2px 6px;border-radius:4px;font-size:12px">${URL_PREFILL.model}</code>（${URL_PREFILL.name || ''}）<br><span style="color:#9AA0AD">直接填下面的「订单号 / 事项 / 金额」即可</span>`;
+    // 把焦点送到订单号字段，方便连续录入
+    setTimeout(()=>{ const o=document.getElementById('f-order'); if(o){ o.focus(); o.scrollIntoView({block:'center'}); } }, 100);
+  }
   loadPending();
   loadPaid();
 }
@@ -131,7 +157,16 @@ document.getElementById('f-model-id').addEventListener('input', ()=>{
 });
 
 function resetForm(){
-  ['f-code','f-mask','f-model-id','f-order','f-item','f-amount','f-expected'].forEach(id=>setVal(id,''));
+  // 若来自 URL 预填（伙伴卡片），保留 model_id 与昵称，便于同一模特连续录入多笔返款
+  const keepModelId = !!URL_PREFILL.model;
+  const kept = {
+    'f-model-id': keepModelId ? val('f-model-id') : '',
+    'f-mask':     keepModelId ? val('f-mask') : ''
+  };
+  ['f-code','f-mask','f-model-id','f-order','f-item','f-amount','f-expected'].forEach(id=>{
+    if (Object.prototype.hasOwnProperty.call(kept, id) && keepModelId) setVal(id, kept[id]);
+    else setVal(id, '');
+  });
   paintResolvedHint(null);
   lastResolvedModel = null;
   setVal('f-date', new Date().toISOString().slice(0,10));

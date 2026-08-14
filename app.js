@@ -898,6 +898,7 @@ function partnerCardHtml(p, shipCountMap) {
           ? `<img class="qr-thumb" src="${p.payout_qr_url}" data-act="qr-zoom" data-id="${p.id}" title="查看收款码" alt="收款码">`
           : `<span class="qr-none" title="模特尚未上传收款码">无码</span>`}
         <div class="pcard-quick-acts">
+          <button class="btn-icon" data-act="rebate-new" data-pid="${p.id}" data-mid="${esc(p.model_id || '')}" data-mname="${esc(p.name || '')}" title="录入返款">💰</button>
           <button class="btn-icon" data-act="ship-new" data-pid="${p.id}" title="发货">📦</button>
           ${hasAddress(p.address) ? `<button class="btn-icon" data-act="copy-address" data-addr="${addrText(p.address, true)}" title="复制地址">📋</button>` : ''}
           <button class="btn-icon" data-act="detail" data-id="${p.id}" title="查看详情">📝</button>
@@ -912,6 +913,7 @@ function partnerCardHtml(p, shipCountMap) {
           ${trackDate}
         </div>
         <div class="right">
+          <button class="btn-add" data-act="rebate-new" data-pid="${p.id}" data-mid="${esc(p.model_id || '')}" data-mname="${esc(p.name || '')}" title="录入返款" style="background:#2BB673;color:#fff">💰 录返款</button>
           <button class="btn-add" data-act="ship-new" data-pid="${p.id}" title="给该伙伴新建发货">➕ 发货</button>
           <button class="btn-detail" data-act="detail" data-id="${p.id}">详情</button>
         </div>
@@ -1773,6 +1775,20 @@ document.addEventListener('click', async e => {
     else if (act === 'rebate-edit') { await fillRebateForPay(el.dataset.order, null); }
     else if (act === 'add') openAdd();
     else if (act === 'detail') openDetail(el.dataset.id);
+    else if (act === 'rebate-new') {
+      // 直接从伙伴卡片发起：URL 参数预填 model_id，避免"复制链接→再粘"的链路
+      const mid = el.dataset.mid || '';
+      const mname = el.dataset.mname || '';
+      const origin = (window.APP_ORIGIN || location.origin).replace(/\/$/, '');
+      const u = new URL(origin + '/rebate/admin.html');
+      if (mid) u.searchParams.set('model', mid);
+      if (mname) u.searchParams.set('name', mname);
+      // 提示用户：需要后台密码
+      const target = u.toString();
+      // 在新窗口打开（避免污染当前后台 tab）；若已登录则弹 toast
+      window.open(target, '_blank');
+      toast('已为「' + (mname || mid) + '」打开录入窗口，记得输后台密码');
+    }
     else if (act === 'qr-zoom') openQrZoom(el.dataset.id);
     else if (act === 'gift') {
       if (el.dataset.pid) openGift(null, 0, el.dataset.pid);
