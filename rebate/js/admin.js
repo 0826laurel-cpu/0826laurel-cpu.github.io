@@ -14,6 +14,34 @@ let adminPw = '';
 function val(id){ return document.getElementById(id).value.trim(); }
 function setVal(id, v){ document.getElementById(id).value = v || ''; }
 
+// ============ 模特编号智能识别：支持粘贴专属链接（me.html?t=xxx）============
+// 录入人员手头通常只有模特的专属链接，而不是手填的「模特编号」。
+// 这里把链接里的 token 解析出来，调 get_my_partner 反查真实模特编号，
+// 避免把整条 URL 当编号存进去、导致模特端查不到返款进度。
+function extractToken(raw){
+  if (!raw) return null;
+  let m = raw.match(/me\.html\?t=([0-9a-fA-F-]{8,})/);
+  if (m) return m[1];
+  m = raw.match(/[?&]t=([0-9a-fA-F-]{8,})/);
+  if (m) return m[1];
+  // 纯 UUID（兼容直接粘 token）
+  if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(raw.trim())) return raw.trim();
+  return null;
+}
+async function resolveModelId(raw){
+  const token = extractToken(raw);
+  if (!token) return { modelId: raw, ok: false }; // 不是链接/UUID，原样返回（兼容手填编号）
+  try {
+    const { data, error } = await sb.rpc('get_my_partner', { p_token: token });
+    if (error) return { modelId: raw, ok: false, warn: '查询模特失败：' + error.message };
+    const p = (data && data.partner) ? data.partner : (Array.isArray(data) ? data[0] : null);
+    if (!p || !p.model_id) return { modelId: raw, ok: false, warn: '该专属链接未找到对应模特编号，请确认链接正确' };
+    return { modelId: p.model_id, name: p.name || '', ok: true };
+  } catch(e){
+    return { modelId: raw, ok: false, warn: '识别失败：' + (e && e.message || e) };
+  }
+}
+
 function enterPanel(){
   document.getElementById('gate').style.display = 'none';
   document.getElementById('panel').style.display = 'block';
@@ -53,13 +81,26 @@ document.getElementById('logout').addEventListener('click', ()=>{
 const voucherInput = document.getElementById('f-voucher');
 const voucherName  = document.getElementById('voucher-name');
 const voucherPreview = document.getElementById('voucher-preview');
-voucherInput.addEventListener('change', ()=>{
+  voucherInput.addEventListener('change', ()=>{
   const file = voucherInput.files[0];
   if (!file){ voucherName.textContent = '未选择文件'; voucherPreview.style.display='none'; voucherPreview.src=''; return; }
   voucherName.textContent = file.name;
   const reader = new FileReader();
   reader.onload = e => { voucherPreview.src = e.target.result; voucherPreview.style.display='block'; };
   reader.readAsDataURL(file);
+});
+
+// 模特编号字段：失焦时若粘贴的是专属链接，实时识别并带出昵称
+document.getElementById('f-model-id').addEventListener('blur', async ()=>{
+  const raw = val('f-model-id');
+  if (!raw) return;
+  const r = await resolveModelId(raw);
+  if (r.ok){
+    if (r.name && !val('f-mask')) setVal('f-mask', r.name);
+    toast('✅ 已识别模特：' + (r.name || r.modelId));
+  } else if (r.warn){
+    toast(r.warn);
+  }
 });
 
 function resetForm(){
@@ -197,6 +238,13 @@ document.getElementById('submit-btn').addEventListener('click', async ()=>{
   const status = document.getElementById('f-status').value;
   let voucherUrl = '';
 
+  // 解析「模特编号」：支持粘贴专属链接，自动识别为对应模特编号（提交时统一解析，字段保留原文便于核对）
+  let modelIdVal = val('f-model-id');
+  const resolved = await resolveModelId(modelIdVal);
+  if (resolved.warn) toast(resolved.warn);
+  modelIdVal = resolved.modelId;
+  if (resolved.name && !val('f-mask')) setVal('f-mask', resolved.name);
+
   // 如果选了凭证图，先上传到 Supabase Storage
   if (file){
     if (!sb){ toast('未连接数据库，无法上传图片'); return; }
@@ -216,7 +264,7 @@ document.getElementById('submit-btn').addEventListener('click', async ()=>{
     p_admin_pw:   adminPw,
     p_model_code: val('f-code'),
     p_model_mask: val('f-mask'),
-    p_model_id:   val('f-model-id'),
+    p_model_id:   modelIdVal,
     p_order_no:   val('f-order'),
     p_item:       val('f-item'),
     p_amount:     parseFloat(val('f-amount')||'0'),
