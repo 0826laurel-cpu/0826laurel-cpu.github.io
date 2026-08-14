@@ -366,7 +366,7 @@
           <span style="${barStyle(step >= 3)}"></span>
           <span style="${stepStyle(3)}">已返</span>
         </div>
-        ${r.rebate_date ? `<div style="font-size:11px;color:#9AA0AD;margin-top:8px">返款日期：${esc(r.rebate_date)}</div>` : ''}
+        ${r.expected_rebate_date || r.rebate_date ? `<div style="font-size:11px;color:#9AA0AD;margin-top:8px">${r.expected_rebate_date ? `预计返款日期：${esc(r.expected_rebate_date)}` : `返款日期：${esc(r.rebate_date)}`}</div>` : ''}
         ${r.voucher_url ? `<a href="${esc(r.voucher_url)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:12px;color:#5B7CFA;text-decoration:none">🧾 查看返款凭证</a>` : ''}
       </div>`;
     }).join('');
