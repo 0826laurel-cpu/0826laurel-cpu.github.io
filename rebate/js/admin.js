@@ -18,6 +18,8 @@ function setVal(id, v){ document.getElementById(id).value = v || ''; }
 // 录入人员手头通常只有模特的专属链接，而不是手填的「模特编号」。
 // 这里把链接里的 token 解析出来，调 get_my_partner 反查真实模特编号，
 // 避免把整条 URL 当编号存进去、导致模特端查不到返款进度。
+let lastResolvedModel = null;  // 最近一次成功反查结果，供提交时校验
+
 function extractToken(raw){
   if (!raw) return null;
   let m = raw.match(/me\.html\?t=([0-9a-fA-F-]{8,})/);
@@ -27,6 +29,19 @@ function extractToken(raw){
   // 纯 UUID（兼容直接粘 token）
   if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(raw.trim())) return raw.trim();
   return null;
+}
+
+// 实时把识别结果写到字段显示（用户看清楚）
+function paintResolvedHint(modelId){
+  const hint = document.getElementById('f-model-id-hint');
+  if (!hint) return;
+  if (modelId){
+    hint.textContent = `✅ 识别为模特编号：${modelId}`;
+    hint.style.color = 'var(--brand)';
+  } else {
+    hint.textContent = '';
+    hint.style.color = 'var(--sub)';
+  }
 }
 async function resolveModelId(raw){
   const token = extractToken(raw);
@@ -93,18 +108,32 @@ const voucherPreview = document.getElementById('voucher-preview');
 // 模特编号字段：失焦时若粘贴的是专属链接，实时识别并带出昵称
 document.getElementById('f-model-id').addEventListener('blur', async ()=>{
   const raw = val('f-model-id');
-  if (!raw) return;
+  if (!raw){ paintResolvedHint(null); lastResolvedModel = null; return; }
   const r = await resolveModelId(raw);
   if (r.ok){
     if (r.name && !val('f-mask')) setVal('f-mask', r.name);
+    lastResolvedModel = r;
+    paintResolvedHint(r.modelId);
     toast('✅ 已识别模特：' + (r.name || r.modelId));
   } else if (r.warn){
     toast(r.warn);
+    paintResolvedHint(null);
+    lastResolvedModel = null;
+  } else {
+    paintResolvedHint(null);
+    lastResolvedModel = null;
   }
+});
+// 输入时清提示
+document.getElementById('f-model-id').addEventListener('input', ()=>{
+  paintResolvedHint(null);
+  lastResolvedModel = null;
 });
 
 function resetForm(){
   ['f-code','f-mask','f-model-id','f-order','f-item','f-amount','f-expected'].forEach(id=>setVal(id,''));
+  paintResolvedHint(null);
+  lastResolvedModel = null;
   setVal('f-date', new Date().toISOString().slice(0,10));
   setVal('f-status', '已返');
   voucherInput.value = '';
@@ -244,6 +273,18 @@ document.getElementById('submit-btn').addEventListener('click', async ()=>{
   if (resolved.warn) toast(resolved.warn);
   modelIdVal = resolved.modelId;
   if (resolved.name && !val('f-mask')) setVal('f-mask', resolved.name);
+  // 兜底：字段是 URL/UUID 形式但还没成功反查出来，强制再反查一次，避免整条 URL 被原样写入 DB
+  if (modelIdVal && (modelIdVal.startsWith('http') || /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-/.test(modelIdVal)) && resolved.modelId === modelIdVal){
+    // resolveModelId 已 ok=false 直接原样返回 → 这里再调一次保险 + 提示用户
+    const re = await resolveModelId(modelIdVal);
+    if (re && re.ok){
+      modelIdVal = re.modelId;
+      if (re.name && !val('f-mask')) setVal('f-mask', re.name);
+      toast('⚠️ 已自动反查为模特编号：' + re.modelId + '（' + re.name + '）');
+    } else {
+      toast('该字段含 URL/UUID 但未匹配到模特编号，请确认链接正确后将不再提交');
+    }
+  }
 
   // 如果选了凭证图，先上传到 Supabase Storage
   if (file){
