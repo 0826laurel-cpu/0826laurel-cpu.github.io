@@ -12,7 +12,7 @@
   }
 
   async function load() {
-    if (!TOKEN) { showErr('链接无效', '链接里没有 token。请使用完整的专属链接（应形如 ' + location.origin + '/welfare.html?t=...）。'); return; }
+    if (!TOKEN) { showErr('链接无效', '链接里没有 token。请使用完整的专属链接（应形如 ' + (window.APP_ORIGIN || location.origin) + '/welfare.html?t=...）。'); return; }
     if (TOKEN === 'TOKEN' || !/^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(TOKEN)) { showErr('链接无效', '链接里的 token 不正确。请使用你收到的<b>真实</b>专属链接，<b>不要手动修改链接</b>。'); return; }
     try {
       const { data: pd, error: e1 } = await sb.rpc('get_my_partner', { p_token: TOKEN });
@@ -117,7 +117,7 @@
     const btnCopyInvite = document.getElementById('btn-copy-invite');
     if (btnCopyInvite) {
       btnCopyInvite.addEventListener('click', () => {
-        const link = location.origin + '/join.html?ref=' + encodeURIComponent(p.inviteCode || '');
+        const link = (window.APP_ORIGIN || location.origin) + '/join.html?ref=' + encodeURIComponent(p.inviteCode || '');
         const flash = () => { btnCopyInvite.textContent = '已复制 ✓'; setTimeout(() => btnCopyInvite.textContent = '复制邀请链接', 1500); };
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(flash).catch(() => prompt('复制此邀请链接：', link));
         else prompt('复制此邀请链接：', link);

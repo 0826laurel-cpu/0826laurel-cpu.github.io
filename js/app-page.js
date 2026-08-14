@@ -215,7 +215,7 @@
   }
 
   async function load() {
-    if (!TOKEN) { showErr('链接无效', '链接里没有 token。请使用完整的专属链接（应形如 ' + location.origin + '/me.html?t=...）。'); return; }
+    if (!TOKEN) { showErr('链接无效', '链接里没有 token。请使用完整的专属链接（应形如 ' + (window.APP_ORIGIN || location.origin) + '/me.html?t=...）。'); return; }
     if (TOKEN === 'TOKEN' || !/^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(TOKEN)) { showErr('链接无效', '链接里的 token 不正确（看到了占位符 "TOKEN" 或格式不对）。请使用你收到的<b>真实</b>专属链接，<b>不要手动修改链接</b>。'); return; }
     if (typeof window.sb === 'undefined' || !window.sb || typeof window.sb.rpc !== 'function') {
       showErr('客户端加载失败', 'Supabase 客户端没有初始化成功，通常是脚本加载被浏览器拦截或网络不稳定。请检查网络、关闭广告拦截插件后重试。', 'window.sb=' + (typeof window.sb) + ' window.sb.rpc=' + (window.sb && typeof window.sb.rpc));

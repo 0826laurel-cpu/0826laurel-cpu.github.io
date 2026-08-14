@@ -1616,7 +1616,7 @@ function openDetail(id) {
       ${hasAddress(p.address) ? `<button class="btn-line" style="width:auto;padding:5px 10px;color:var(--coral);margin-top:6px;font-size:12px" data-act="copy-address" data-addr="${addrText(p.address, true)}" data-name="${esc((p.name || ''))}">📋 一键复制地址</button>` : ''}
     </div>
     <div class="field"><label>专属链接（发给伙伴：自助填地址 / 看物流）</label>
-      <div style="font-size:12px;color:var(--coral);word-break:break-all">${(/^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(p.token || '')) ? (location.origin + '/me.html?t=' + esc(p.token)) : '<span style="color:#E5454F">⚠️ 该伙伴的 token 异常，请重新保存伙伴信息后再复制</span>'}</div>
+      <div style="font-size:12px;color:var(--coral);word-break:break-all">${(/^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(p.token || '')) ? ((window.APP_ORIGIN || location.origin) + '/me.html?t=' + esc(p.token)) : '<span style="color:#E5454F">⚠️ 该伙伴的 token 异常，请重新保存伙伴信息后再复制</span>'}</div>
       <button class="btn-line" style="width:auto;padding:6px 12px;color:var(--coral);margin-top:6px" data-act="copy-link" data-token="${esc(p.token)}">复制链接发给伙伴</button></div>
     <div style="display:flex;gap:10px;margin-top:8px">
       <button class="btn-primary" style="flex:1;background:#E58A3F" data-act="gift" data-pid="${p.id}">🎁 送礼品</button>
@@ -1944,7 +1944,7 @@ document.addEventListener('click', async e => {
         toast('该伙伴的 token 异常，无法生成链接。请到数据库核对或重新保存伙伴信息。', { err: true });
         return;
       }
-      const link = location.origin + '/me.html?t=' + raw;
+      const link = (window.APP_ORIGIN || location.origin) + '/me.html?t=' + raw;
       try { await navigator.clipboard.writeText(link); toast('已复制专属链接'); }
       catch (e) { prompt('复制此链接发给伙伴：', link); }
     }
@@ -2103,7 +2103,7 @@ document.addEventListener('click', async e => {
       catch (e) { toast(e.message || '操作失败', { err: true }); }
     }
     else if (act === 'wool-copy-link') {
-      const link = location.origin + '/deals.html';
+      const link = (window.APP_ORIGIN || location.origin) + '/deals.html';
       try { await navigator.clipboard.writeText(link); toast('已复制分享页链接：' + link); }
       catch (e) { prompt('复制此链接发到群：', link); }
     }
@@ -2115,7 +2115,7 @@ document.addEventListener('click', async e => {
         lines.push((i + 1) + '. ' + d.title + ' — 到手 ¥' + fmtMoney(d.dealPrice) + (d.coupon ? '（' + d.coupon + '）' : '') + ' · ' + d.platform);
         if (d.promoUrl) lines.push('   👉 ' + d.promoUrl);
       });
-      lines.push('—— 更多捡漏见：' + location.origin + '/deals.html');
+      lines.push('—— 更多捡漏见：' + (window.APP_ORIGIN || location.origin) + '/deals.html');
       const text = lines.join('\n');
       try { await navigator.clipboard.writeText(text); toast('已生成 ' + pub.length + ' 条分享文案，去群里粘贴吧'); }
       catch (e) { prompt('复制文案到群：', text); }

@@ -125,12 +125,12 @@
   function init() {
     const urlToken = new URLSearchParams(location.search).get('t');
     if (urlToken) {
-      location.replace(location.origin + '/me.html?t=' + encodeURIComponent(urlToken));
+      location.replace((window.APP_ORIGIN || location.origin) + '/me.html?t=' + encodeURIComponent(urlToken));
       return;
     }
     const sess = localStorage.getItem(LS_KEY);
     if (sess && UUID_RE.test(sess)) {
-      location.replace(location.origin + '/me.html?t=' + encodeURIComponent(sess));
+      location.replace((window.APP_ORIGIN || location.origin) + '/me.html?t=' + encodeURIComponent(sess));
       return;
     }
     renderAuth();
@@ -291,7 +291,7 @@
         throw new Error('注册失败，请稍后重试');
       }
       localStorage.setItem(LS_KEY, data.token);
-      window.location.replace(location.origin + '/me.html?t=' + data.token);
+      window.location.replace((window.APP_ORIGIN || location.origin) + '/me.html?t=' + data.token);
     } catch (e) {
       showToast(e.message || '网络异常，请稍后重试');
       btn.disabled = false; btn.textContent = '注册并领取福利 🎁';
@@ -319,7 +319,7 @@
         throw new Error('登录失败，请稍后重试');
       }
       localStorage.setItem(LS_KEY, data.token);
-      window.location.replace(location.origin + '/me.html?t=' + data.token);
+      window.location.replace((window.APP_ORIGIN || location.origin) + '/me.html?t=' + data.token);
     } catch (e) {
       showToast(e.message || '网络异常，请稍后重试');
       btn.disabled = false; btn.textContent = '登录 🎁';
