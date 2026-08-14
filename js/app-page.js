@@ -13,6 +13,7 @@
   });
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const money = n => '¥' + Number(n || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
   const TOKEN = new URLSearchParams(location.search).get('t') || '';
   // 同步写入本机会话，使「打开 join 链接」也能自动回到本页（两链接互通）
   if (TOKEN) { try { localStorage.setItem('p_token', TOKEN); } catch (e) {} }
