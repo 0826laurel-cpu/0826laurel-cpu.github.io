@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>返款录入 · 合作对接人</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .admin-wrap{max-width:480px;margin:0 auto;padding:18px 14px;}
+  .gate{background:#fff;border-radius:18px;padding:26px 18px;box-shadow:var(--shadow);text-align:center;margin-top:30px;}
+  .gate h2{margin:0 0 6px;font-size:18px;}
+  .gate p{color:var(--sub);font-size:13px;margin:0 0 16px;}
+  .gate input{border:1.5px solid var(--line);border-radius:12px;padding:13px;width:100%;font-size:15px;outline:none;margin-bottom:12px;}
+  .gate input:focus{border-color:var(--brand);}
+  .gate button{width:100%;border:none;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;
+    border-radius:12px;padding:13px;font-size:16px;font-weight:700;}
+  .panel{display:none;}
+  .fld{margin-bottom:13px;}
+  .fld label{display:block;font-size:13px;color:var(--ink);margin-bottom:5px;font-weight:600;}
+  .fld input,.fld select{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px;font-size:15px;outline:none;background:#fff;}
+  .fld input:focus,.fld select:focus{border-color:var(--brand);}
+  .row2{display:flex;gap:10px;}
+  .row2 .fld{flex:1;}
+  .submit{width:100%;border:none;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;
+    border-radius:12px;padding:14px;font-size:16px;font-weight:700;margin-top:6px;}
+  .file-wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;}
+  .file-wrap input[type="file"]{display:none;}
+  .file-btn{display:inline-block;background:linear-gradient(135deg,#fff5f1,#fff);border:1.5px dashed var(--brand);color:var(--brand);padding:10px 14px;border-radius:12px;font-size:14px;cursor:pointer;}
+  .file-name{font-size:13px;color:var(--sub);}
+  .file-preview{max-width:120px;max-height:120px;border-radius:10px;margin-top:8px;border:1px solid var(--line);object-fit:cover;}
+  .toast{position:fixed;left:50%;top:30%;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;
+    padding:12px 20px;border-radius:12px;font-size:14px;opacity:0;transition:.3s;pointer-events:none;z-index:99;}
+  .toast.show{opacity:1;}
+  .ghost{display:block;text-align:center;margin-top:16px;font-size:12px;color:var(--sub);cursor:pointer;}
+  .pending-empty{text-align:center;color:var(--sub);font-size:13px;padding:18px 0;}
+  .pending-item{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;}
+  .pending-top{display:flex;justify-content:space-between;align-items:center;}
+  .pending-order{font-size:13px;font-weight:700;color:var(--ink);word-break:break-all;}
+  .pending-amount{font-size:15px;font-weight:800;color:var(--brand);white-space:nowrap;margin-left:10px;}
+  .pending-meta{font-size:12px;color:var(--sub);margin-top:6px;}
+  .pending-meta span{margin-right:10px;}
+  .pending-badge{display:inline-block;background:#fff5f1;color:var(--brand);font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;}
+  .pending-actions{display:flex;gap:8px;margin-top:10px;}
+  .pending-actions button{flex:1;border:none;border-radius:10px;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn-done{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;}
+  .btn-edit{background:#f7f7f7;color:var(--ink);}
+  .btn-del{background:#fff;color:#d33;border:1.5px solid #f5c6c6;border-radius:10px;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn-del:hover{background:#fff5f5;}
+  .del-confirm{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:200;}
+  .del-confirm .del-box{background:#fff;border-radius:16px;padding:22px 20px;width:320px;max-width:84vw;box-shadow:0 12px 36px rgba(0,0,0,.18);}
+  .del-confirm h3{margin:0 0 8px;font-size:16px;color:#d33;}
+  .del-confirm p{margin:0 0 18px;font-size:13px;color:var(--ink);line-height:1.55;}
+  .del-confirm .del-order{background:#FCE9E9;color:#c0392b;padding:2px 6px;border-radius:4px;font-family:monospace;}
+  .del-confirm .del-actions{display:flex;gap:10px;}
+  .del-confirm .del-actions button{flex:1;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;}
+  .del-confirm .cancel{background:#f0f0f0;color:var(--ink);}
+  .del-confirm .confirm{background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;}
+</style>
+</head>
+<body>
+<div class="admin-wrap">
+
+  <div class="gate" id="gate">
+    <h2>🔐 合作对接人验证</h2>
+    <p>请输入后台密码以录入返款记录</p>
+    <input id="pw" type="password" placeholder="后台密码">
+    <button id="pw-btn">进入</button>
+  </div>
+
+  <div class="panel" id="panel">
+    <div class="block" style="margin-top:0">
+      <h2>➕ 录入一笔返款</h2>
+      <div class="fld"><label>模特查询码（可空，留空则仅按订单号查询）</label>
+        <input id="f-code" placeholder="如 M001"></div>
+      <div class="fld"><label>展示昵称（公开页会自动脱敏）</label>
+        <input id="f-mask" placeholder="如 小雅"></div>
+      <div class="fld"><label>模特专属链接 / 编号（粘贴 ta 的 me.html 专属链接即可自动识别，也可直接手填编号）</label>
+        <input id="f-model-id" placeholder="粘贴专属链接 https://…/me.html?t=… 或填编号 如 254876">
+        <div id="f-model-id-hint" style="font-size:12px;margin-top:4px;color:var(--sub);min-height:14px;"></div>
+      </div>
+      <div class="fld"><label>订单号（私密，仅本人可见）</label>
+        <input id="f-order" placeholder="如 JD20260801001"></div>
+      <div class="fld"><label>事项 / 任务内容</label>
+        <input id="f-item" placeholder="如 618 主推款拍摄"></div>
+      <div class="row2">
+        <div class="fld"><label>返款金额</label>
+          <input id="f-amount" type="number" placeholder="0.00"></div>
+        <div class="fld"><label>返款日期</label>
+          <input id="f-date" type="date"></div>
+      </div>
+      <div class="fld"><label>预计返款日期（模特可见）</label>
+        <input id="f-expected" type="date"></div>
+      <div class="fld"><label>状态</label>
+        <select id="f-status">
+          <option value="待返">待返</option>
+          <option value="已返" selected>已返</option>
+          <option value="处理中">处理中</option>
+        </select></div>
+      <div class="fld"><label>返款凭证（转账截图，状态为「已返」时模特可见）</label>
+        <div class="file-wrap">
+          <input id="f-voucher" type="file" accept="image/jpeg,image/png,image/webp">
+          <label for="f-voucher" class="file-btn">📷 选择转账截图</label>
+          <span class="file-name" id="voucher-name">未选择文件</span>
+        </div>
+        <img class="file-preview" id="voucher-preview" style="display:none" alt="预览">
+      </div>
+      <button class="submit" id="submit-btn">提交返款记录</button>
+      <span class="ghost" id="logout">退出登录</span>
+    </div>
+
+    <div class="block">
+      <h2>⏳ 待返款订单 <span class="pending-badge" id="pending-count">0</span></h2>
+      <div id="pendingList"><div class="pending-empty">正在加载…</div></div>
+    </div>
+
+    <div class="block">
+      <h2>✅ 已返款订单</h2>
+      <div id="paidList"><div class="pending-empty">正在加载…</div></div>
+    </div>
+  </div>
+
+</div>
+<a class="ghost" style="display:block;text-align:center;margin-top:14px;color:var(--brand);text-decoration:none;" href="/">返回私域管理台 / 返款公示台 ›</a>
+<div class="toast" id="toast"></div>
+
+<script src="../vendor/supabase.js"></script>
+<script src="js/config.js?v=3"></script>
+<script src="js/admin.js?v=7"></script>
+</body>
+</html>

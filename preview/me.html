@@ -1,0 +1,449 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <link rel="preconnect" href="https://ecvsamlwjbxovqaziyww.supabase.co" crossorigin>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>模特专属后台</title>
+  <!-- 微信收藏 / 分享预览：缩略图 + 标题/描述兜底（运行后会被动态标题覆盖） -->
+  <meta property="og:title" content="模特专属后台">
+  <meta property="og:description" content="福利派送官亲自寄出的小礼物，智能物流同步，第一时间送达你的专属福利空间。">
+  <meta property="og:image" content="https://0826laurel-cpu.github.io/img/share-thumb.jpg">
+  <meta property="og:image:width" content="1024">
+  <meta property="og:image:height" content="900">
+  <meta property="og:type" content="website">
+  <meta name="description" content="模特专属福利后台：物流查询、福利领取、地址修改，一站式服务。">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: linear-gradient(160deg, #FFE9E0, #FFF1F3); color: #20232E; }
+    .me-wrap { max-width: 430px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+    .viewport { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 24px 20px 110px; }
+    .view { display: none; }
+    .view.active { display: block; animation: fadeIn .25s ease; }
+    #view-rebate, #view-welfare { margin-left: -20px; margin-right: -20px; }
+    @keyframes fadeIn { from { opacity: .6; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .me-card { background: #fff; border-radius: 22px; padding: 22px 20px; box-shadow: 0 10px 30px rgba(255,107,92,.12); margin-bottom: 16px; }
+    .badge { width: 54px; height: 54px; border-radius: 16px; background: linear-gradient(135deg,#FF9975,#FF7091); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; margin-bottom: 12px; }
+    h1 { font-size: 19px; font-weight: 800; margin-bottom: 4px; }
+    .lead { font-size: 13px; color: #9AA0AD; margin-bottom: 4px; }
+    .block-title { font-size: 15px; font-weight: 700; margin: 18px 0 10px; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12px; color: #9AA0AD; margin-bottom: 6px; }
+    .field input, .field textarea {
+      width: 100%; border: 1px solid #EDEDF0; border-radius: 12px; padding: 11px 12px;
+      font-size: 14px; outline: none; background: #FAFBFC; font-family: inherit;
+    }
+    .field textarea { height: 64px; resize: none; }
+    .row2 { display: flex; gap: 10px; }
+    .row2 .field { flex: 1; }
+    .btn { width: 100%; background: linear-gradient(135deg,#FF9975,#FF7091); color: #fff; border: none; border-radius: 14px; padding: 13px; font-size: 15px; font-weight: 700; margin-top: 6px; }
+    .btn-line { width: 100%; background: transparent; color: #FF6B5C; border: 1px solid #FFD9D2; border-radius: 14px; padding: 12px; font-size: 14px; font-weight: 600; margin-top: 8px; }
+    .addr-text { font-size: 13px; line-height: 1.7; color: #20232E; white-space: pre-wrap; }
+    .addr-empty { font-size: 13px; color: #9AA0AD; }
+    .ship-item { background: #FAFBFC; border: 1px solid #EDEDF0; border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+    .ship-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; cursor: pointer; user-select: none; }
+    .ship-head .head-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+    .ship-head .toggle-icon { font-size: 10px; color: #9AA0AD; transition: transform .2s ease; flex-shrink: 0; display: inline-block; width: 12px; }
+    .ship-head.collapsed .toggle-icon { transform: rotate(-90deg); }
+    .ship-head:hover .toggle-icon { color: #FF6B5C; }
+    .ship-item .nm { font-size: 14px; font-weight: 700; flex: 1; }
+    .ship-status { display: inline-block; font-size: 11px; font-weight: 600; color: #fff; padding: 3px 10px; border-radius: 12px; flex-shrink: 0; }
+    .track { background: #fff; border: 1px dashed #FFD9D2; border-radius: 12px; padding: 12px; margin: 8px 0 4px; }
+    .track-label { font-size: 11px; color: #FF6B5C; font-weight: 700; margin-bottom: 6px; }
+    .track-row { display: flex; align-items: center; gap: 10px; }
+    .track-no { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: 16px; font-weight: 700; color: #20232E; letter-spacing: 0.5px; flex: 1; word-break: break-all; }
+    .track-copy { background: #FFEAE5; color: #FF6B5C; border: none; border-radius: 10px; padding: 7px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .track-copy:active { background: #FFD9D2; }
+    .track-link { display: inline-block; margin-top: 8px; font-size: 12px; color: #5B7CFA; text-decoration: none; }
+    .track-date { margin-top: 8px; font-size: 11px; color: #9AA0AD; }
+    .track-empty { background: #fff; border: 1px dashed #EDEDF0; border-radius: 12px; padding: 12px; margin: 8px 0; color: #9AA0AD; font-size: 12px; text-align: center; }
+    .carrier-label { font-size: 11px; color: #9AA0AD; margin-top: 4px; }
+    .tl { margin-top: 12px; padding-top: 8px; border-top: 1px solid #EDEDF0; }
+    .tl.collapsed { display: none; }
+    .tl .it { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid #EDEDF0; }
+    .tl .it:last-child { border-bottom: none; }
+    .tl .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: 0 0 auto; }
+    .tl .tt { font-size: 13px; }
+    .tl .ta { font-size: 11px; color: #9AA0AD; margin-top: 2px; }
+    .note { text-align: center; font-size: 11px; color: #b9bcc6; margin-top: 16px; }
+    .err { text-align: center; padding: 60px 16px; }
+    .err .em { font-size: 50px; margin-bottom: 14px; }
+    .err-detail { text-align: left; background: #FAFBFC; border: 1px solid #EDEDF0; border-radius: 12px; padding: 12px; font-size: 12px; color: #5A5F6B; margin: 14px 0 0; white-space: pre-wrap; word-break: break-all; line-height: 1.6; }
+
+    /* === 美化：顶部 Hero 介绍卡（纵向居中布局） === */
+    .hero { display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .hero-icon {
+      flex: 0 0 auto; margin: 0 auto 14px;
+      width: 60px; height: 60px; border-radius: 20px;
+      background: linear-gradient(135deg,#FF9975 0%,#FF7091 100%);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: 30px; line-height: 1;
+      box-shadow: 0 10px 22px rgba(255,112,145,.35);
+      position: relative;
+    }
+    .hero-icon::after {
+      content: ''; position: absolute; top: 7px; left: 10px; right: 20px;
+      height: 18px; border-radius: 9px;
+      background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,0));
+      pointer-events: none;
+    }
+    .hero-body { width: 100%; }
+    .hero-body h1 {
+      font-size: 15px; font-weight: 800; margin: 0 auto 10px; line-height: 1.4;
+      max-width: 100%;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      background: linear-gradient(135deg,#20232E 0%,#FF6B5C 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.2px;
+      padding: 0 4px;
+    }
+    .hero-body .lead { font-size: 13px; line-height: 1.75; color: #5A5F6B; margin: 0 auto 14px; max-width: 280px; }
+    .hero-meta {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 14px;
+      background: linear-gradient(135deg, rgba(255,217,210,.55), rgba(255,235,229,.85));
+      border: 1px solid rgba(255,107,92,.18);
+      border-radius: 999px; font-size: 11px; color: #C24E45; font-weight: 700;
+      letter-spacing: 0.2px;
+      margin: 0 auto;
+    }
+    .hero-meta .pulse {
+      width: 6px; height: 6px; border-radius: 50%; background: #FF6B5C;
+      box-shadow: 0 0 0 0 rgba(255,107,92,.6);
+      animation: heroPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes heroPulse {
+      0% { box-shadow: 0 0 0 0 rgba(255,107,92,.6); }
+      70% { box-shadow: 0 0 0 7px rgba(255,107,92,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,107,92,0); }
+    }
+
+    /* === 美化：收件地址卡 === */
+    .addr-head { display: flex; align-items: center; justify-content: space-between; margin: 0 0 14px; }
+    .addr-head .addr-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; color: #20232E; }
+    .addr-head .addr-title::before {
+      content: ''; display: inline-block; width: 4px; height: 16px;
+      background: linear-gradient(180deg,#FF9975,#FF7091); border-radius: 2px;
+    }
+    .addr-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+    }
+    .addr-badge.set { background: rgba(43,182,115,.13); color: #2BB673; }
+    .addr-badge.unset { background: rgba(154,160,173,.18); color: #6B7280; }
+
+    .addr-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+    .addr-row {
+      display: flex; align-items: center; gap: 10px;
+      background: linear-gradient(135deg, #FAFBFC, #F6F7F9);
+      border: 1px solid #F0F1F4;
+      padding: 11px 12px; border-radius: 12px;
+    }
+    .addr-row .ico {
+      width: 28px; height: 28px; border-radius: 9px;
+      background: #fff; border: 1px solid #EDEDF0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex: 0 0 auto;
+    }
+    .addr-row .text { flex: 1; min-width: 0; font-size: 13px; color: #20232E; font-weight: 600; word-break: break-all; }
+    .addr-row.full { align-items: flex-start; }
+    .addr-row.full .ico { margin-top: 1px; }
+    .addr-row.full .text { line-height: 1.55; }
+
+    /* === 收款码（支付宝）模块 === */
+    .payout-qr {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px dashed #EDEDF0;
+    }
+    .payout-qr-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .payout-qr-head .title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 800; color: #20232E;
+    }
+    .payout-qr-head .title .em {
+      width: 26px; height: 26px; border-radius: 8px;
+      background: linear-gradient(135deg,#1677FF,#00B6FF);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700;
+    }
+    .payout-qr-head .hint {
+      font-size: 11px; color: #9AA0AD; font-weight: 500;
+    }
+    .payout-qr-body {
+      display: flex; align-items: center; gap: 14px;
+    }
+    .payout-qr-thumb {
+      width: 96px; height: 96px; border-radius: 14px;
+      border: 1.5px solid #EDEDF0; background: #FAFBFC;
+      overflow: hidden; flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .payout-qr-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .payout-qr-info { flex: 1; min-width: 0; }
+    .payout-qr-info .l1 { font-size: 13px; font-weight: 700; color: #20232E; margin-bottom: 4px; }
+    .payout-qr-info .l2 { font-size: 11px; color: #9AA0AD; line-height: 1.5; margin-bottom: 10px; }
+    .payout-qr-actions { display: flex; gap: 8px; }
+    .payout-qr-actions .btn-mini {
+      border: 1.5px solid #EDEDF0; background: #fff;
+      color: #5A5F6B; font-size: 12px; font-weight: 600;
+      padding: 6px 12px; border-radius: 10px; cursor: pointer;
+      transition: all .15s ease;
+    }
+    .payout-qr-actions .btn-mini:hover { border-color: #FF6B5C; color: #FF6B5C; }
+    .payout-qr-actions .btn-mini.danger:hover { border-color: #E14E4E; color: #E14E4E; }
+    .payout-qr-empty {
+      display: flex; align-items: center; gap: 14px;
+      background: linear-gradient(135deg, #FFF7EA, #FFEEF3);
+      border: 1.5px dashed #FFB6A8;
+      border-radius: 14px; padding: 14px;
+    }
+    .payout-qr-empty .ico {
+      width: 56px; height: 56px; border-radius: 14px;
+      background: #fff; border: 1px solid #FFE0CB;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; flex: 0 0 auto;
+    }
+    .payout-qr-empty .text { flex: 1; min-width: 0; }
+    .payout-qr-empty .text .l1 { font-size: 13px; font-weight: 700; color: #B83A4E; margin-bottom: 3px; }
+    .payout-qr-empty .text .l2 { font-size: 11px; color: #8A4D2E; line-height: 1.5; }
+    .payout-qr-empty .btn-up {
+      background: linear-gradient(135deg,#FF9975,#FF7091);
+      color: #fff; border: none; border-radius: 12px;
+      padding: 10px 16px; font-size: 13px; font-weight: 700;
+      cursor: pointer; box-shadow: 0 4px 10px rgba(255,112,145,.28);
+      transition: transform .15s ease;
+      flex: 0 0 auto;
+    }
+    .payout-qr-empty .btn-up:active { transform: scale(.97); }
+    .payout-qr-uploading { font-size: 12px; color: #FF6B5C; padding: 8px 0; text-align: center; }
+    .payout-qr-input { display: none; }
+
+    /* 编辑地址按钮（更现代） */
+    .btn-edit {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%;
+      background: linear-gradient(135deg, #FF9975, #FF7091);
+      color: #fff; border: none; border-radius: 14px;
+      padding: 13px; font-size: 14px; font-weight: 700;
+      box-shadow: 0 6px 16px rgba(255,112,145,.28);
+      margin-top: 0;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .btn-edit:active { transform: scale(.98); box-shadow: 0 4px 10px rgba(255,112,145,.3); }
+    .btn-edit .arrow { transition: transform .2s ease; }
+    .btn-edit:hover .arrow { transform: translateX(3px); }
+    /* 已有地址时用次按钮样式（轻盈版） */
+    .btn-edit.ghost {
+      background: #fff; color: #FF6B5C;
+      border: 1px solid #FFD9D2; box-shadow: none;
+    }
+    .btn-edit.ghost:active { box-shadow: none; }
+
+    /* === 站内通知横幅 === */
+    .notify-banner {
+      background: linear-gradient(135deg, #FFF3E0, #FFE3DA);
+      border: 1px solid rgba(255,138,63,.3);
+      color: #B45309; font-size: 13px; font-weight: 600; line-height: 1.6;
+      border-radius: 16px; padding: 13px 16px; margin-bottom: 14px;
+      box-shadow: 0 8px 20px rgba(255,138,63,.14);
+      animation: notifyIn .4s ease;
+    }
+    .notify-banner b { color: #FF6B5C; font-size: 15px; }
+    @keyframes notifyIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+    /* === 发货商品链接 === */
+    .product-link {
+      display: inline-flex; align-items: center; gap: 5px;
+      margin-top: 8px; font-size: 12px; font-weight: 600;
+      color: #FF6B5C; background: #FFEAE5; border: 1px solid #FFD9D2;
+      border-radius: 10px; padding: 6px 11px; text-decoration: none;
+    }
+    .product-link:active { background: #FFD9D2; }
+
+    /* === 福利社群动态（送礼墙） === */
+    .wall { background: linear-gradient(160deg, #fff, #FFF7F4); }
+    .wall-stats { display: flex; gap: 10px; margin: 4px 0 14px; }
+    .wall-stats .ws {
+      flex: 1; background: #fff; border: 1px solid #FFE6E0;
+      border-radius: 14px; padding: 12px 6px; text-align: center;
+    }
+    .wall-stats .ws .n { font-size: 22px; font-weight: 800; color: #FF6B5C; line-height: 1.1; }
+    .wall-stats .ws .l { font-size: 11px; color: #9AA0AD; margin-top: 4px; }
+    .wall-feed-wrap { height: 340px; overflow: hidden; position: relative; -webkit-mask-image: linear-gradient(#000 85%, transparent); }
+    .wall-feed-track { display: flex; flex-direction: column; animation: wallScroll 28s linear infinite; }
+    .wall-feed-wrap:hover .wall-feed-track { animation-play-state: paused; }
+    @keyframes wallScroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+    .wall-feed { display: flex; flex-direction: column; gap: 10px; padding-right: 2px; }
+    .wall-item { display: flex; gap: 10px; align-items: flex-start; }
+    .wall-item .av {
+      width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 14px; font-weight: 700;
+    }
+    .wall-item .wi-body { flex: 1; min-width: 0; background: #FAFBFC; border: 1px solid #EDEDF0; border-radius: 12px; padding: 9px 11px; }
+    .wall-item .wi-text { font-size: 13px; color: #20232E; line-height: 1.5; }
+    .wall-item .wi-text b { color: #FF6B5C; }
+    .wall-item .wi-meta { font-size: 11px; color: #9AA0AD; margin-top: 3px; }
+    .wall-empty { text-align: center; color: #9AA0AD; font-size: 13px; padding: 18px 0; }
+    .wall-tip { text-align: center; font-size: 11px; color: #C7A99F; margin-top: 14px; font-weight: 600; }
+    .guide-entry { text-align: center; }
+    .guide-desc { font-size: 13px; color: #6B7280; line-height: 1.7; margin: 8px 0 16px; }
+    .btn-guide {
+      display: inline-block; padding: 12px 26px; border-radius: 14px;
+      background: linear-gradient(135deg,#FF9975,#FF7091); color: #fff;
+      font-size: 15px; font-weight: 700; text-decoration: none; letter-spacing: 1px;
+      box-shadow: 0 10px 24px rgba(255,112,145,.32);
+    }
+    .btn-guide:active { transform: scale(.97); }
+
+    /* === 我的礼品与物流：一键折叠 === */
+    .ship-head-row { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; margin-bottom: 14px; }
+    .ship-head-row .block-title { margin: 0; }
+    .ship-fold-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12px; font-weight: 600; color: #FF6B5C;
+      background: #FFF0EC; border: 1px solid #FFD9D2;
+      border-radius: 999px; padding: 4px 10px;
+      transition: background .15s ease;
+    }
+    .ship-fold-btn::after { content: '▲'; font-size: 9px; transition: transform .2s ease; }
+    .ship-head-row.collapsed .ship-fold-btn::after { transform: rotate(180deg); }
+    .ship-fold-btn:active { background: #FFE3DC; }
+    .ship-list { transition: opacity .2s ease; }
+    .ship-list.collapsed { display: none; }
+
+    /* === 专属福利概览 === */
+    .overview-card .ov-grid { display: flex; gap: 10px; margin-top: 12px; }
+    .overview-card .ov { flex: 1; text-align: center; background: linear-gradient(160deg,#FFF7F4,#fff); border: 1px solid #FFE3DC; border-radius: 14px; padding: 14px 6px; }
+    .overview-card .ov .n { font-size: 22px; font-weight: 700; color: #2C2C2A; }
+    .overview-card .ov .l { font-size: 12px; color: #9AA0AD; margin-top: 4px; }
+
+    /* === iframe 内嵌页（返款 / 福利） === */
+    .iframe-wrap {
+      width: 100%; height: 500px;
+      min-height: 300px;
+      border-radius: 18px; overflow: hidden;
+      background: #fff; border: 1px solid #FFE3DC;
+      box-shadow: 0 8px 22px rgba(255,107,92,.10);
+      contain: layout paint;
+    }
+    .iframe-wrap iframe {
+      width: 100%; height: 100%; border: none; display: block;
+      -webkit-transform: translateZ(0); transform: translateZ(0);
+    }
+
+    /* === 底部 Tab 导航 === */
+    .tabbar {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 78px;
+      background: rgba(255,255,255,.95); backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(255,107,92,.12);
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 21px 10px; z-index: 30;
+    }
+    .pill {
+      width: 100%; height: 54px; border-radius: 28px;
+      border: 1px solid #FFE3DC; display: flex;
+      background: #fff; box-shadow: 0 -4px 20px rgba(255,107,92,.08);
+    }
+    .tab {
+      flex: 1; border-radius: 24px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 3px; color: #9AA0AD; cursor: pointer;
+      transition: all .15s ease;
+    }
+    .tab.on {
+      background: linear-gradient(135deg,#FF9975,#FF7091);
+      color: #fff; box-shadow: 0 4px 14px rgba(255,107,92,.25);
+    }
+    .tab .ti { width: 22px; height: 22px; line-height: 1; }
+    .tab .tl { font-size: 10px; font-weight: 500; margin-top: 1px; }
+    .tab.on .tl { font-weight: 700; }
+    .me-logout {
+      position: fixed; top: 12px; right: 14px; z-index: 60;
+      font-size: 12px; color: #fff; text-decoration: none;
+      background: rgba(32,35,46,.82); border-radius: 999px;
+      padding: 7px 13px; box-shadow: 0 4px 14px rgba(0,0,0,.2);
+      backdrop-filter: blur(6px);
+      transition: opacity .25s ease, transform .25s ease;
+    }
+    .me-logout:active { transform: scale(.96); }
+    .me-logout.hidden { opacity: 0; transform: translateY(-10px); pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div class="me-wrap" id="app">
+    <div class="err" id="err" style="display:none">
+      <div class="em">🔒</div>
+      <h1>链接无效</h1>
+      <p class="lead">请通过福利派送官发给你的专属链接访问本页</p>
+    </div>
+
+    <div class="viewport" id="viewport" style="display:none">
+      <div class="view active" id="view-home"></div>
+      <div class="view" id="view-rebate"></div>
+      <div class="view" id="view-welfare"></div>
+    </div>
+
+    <nav class="tabbar" id="tabbar" style="display:none">
+      <div class="pill">
+        <div class="tab on" data-tab="home">
+          <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span class="tl">首页</span>
+        </div>
+        <div class="tab" data-tab="rebate">
+          <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="7" cy="13" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="13" r="1.5" fill="currentColor" stroke="none"/></svg>
+          <span class="tl">返款</span>
+        </div>
+        <div class="tab" data-tab="welfare">
+          <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><line x1="12" y1="8" x2="12" y2="21"/><path d="M7 8v-2a2 2 0 0 1 4 0v2"/><path d="M17 8v-2a2 2 0 0 0-4 0v2"/></svg>
+          <span class="tl">福利</span>
+        </div>
+      </div>
+    </nav>
+  </div>
+
+  <script src="config.js?v=1"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/sb.js"></script>
+  <script src="js/api.js?v=6"></script>
+  <script src="js/app-page.js?v=29"></script>
+  <a class="me-logout" id="me-logout" href="#">退出</a>
+  <script>
+    (function () {
+      var el = document.getElementById('me-logout');
+      if (el) el.addEventListener('click', function (e) {
+        e.preventDefault();
+        try { localStorage.removeItem('p_token'); } catch (err) {}
+        location.replace(location.origin + '/join.html');
+      });
+      // 退出按钮：固定在右上角；向下滚动阅读时自动隐藏，回到顶部时显示，避免遮挡内容
+      var vp = document.getElementById('viewport');
+      if (el && vp) {
+        vp.addEventListener('scroll', function () {
+          if (vp.scrollTop > 80) el.classList.add('hidden');
+          else el.classList.remove('hidden');
+        }, { passive: true });
+      }
+    })();
+  </script>
+  <script>
+    // 一次性清理：注销任何残留 service worker，防止它拦截并返回旧的 me.js
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(rs){
+        rs.forEach(function(r){ r.unregister(); });
+      });
+      if (window.caches) {
+        caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); });
+      }
+    }
+  </script>
+</body>
+</html>
