@@ -339,7 +339,7 @@
     if (!REBATES.length) {
       return `<div class="me-card">
         <div class="block-title">💰 我的返款进度</div>
-        <div style="text-align:center;color:#9AA0AD;font-size:13px;padding:16px 0">暂无返款任务～<br><span style="color:#C7CAD3">福利派送官在后台录入后，这里会实时显示进度</span></div>
+        <div style="text-align:center;color:#9AA0AD;font-size:13px;padding:16px 0">暂无返款任务～<br><span style="color:#C7CAD3">福利派送官在后台录入后，这里会实时显示进度</span><br><span style="color:#C7CAD3">数据会在确认收货隔天更新</span></div>
       </div>`;
     }
     const total = REBATES.reduce((s, r) => s + (Number(r.amount) || 0), 0);
