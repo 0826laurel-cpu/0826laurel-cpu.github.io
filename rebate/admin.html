@@ -44,6 +44,17 @@
   .pending-actions button{flex:1;border:none;border-radius:10px;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;}
   .btn-done{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;}
   .btn-edit{background:#f7f7f7;color:var(--ink);}
+  .btn-del{background:#fff;color:#d33;border:1.5px solid #f5c6c6;border-radius:10px;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn-del:hover{background:#fff5f5;}
+  .del-confirm{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:200;}
+  .del-confirm .del-box{background:#fff;border-radius:16px;padding:22px 20px;width:320px;max-width:84vw;box-shadow:0 12px 36px rgba(0,0,0,.18);}
+  .del-confirm h3{margin:0 0 8px;font-size:16px;color:#d33;}
+  .del-confirm p{margin:0 0 18px;font-size:13px;color:var(--ink);line-height:1.55;}
+  .del-confirm .del-order{background:#FCE9E9;color:#c0392b;padding:2px 6px;border-radius:4px;font-family:monospace;}
+  .del-confirm .del-actions{display:flex;gap:10px;}
+  .del-confirm .del-actions button{flex:1;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;}
+  .del-confirm .cancel{background:#f0f0f0;color:var(--ink);}
+  .del-confirm .confirm{background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;}
 </style>
 </head>
 <body>
@@ -114,6 +125,6 @@
 
 <script src="../vendor/supabase.js"></script>
 <script src="js/config.js?v=3"></script>
-<script src="js/admin.js?v=6"></script>
+<script src="js/admin.js?v=7"></script>
 </body>
 </html>

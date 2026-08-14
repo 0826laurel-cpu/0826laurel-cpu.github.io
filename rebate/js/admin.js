@@ -231,6 +231,7 @@ async function loadPending(){
       <div class="pending-actions">
         <button class="btn-done" data-action="pay" data-order="${r.order_no}">上传返款截图</button>
         <button class="btn-edit" data-action="edit" data-order="${r.order_no}">编辑</button>
+        <button class="btn-del" data-action="del" data-id="${r.id}" data-order="${r.order_no}">删除</button>
       </div>
     </div>`;
   }).join('');
@@ -251,6 +252,20 @@ async function loadPending(){
       const r = (data||[]).find(x=>x.order_no===order);
       if (!r){ toast('未找到该订单'); return; }
       fillForm(r, { status: r.status });
+    });
+  });
+  box.querySelectorAll('[data-action="del"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.getAttribute('data-id');
+      const order = btn.getAttribute('data-order');
+      const ok = await confirmDelete(order);
+      if (!ok) return;
+      btn.disabled = true; btn.textContent = '删除中…';
+      const { data, error } = await sb.rpc('admin_delete_rebate', { p_admin_pw: adminPw, p_id: Number(id) });
+      if (error){ toast('删除失败：' + error.message); btn.disabled = false; btn.textContent = '删除'; return; }
+      if (!data || data.ok === false){ toast('未找到该记录（可能已被删除）'); btn.disabled = false; btn.textContent = '删除'; return; }
+      toast('✅ 已删除订单 ' + (data.deleted_order_no || order));
+      loadPending();
     });
   });
 }
@@ -284,8 +299,26 @@ async function loadPaid(){
         <span>录入：${fmtDateTime(r.created_at)}</span>
       </div>
       <div>${thumb}</div>
+      <div class="pending-actions">
+        <button class="btn-del" data-action="del" data-id="${r.id}" data-order="${r.order_no}">删除</button>
+      </div>
     </div>`;
   }).join('');
+  // 已返款列表：每项的删除按钮
+  box.querySelectorAll('[data-action="del"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.getAttribute('data-id');
+      const order = btn.getAttribute('data-order');
+      const ok = await confirmDelete(order);
+      if (!ok) return;
+      btn.disabled = true; btn.textContent = '删除中…';
+      const { data, error } = await sb.rpc('admin_delete_rebate', { p_admin_pw: adminPw, p_id: Number(id) });
+      if (error){ toast('删除失败：' + error.message); btn.disabled = false; btn.textContent = '删除'; return; }
+      if (!data || data.ok === false){ toast('未找到该记录（可能已被删除）'); btn.disabled = false; btn.textContent = '删除'; return; }
+      toast('✅ 已删除订单 ' + (data.deleted_order_no || order));
+      loadPaid();
+    });
+  });
 }
 
 // 凭证放大查看
@@ -296,6 +329,29 @@ window.openVoucher = function(url){
   box.onclick = () => box.remove();
   document.body.appendChild(box);
 };
+
+// 删除二次确认（自建弹窗，避开系统 confirm() 在移动端 iframe 里的不稳定表现）
+function confirmDelete(order){
+  return new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.className = 'del-confirm';
+    overlay.innerHTML = `
+      <div class="del-box">
+        <h3>⚠️ 确认删除这条返款？</h3>
+        <p>订单 <span class="del-order">${order || '-'}</span> 将被<strong>永久删除</strong>，<br>删除后无法恢复，请确认后操作。</p>
+        <div class="del-actions">
+          <button class="cancel" data-act="cancel">取消</button>
+          <button class="confirm" data-act="ok">确认删除</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const cleanup = (v)=>{ overlay.remove(); resolve(v); };
+    overlay.querySelector('[data-act="cancel"]').onclick = ()=>cleanup(false);
+    overlay.querySelector('[data-act="ok"]').onclick    = ()=>cleanup(true);
+    // 点遮罩空白也取消
+    overlay.addEventListener('click', (e)=>{ if (e.target === overlay) cleanup(false); });
+  });
+}
 
 document.getElementById('submit-btn').addEventListener('click', async ()=>{
   const file = voucherInput.files[0];
