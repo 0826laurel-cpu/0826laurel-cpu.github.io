@@ -277,15 +277,21 @@ function initFeedTicker(){
     prependFeed(row);
   }, 7000);
 }
+let _liveBoardCache = null;
 function initBoardTicker(){
   // 每 12 秒随机给达人榜加一笔（金额 +800~3000，笔数 +1），保持节奏感
+  // 优先操作真实数据（如果有的话），否则抖动 DEMO 前三
   setInterval(() => {
-    if (!DEMO.leaderboard.length) return;
-    const i = Math.floor(Math.random() * Math.min(3, DEMO.leaderboard.length));
-    const r = DEMO.leaderboard[i];
-    r.total += Math.floor(800 + Math.random() * 2200);
-    r.cnt += 1;
-    renderBoard(DEMO.leaderboard);
+    if (_liveBoardCache && _liveBoardCache.length){
+      const realCount = _liveBoardCache.length > DEMO.leaderboard.length ? DEMO.leaderboard.length : 0;
+      const i = Math.floor(Math.random() * Math.min(3, _liveBoardCache.length));
+      const r = _liveBoardCache[i];
+      if (r){
+        r.total = (r.total||0) + Math.floor(800 + Math.random() * 2200);
+        r.cnt = (r.cnt||0) + 1;
+      }
+      renderBoard(_liveBoardCache);
+    }
   }, 12000);
 }
 
@@ -361,16 +367,17 @@ document.getElementById('q-input').addEventListener('keydown', e=>{ if(e.key==='
 // ---- 初始化 ----
 (async ()=>{
   renderStats(await loadStats());
-  // 演示模式下，feed/leaderboard 用本地 DEMO + 定时注入新数据
-  // 真实数据模式（sb 在线且 public_feed/public_leaderboard 有数据）下走缓存策略：DB 真实数据 + 注入新动态
-  let feedRows = await loadFeed();
-  let boardRows = await loadBoard();
-  // 若实际来自 DB（已脱敏），也加定时 prepend 模拟"实时"（避免真实模式静悄悄）
-  // 把 DB 返回 rows 同步进 cache
-  _liveFeedCache = (feedRows && feedRows.length) ? feedRows.slice() : DEMO.feed.slice();
-  _liveFeedCache.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+  // 真实数据 + DEMO 永远合并：真实浮在上面，DMO 补够 30+/10+ 让画面热闹
+  // 不再依赖定时器注入（避免用户在第一个 7s 看到冷清单）
+  const realFeed = await loadFeed() || [];
+  const realBoard = await loadBoard() || [];
+  // 真实记录按时间倒序在最前；DEMO 按原顺序补在后面；总长不超过 35（feed）/ 12（board）
+  const mergedFeed = realFeed.concat(DEMO.feed).slice(0, 35);
+  const mergedBoard = realBoard.concat(DEMO.leaderboard).slice(0, 12);
+  _liveFeedCache = mergedFeed.slice();
+  _liveBoardCache = mergedBoard.slice();
   renderFeed(_liveFeedCache);
-  renderBoard(boardRows);
+  renderBoard(_liveBoardCache);
   initFeedTicker();
   initBoardTicker();
 })();
