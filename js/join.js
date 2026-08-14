@@ -224,7 +224,7 @@
         <div class="field"><label>登录密码<span class="req">*</span></label><div class="field-input"><span class="ico">🔑</span><input id="j-pwd" type="password" placeholder="6 位以上，建议字母+数字"></div></div>
         <div class="field"><label>确认密码<span class="req">*</span></label><div class="field-input"><span class="ico">🔒</span><input id="j-pwd2" type="password" placeholder="再输入一次"></div></div>
 
-        <button class="btn" id="j-submit">注册并领取福利 🎁</button>
+        <button class="btn" id="j-submit">注册进入后台</button>
         <div class="note">注册后自动进入你的专属福利页；下次打开本链接，用「平台 + 模特ID + 密码」即可登录。</div>
       </div>
       ${pasteModalHtml()}`;
@@ -294,7 +294,7 @@
       window.location.replace((window.APP_ORIGIN || location.origin) + '/me.html?t=' + data.token);
     } catch (e) {
       showToast(e.message || '网络异常，请稍后重试');
-      btn.disabled = false; btn.textContent = '注册并领取福利 🎁';
+      btn.disabled = false; btn.textContent = '注册进入后台';
     }
   }
 
