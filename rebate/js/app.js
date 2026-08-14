@@ -22,22 +22,51 @@
 const DEMO = {
   // stats 已改为 computeStats() 按日期动态计算，此处保留结构但不再作为默认展示值
   feed:[
-    {mask:'小*', amount:1280, item:'618 主推款拍摄', status:'已返', created_at:'2026-08-11T14:50:00'},
-    {mask:'L***', amount:860, item:'日常返款结算', status:'已返', created_at:'2026-08-11T14:20:00'},
-    {mask:'阿*', amount:2100, item:'品牌专场直播', status:'已返', created_at:'2026-08-11T13:05:00'},
-    {mask:'C****', amount:640, item:'短视频种草', status:'已返', created_at:'2026-08-11T11:40:00'},
-    {mask:'糖*', amount:1580, item:'新品上架返款', status:'处理中', created_at:'2026-08-11T10:10:00'},
-    {mask:'萌*', amount:920, item:'日常返款结算', status:'已返', created_at:'2026-08-11T09:30:00'},
-    {mask:'S****', amount:1760, item:'联名款拍摄', status:'已返', created_at:'2026-08-10T22:15:00'},
-    {mask:'七*', amount:530, item:'短视频种草', status:'待返', created_at:'2026-08-10T20:00:00'},
+    {mask:'小雅', amount:1280, item:'618 主推款拍摄', status:'已返', created_at:'2026-08-11T14:50:00'},
+    {mask:'Lily', amount:860, item:'日常返款结算', status:'已返', created_at:'2026-08-11T14:20:00'},
+    {mask:'阿星', amount:2100, item:'品牌专场直播', status:'已返', created_at:'2026-08-11T13:05:00'},
+    {mask:'Crystal', amount:640, item:'短视频种草', status:'已返', created_at:'2026-08-11T11:40:00'},
+    {mask:'糖小幂', amount:1580, item:'新品上架返款', status:'处理中', created_at:'2026-08-11T10:10:00'},
+    {mask:'萌萌', amount:920, item:'日常返款结算', status:'已返', created_at:'2026-08-11T09:30:00'},
+    {mask:'Sophie', amount:1760, item:'联名款拍摄', status:'已返', created_at:'2026-08-10T22:15:00'},
+    {mask:'七月', amount:530, item:'短视频种草', status:'待返', created_at:'2026-08-10T20:00:00'},
+    {mask:'妮妮', amount:1180, item:'618 主推款返款', status:'已返', created_at:'2026-08-10T18:42:00'},
+    {mask:'Vivi', amount:980, item:'日常返款结算', status:'已返', created_at:'2026-08-10T17:08:00'},
+    {mask:'小米', amount:2360, item:'品牌专场返款', status:'已返', created_at:'2026-08-10T15:55:00'},
+    {mask:'Tina', amount:760, item:'联名款返款', status:'已返', created_at:'2026-08-10T14:20:00'},
+    {mask:'阿朵', amount:1320, item:'主推款返款', status:'处理中', created_at:'2026-08-10T12:30:00'},
+    {mask:'小鹿', amount:880, item:'日常返款结算', status:'已返', created_at:'2026-08-10T10:48:00'},
+    {mask:'苏苏', amount:1620, item:'品牌专场返款', status:'已返', created_at:'2026-08-10T09:15:00'},
+    {mask:'Anna', amount:1080, item:'短视频种草', status:'已返', created_at:'2026-08-09T21:30:00'},
+    {mask:'糖糖', amount:540, item:'日常返款结算', status:'已返', created_at:'2026-08-09T19:05:00'},
+    {mask:'果果', amount:1450, item:'618 主推款拍摄', status:'已返', created_at:'2026-08-09T17:22:00'},
+    {mask:'小鹿', amount:620, item:'联名款返款', status:'待返', created_at:'2026-08-09T15:40:00'},
+    {mask:'Lulu', amount:1980, item:'品牌专场返款', status:'已返', created_at:'2026-08-09T13:18:00'},
+    {mask:'可可', amount:720, item:'日常返款结算', status:'已返', created_at:'2026-08-09T11:50:00'},
+    {mask:'Cici', amount:1140, item:'短视频种草', status:'已返', created_at:'2026-08-09T10:08:00'},
+    {mask:'林风', amount:1580, item:'品牌专场直播', status:'处理中', created_at:'2026-08-09T08:45:00'},
+    {mask:'阿南', amount:480, item:'日常返款结算', status:'已返', created_at:'2026-08-08T22:30:00'},
+    {mask:'豆豆', amount:1320, item:'618 主推款返款', status:'已返', created_at:'2026-08-08T20:12:00'},
+    {mask:'琪琪', amount:820, item:'日常返款结算', status:'已返', created_at:'2026-08-08T18:00:00'},
+    {mask:'奥利', amount:1740, item:'联名款返款', status:'已返', created_at:'2026-08-08T15:35:00'},
+    {mask:'小美', amount:660, item:'短视频种草', status:'已返', created_at:'2026-08-08T13:20:00'},
+    {mask:'球球', amount:1280, item:'品牌专场返款', status:'已返', created_at:'2026-08-08T11:05:00'},
+    {mask:'Vera', amount:960, item:'日常返款结算', status:'已返', created_at:'2026-08-08T09:48:00'},
+    // 给「定时注入新动态」预留的活样本（initFeedTicker 用）
+    {mask:'新星', amount:1080, item:'主推款返款', status:'已返', created_at:'2026-08-12T10:20:00'},
+    {mask:'柚子', amount:720, item:'日常返款结算', status:'已返', created_at:'2026-08-12T11:30:00'},
   ],
   leaderboard:[
-    {mask:'阿*', total:28600, cnt:21},
-    {mask:'L***', total:24100, cnt:18},
-    {mask:'小*', total:19900, cnt:16},
-    {mask:'糖*', total:17400, cnt:14},
-    {mask:'C****', total:15200, cnt:12},
-    {mask:'S****', total:13800, cnt:11},
+    {mask:'阿星', total:28600, cnt:21},
+    {mask:'Lily', total:24100, cnt:18},
+    {mask:'小雅', total:19900, cnt:16},
+    {mask:'糖小幂', total:17400, cnt:14},
+    {mask:'Crystal', total:15200, cnt:12},
+    {mask:'Sophie', total:13800, cnt:11},
+    {mask:'小鹿', total:12400, cnt:10},
+    {mask:'Anna', total:10800, cnt:9},
+    {mask:'Vivi', total:9600, cnt:8},
+    {mask:'Lulu', total:8200, cnt:7},
   ],
   // 私密查询示例：输入 M001 或 JD20260801001 可见
   private:[
@@ -194,6 +223,25 @@ function renderFeed(rows){
   const html = rows.map(feedItem).join('');
   document.getElementById('feed').innerHTML = html + html; // 复制一份做无缝滚动
 }
+function prependFeed(row){
+  const el = document.getElementById('feed');
+  if (!el) return;
+  // 把新条目插入第一份的开头 + 第二份的对应位置（保持双份同步）
+  const tmp = document.createElement('div');
+  tmp.innerHTML = feedItem(row);
+  const fresh = tmp.firstElementChild;
+  // 第一份开头插一条
+  const firstHalf = Array.from(el.children).slice(0, el.children.length / 2);
+  if (firstHalf.length) el.insertBefore(fresh.cloneNode(true), firstHalf[0]);
+  else el.appendChild(fresh.cloneNode(true));
+  // 第二份对应位置也插一份
+  const halfPoint = el.children.length / 2;
+  if (el.children[Math.floor(halfPoint)]) {
+    el.insertBefore(fresh.cloneNode(true), el.children[Math.floor(halfPoint)]);
+  } else {
+    el.appendChild(fresh.cloneNode(true));
+  }
+}
 function renderBoard(rows){
   document.getElementById('leaderboard').innerHTML = rows.map((r,i)=>`
     <div class="lb-item">
@@ -201,6 +249,44 @@ function renderBoard(rows){
       <span class="lb-name">${r.mask}</span>
       <span class="lb-amt">${money(r.total)}<small style="font-size:12px;color:var(--sub);font-weight:400"> · ${r.cnt}笔</small></span>
     </div>`).join('') || '<div class="empty">暂无数据</div>';
+}
+
+// ---- 实时注入新动态：让 feed 看起来更热闹 ----
+const LIVE_NAMES = ['兮兮','阿月','小满','念念','Rita','Yuki','阿琳','梅梅','木木','晨晨','叶子','丹丹','小寒','樱桃','橙橙','苏叶','秀秀','星星','晓晓','阿绿'];
+const LIVE_ITEMS = ['主推款返款','日常返款结算','品牌专场返款','联名款返款','618 主推款拍摄','短视频种草','新品上架返款','品牌专场直播'];
+const LIVE_STATUSES = ['已返','已返','已返','已返','处理中','已返'];
+let _liveFeedCache = null;
+function pickRand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function genLiveRow(){
+  const amt = pickRand([380, 460, 520, 640, 780, 880, 960, 1080, 1280, 1420, 1680, 1980, 2240, 2560]);
+  return {
+    mask: pickRand(LIVE_NAMES),
+    amount: amt,
+    item: pickRand(LIVE_ITEMS),
+    status: pickRand(LIVE_STATUSES),
+    created_at: new Date().toISOString()
+  };
+}
+function initFeedTicker(){
+  setInterval(() => {
+    const row = genLiveRow();
+    if (_liveFeedCache) {
+      _liveFeedCache.unshift(row);
+      if (_liveFeedCache.length > 30) _liveFeedCache.pop();
+    }
+    prependFeed(row);
+  }, 7000);
+}
+function initBoardTicker(){
+  // 每 12 秒随机给达人榜加一笔（金额 +800~3000，笔数 +1），保持节奏感
+  setInterval(() => {
+    if (!DEMO.leaderboard.length) return;
+    const i = Math.floor(Math.random() * Math.min(3, DEMO.leaderboard.length));
+    const r = DEMO.leaderboard[i];
+    r.total += Math.floor(800 + Math.random() * 2200);
+    r.cnt += 1;
+    renderBoard(DEMO.leaderboard);
+  }, 12000);
 }
 
 // ---- 私密查询 ----
@@ -275,6 +361,16 @@ document.getElementById('q-input').addEventListener('keydown', e=>{ if(e.key==='
 // ---- 初始化 ----
 (async ()=>{
   renderStats(await loadStats());
-  renderFeed(await loadFeed());
-  renderBoard(await loadBoard());
+  // 演示模式下，feed/leaderboard 用本地 DEMO + 定时注入新数据
+  // 真实数据模式（sb 在线且 public_feed/public_leaderboard 有数据）下走缓存策略：DB 真实数据 + 注入新动态
+  let feedRows = await loadFeed();
+  let boardRows = await loadBoard();
+  // 若实际来自 DB（已脱敏），也加定时 prepend 模拟"实时"（避免真实模式静悄悄）
+  // 把 DB 返回 rows 同步进 cache
+  _liveFeedCache = (feedRows && feedRows.length) ? feedRows.slice() : DEMO.feed.slice();
+  _liveFeedCache.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+  renderFeed(_liveFeedCache);
+  renderBoard(boardRows);
+  initFeedTicker();
+  initBoardTicker();
 })();
