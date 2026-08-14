@@ -88,6 +88,46 @@ function relTime(t){
 }
 function maskStatus(s){ return s||'待返'; }
 
+// ---- 公示台姓名脱敏（合规要求：所有公开展示的姓名都需做脱敏处理） ----
+// 规则：
+//  - 「集美·3679698」类（"X·数字ID"）→ 保留前缀前 2 字 + ID 前后 2 位，中间 * 填充
+//  - 中文 2 字 → 「梅*」；3 字 → 「梅**」；≥4 字 → 「梅***」
+//  - 英文 → 保留首字母，其余 *
+//  - 已含 * 的视为已脱敏，直接返回
+//  - 兜底：空值/异常 → 「用户***」
+function maskName(s){
+  if (s == null) return '用户***';
+  const str = String(s).trim();
+  if (!str) return '用户***';
+  if (str.includes('*')) return str; // 已经脱敏过，不再处理
+  // 「平台·ID」类（如"集美·3679698"）
+  if (/^[^\u00B7·\u2022\.\-]+\u00B7\d{4,}$/.test(str) || /^[^\u00B7·\u2022\.\-]+[\u00B7·\u2022\.\-]\d{4,}$/.test(str)){
+    const m = str.match(/^([^\u00B7·\u2022\.\-]+)([\u00B7·\u2022\.\-])(\d+)$/);
+    if (m){
+      const prefix = m[1];
+      const sep = m[2];
+      const digits = m[3];
+      const pVisible = prefix.length <= 2 ? prefix : prefix.slice(0,2) + '*'.repeat(Math.max(1, prefix.length-2));
+      const d = digits.length;
+      const dMasked = d <= 4 ? '*'.repeat(d) : digits.slice(0,2) + '*'.repeat(Math.max(2, d-4)) + digits.slice(-2);
+      return pVisible + sep + dMasked;
+    }
+  }
+  // 纯英文/字母（含大小写数字）
+  if (/^[A-Za-z0-9\s]+$/.test(str)){
+    if (str.length <= 1) return str + '***';
+    return str[0] + '*'.repeat(str.length - 1);
+  }
+  // 中文为主的姓名（去除中间可能存在的空格/特殊字符后按可见字数判断）
+  const han = str.replace(/[^\u4e00-\u9fa5]/g,'');
+  const hanLen = han.length;
+  if (hanLen <= 0) return str.length <= 1 ? str + '***' : str[0] + '*'.repeat(str.length-1);
+  if (hanLen === 1) return han + '***';
+  if (hanLen === 2) return han[0] + '*';
+  if (hanLen === 3) return han[0] + '**';
+  return han[0] + '***';
+}
+
 // ---- 按日期计算四个公示指标 ----
 const MODEL_BASE = 586;          // 合作模特人数起点
 const MODEL_DAILY_INC = 12;      // 模特人数每天增加量（每周约 +84，落在 70-100 区间），只增不减
@@ -215,7 +255,7 @@ function feedItem(r){
   return `<div class="feed-item">
     <span class="fi-emoji">🎉</span>
     <div class="fi-main">
-      <div class="fi-line"><b>${r.mask}</b> 收到返款 <span class="amt">${money(r.amount)}</span></div>
+      <div class="fi-line"><b>${maskName(r.mask)}</b> 收到返款 <span class="amt">${money(r.amount)}</span></div>
       <div class="fi-sub">${r.item} · <span class="st-pill st-${maskStatus(r.status)}">${maskStatus(r.status)}</span> · ${relTime(r.created_at)}</div>
     </div></div>`;
 }
@@ -246,7 +286,7 @@ function renderBoard(rows){
   document.getElementById('leaderboard').innerHTML = rows.map((r,i)=>`
     <div class="lb-item">
       <span class="lb-rank ${i<3?'top':''}">${i+1}</span>
-      <span class="lb-name">${r.mask}</span>
+      <span class="lb-name">${maskName(r.mask)}</span>
       <span class="lb-amt">${money(r.total)}<small style="font-size:12px;color:var(--sub);font-weight:400"> · ${r.cnt}笔</small></span>
     </div>`).join('') || '<div class="empty">暂无数据</div>';
 }
