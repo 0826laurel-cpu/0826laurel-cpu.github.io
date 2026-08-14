@@ -22,56 +22,58 @@
 const DEMO = {
   // stats 已改为 computeStats() 按日期动态计算，此处保留结构但不再作为默认展示值
   feed:[
-    {mask:'小雅', amount:1280, item:'618 主推款拍摄', status:'已返', created_at:'2026-08-11T14:50:00'},
-    {mask:'Lily', amount:860, item:'日常返款结算', status:'已返', created_at:'2026-08-11T14:20:00'},
-    {mask:'阿星', amount:2100, item:'品牌专场直播', status:'已返', created_at:'2026-08-11T13:05:00'},
-    {mask:'Crystal', amount:640, item:'短视频种草', status:'已返', created_at:'2026-08-11T11:40:00'},
-    {mask:'糖小幂', amount:1580, item:'新品上架返款', status:'处理中', created_at:'2026-08-11T10:10:00'},
-    {mask:'萌萌', amount:920, item:'日常返款结算', status:'已返', created_at:'2026-08-11T09:30:00'},
-    {mask:'Sophie', amount:1760, item:'联名款拍摄', status:'已返', created_at:'2026-08-10T22:15:00'},
-    {mask:'七月', amount:530, item:'短视频种草', status:'待返', created_at:'2026-08-10T20:00:00'},
-    {mask:'妮妮', amount:1180, item:'618 主推款返款', status:'已返', created_at:'2026-08-10T18:42:00'},
-    {mask:'Vivi', amount:980, item:'日常返款结算', status:'已返', created_at:'2026-08-10T17:08:00'},
-    {mask:'小米', amount:2360, item:'品牌专场返款', status:'已返', created_at:'2026-08-10T15:55:00'},
-    {mask:'Tina', amount:760, item:'联名款返款', status:'已返', created_at:'2026-08-10T14:20:00'},
-    {mask:'阿朵', amount:1320, item:'主推款返款', status:'处理中', created_at:'2026-08-10T12:30:00'},
-    {mask:'小鹿', amount:880, item:'日常返款结算', status:'已返', created_at:'2026-08-10T10:48:00'},
-    {mask:'苏苏', amount:1620, item:'品牌专场返款', status:'已返', created_at:'2026-08-10T09:15:00'},
-    {mask:'Anna', amount:1080, item:'短视频种草', status:'已返', created_at:'2026-08-09T21:30:00'},
-    {mask:'糖糖', amount:540, item:'日常返款结算', status:'已返', created_at:'2026-08-09T19:05:00'},
-    {mask:'果果', amount:1450, item:'618 主推款拍摄', status:'已返', created_at:'2026-08-09T17:22:00'},
-    {mask:'小鹿', amount:620, item:'联名款返款', status:'待返', created_at:'2026-08-09T15:40:00'},
-    {mask:'Lulu', amount:1980, item:'品牌专场返款', status:'已返', created_at:'2026-08-09T13:18:00'},
-    {mask:'可可', amount:720, item:'日常返款结算', status:'已返', created_at:'2026-08-09T11:50:00'},
-    {mask:'Cici', amount:1140, item:'短视频种草', status:'已返', created_at:'2026-08-09T10:08:00'},
-    {mask:'林风', amount:1580, item:'品牌专场直播', status:'处理中', created_at:'2026-08-09T08:45:00'},
-    {mask:'阿南', amount:480, item:'日常返款结算', status:'已返', created_at:'2026-08-08T22:30:00'},
-    {mask:'豆豆', amount:1320, item:'618 主推款返款', status:'已返', created_at:'2026-08-08T20:12:00'},
-    {mask:'琪琪', amount:820, item:'日常返款结算', status:'已返', created_at:'2026-08-08T18:00:00'},
-    {mask:'奥利', amount:1740, item:'联名款返款', status:'已返', created_at:'2026-08-08T15:35:00'},
-    {mask:'小美', amount:660, item:'短视频种草', status:'已返', created_at:'2026-08-08T13:20:00'},
-    {mask:'球球', amount:1280, item:'品牌专场返款', status:'已返', created_at:'2026-08-08T11:05:00'},
-    {mask:'Vera', amount:960, item:'日常返款结算', status:'已返', created_at:'2026-08-08T09:48:00'},
+    // 公示台动态调小到「0.1 元福利站」真实单笔返款量级（¥18–388）
+    {mask:'小雅', amount:228, item:'618 主推款拍摄', status:'已返', created_at:'2026-08-11T14:50:00'},
+    {mask:'Lily', amount:158, item:'日常返款结算', status:'已返', created_at:'2026-08-11T14:20:00'},
+    {mask:'阿星', amount:350, item:'品牌专场直播', status:'已返', created_at:'2026-08-11T13:05:00'},
+    {mask:'Crystal', amount:118, item:'短视频种草', status:'已返', created_at:'2026-08-11T11:40:00'},
+    {mask:'糖小幂', amount:268, item:'新品上架返款', status:'处理中', created_at:'2026-08-11T10:10:00'},
+    {mask:'萌萌', amount:168, item:'日常返款结算', status:'已返', created_at:'2026-08-11T09:30:00'},
+    {mask:'Sophie', amount:308, item:'联名款拍摄', status:'已返', created_at:'2026-08-10T22:15:00'},
+    {mask:'七月', amount:98, item:'短视频种草', status:'待返', created_at:'2026-08-10T20:00:00'},
+    {mask:'妮妮', amount:198, item:'618 主推款返款', status:'已返', created_at:'2026-08-10T18:42:00'},
+    {mask:'Vivi', amount:178, item:'日常返款结算', status:'已返', created_at:'2026-08-10T17:08:00'},
+    {mask:'小米', amount:388, item:'品牌专场返款', status:'已返', created_at:'2026-08-10T15:55:00'},
+    {mask:'Tina', amount:138, item:'联名款返款', status:'已返', created_at:'2026-08-10T14:20:00'},
+    {mask:'阿朵', amount:228, item:'主推款返款', status:'处理中', created_at:'2026-08-10T12:30:00'},
+    {mask:'小鹿', amount:158, item:'日常返款结算', status:'已返', created_at:'2026-08-10T10:48:00'},
+    {mask:'苏苏', amount:288, item:'品牌专场返款', status:'已返', created_at:'2026-08-10T09:15:00'},
+    {mask:'Anna', amount:198, item:'短视频种草', status:'已返', created_at:'2026-08-09T21:30:00'},
+    {mask:'糖糖', amount:98, item:'日常返款结算', status:'已返', created_at:'2026-08-09T19:05:00'},
+    {mask:'果果', amount:258, item:'618 主推款拍摄', status:'已返', created_at:'2026-08-09T17:22:00'},
+    {mask:'小鹿', amount:108, item:'联名款返款', status:'待返', created_at:'2026-08-09T15:40:00'},
+    {mask:'Lulu', amount:348, item:'品牌专场返款', status:'已返', created_at:'2026-08-09T13:18:00'},
+    {mask:'可可', amount:128, item:'日常返款结算', status:'已返', created_at:'2026-08-09T11:50:00'},
+    {mask:'Cici', amount:198, item:'短视频种草', status:'已返', created_at:'2026-08-09T10:08:00'},
+    {mask:'林风', amount:268, item:'品牌专场直播', status:'处理中', created_at:'2026-08-09T08:45:00'},
+    {mask:'阿南', amount:88, item:'日常返款结算', status:'已返', created_at:'2026-08-08T22:30:00'},
+    {mask:'豆豆', amount:228, item:'618 主推款返款', status:'已返', created_at:'2026-08-08T20:12:00'},
+    {mask:'琪琪', amount:148, item:'日常返款结算', status:'已返', created_at:'2026-08-08T18:00:00'},
+    {mask:'奥利', amount:308, item:'联名款返款', status:'已返', created_at:'2026-08-08T15:35:00'},
+    {mask:'小美', amount:118, item:'短视频种草', status:'已返', created_at:'2026-08-08T13:20:00'},
+    {mask:'球球', amount:228, item:'品牌专场返款', status:'已返', created_at:'2026-08-08T11:05:00'},
+    {mask:'Vera', amount:168, item:'日常返款结算', status:'已返', created_at:'2026-08-08T09:48:00'},
     // 给「定时注入新动态」预留的活样本（initFeedTicker 用）
-    {mask:'新星', amount:1080, item:'主推款返款', status:'已返', created_at:'2026-08-12T10:20:00'},
-    {mask:'柚子', amount:720, item:'日常返款结算', status:'已返', created_at:'2026-08-12T11:30:00'},
+    {mask:'新星', amount:198, item:'主推款返款', status:'已返', created_at:'2026-08-12T10:20:00'},
+    {mask:'柚子', amount:128, item:'日常返款结算', status:'已返', created_at:'2026-08-12T11:30:00'},
   ],
   leaderboard:[
-    {mask:'阿星', total:28600, cnt:21},
-    {mask:'Lily', total:24100, cnt:18},
-    {mask:'小雅', total:19900, cnt:16},
-    {mask:'糖小幂', total:17400, cnt:14},
-    {mask:'Crystal', total:15200, cnt:12},
-    {mask:'Sophie', total:13800, cnt:11},
-    {mask:'小鹿', total:12400, cnt:10},
-    {mask:'Anna', total:10800, cnt:9},
-    {mask:'Vivi', total:9600, cnt:8},
-    {mask:'Lulu', total:8200, cnt:7},
+    // 公示台调小到「0.1 元福利站」真实业务量级（单人累计几百～小几千、笔数 4–18）
+    {mask:'阿星', total:2860, cnt:18},
+    {mask:'Lily', total:2410, cnt:15},
+    {mask:'小雅', total:1980, cnt:13},
+    {mask:'糖小幂', total:1740, cnt:11},
+    {mask:'Crystal', total:1380, cnt:10},
+    {mask:'Sophie', total:1180, cnt:9},
+    {mask:'小鹿', total:980, cnt:8},
+    {mask:'Anna', total:820, cnt:7},
+    {mask:'Vivi', total:660, cnt:5},
+    {mask:'Lulu', total:480, cnt:4},
   ],
   // 私密查询示例：输入 M001 或 JD20260801001 可见
   private:[
-    {model_code:'M001', model_mask:'小雅', order_no:'JD20260801001', item:'618 主推款拍摄', amount:1280, rebate_date:'2026-08-01', expected_rebate_date:'2026-08-05', status:'已返', voucher_url:''},
-    {model_code:'M001', model_mask:'小雅', order_no:'JD20260720007', item:'夏日清仓返款', amount:760, rebate_date:'2026-07-20', expected_rebate_date:'2026-07-25', status:'已返', voucher_url:''},
+    {model_code:'M001', model_mask:'小雅', order_no:'JD20260801001', item:'618 主推款拍摄', amount:228, rebate_date:'2026-08-01', expected_rebate_date:'2026-08-05', status:'已返', voucher_url:''},
+    {model_code:'M001', model_mask:'小雅', order_no:'JD20260720007', item:'夏日清仓返款', amount:138, rebate_date:'2026-07-20', expected_rebate_date:'2026-07-25', status:'已返', voucher_url:''},
   ]
 };
 
@@ -298,7 +300,8 @@ const LIVE_STATUSES = ['已返','已返','已返','已返','处理中','已返']
 let _liveFeedCache = null;
 function pickRand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 function genLiveRow(){
-  const amt = pickRand([380, 460, 520, 640, 780, 880, 960, 1080, 1280, 1420, 1680, 1980, 2240, 2560]);
+  // 单笔返款区间 ¥18–388（高价位/常规位混合，贴近 0.1 元福利站的真实返款量级）
+  const amt = pickRand([18, 28, 38, 48, 58, 78, 108, 138, 168, 198, 238, 288, 328, 388]);
   return {
     mask: pickRand(LIVE_NAMES),
     amount: amt,
@@ -319,15 +322,13 @@ function initFeedTicker(){
 }
 let _liveBoardCache = null;
 function initBoardTicker(){
-  // 每 12 秒随机给达人榜加一笔（金额 +800~3000，笔数 +1），保持节奏感
-  // 优先操作真实数据（如果有的话），否则抖动 DEMO 前三
+  // 每 12 秒给达人榜前三抖一笔 +¥18–88（量级匹配新基础值，避免累积放大失真）
   setInterval(() => {
     if (_liveBoardCache && _liveBoardCache.length){
-      const realCount = _liveBoardCache.length > DEMO.leaderboard.length ? DEMO.leaderboard.length : 0;
       const i = Math.floor(Math.random() * Math.min(3, _liveBoardCache.length));
       const r = _liveBoardCache[i];
       if (r){
-        r.total = (r.total||0) + Math.floor(800 + Math.random() * 2200);
+        r.total = (r.total||0) + Math.floor(18 + Math.random() * 70);
         r.cnt = (r.cnt||0) + 1;
       }
       renderBoard(_liveBoardCache);
