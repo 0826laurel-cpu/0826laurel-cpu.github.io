@@ -213,10 +213,19 @@ function toast(msg, opts) {
 // ---------- 登录 ----------
 function showLogin(show) { document.querySelector('.login').classList.toggle('hide', !show); }
 async function doLogin(pwd) {
+  const btn = document.getElementById('login-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '登录中…'; }
   try {
-    await Api.login(pwd);
+    // 登录 RPC 加 retryRpc + 8s 单次超时，避免 SDK 直连 / SDK → Worker 都偶发卡死时看起来「没反应」
+    await retryRpc(() => Api.login(pwd), 1, 8000);
     showLogin(false); init();
-  } catch (e) { toast('登录失败：' + (e.message || '')); }
+  } catch (e) {
+    const msg = String(e && e.message || e);
+    toast('登录失败：' + msg);
+    console.error('[doLogin]', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '登 录'; }
+  }
 }
 function logout() { Api.logout(); showLogin(true); ['ov-detail', 'ov-add', 'ov-gift'].forEach(id => document.getElementById(id).classList.remove('show')); }
 

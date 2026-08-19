@@ -123,8 +123,17 @@ async function sbSelect(table, transform) {
 const Api = {
   // ---- 认证（密码 RPC 校验 + 前端 localStorage 闸门；RLS 已放行 anon，anon key 直连读写）----
   async login(pwd) {
-    const { data: r, error: re } = await sb.rpc('admin_login', { p_pwd: pwd });
-    if (re) throw new Error(re.message || '登录失败');
+    // 改用裸 fetch 直打 /rest/v1/rpc/admin_login（POST + JSON），走 Worker 代理时跟 listPartners 一致：670ms 已验证路径
+    // SDK 的 sb.rpc 在国内偶发卡死，故全部读/写 RPC 都改裸 fetch
+    const r = await directFetch('/rest/v1/rpc/admin_login', {
+      method: 'POST',
+      headers: {
+        'apikey': window.SB_ANON,
+        'Authorization': `Bearer ${window.SB_ANON}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ p_pwd: pwd })
+    });
     if (!r || !r.ok) throw new Error((r && r.error) || '密码错误');
     localStorage.setItem('p_admin', '1');
     return { ok: true };
