@@ -270,7 +270,7 @@ function hideLoading() {
   if (el) el.style.display = 'none';
 }
 async function init() {
-  showLoading('数据加载中…');
+  showLoading('数据加载中…首次访问可能需要 20–25 秒，请稍候');
   try {
     await loadData();
     renderAll();
@@ -309,7 +309,7 @@ async function loadData() {
   // ② 远端拉新：首次冷启动不重试（冷启动慢不是抖动），有缓存兜底时再启用重试
   const isColdStart = !cached;
   const retries = isColdStart ? 0 : 2;
-  const timeoutMs = isColdStart ? 10000 : 12000;
+  const timeoutMs = isColdStart ? 25000 : 15000;
   const results = await Promise.allSettled([
     retryRpc(() => Api.listPartners(),    retries, timeoutMs),
     retryRpc(() => Api.listGifts(),       retries, timeoutMs),
