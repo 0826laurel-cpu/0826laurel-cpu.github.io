@@ -270,8 +270,10 @@ function hideLoading() {
   if (el) el.style.display = 'none';
 }
 async function init() {
-  showLoading('数据加载中…首次访问可能需要 20–25 秒，请稍候');
+  showLoading('数据加载中…首次访问可能需要 30–45 秒，请稍候');
   try {
+    // 预热：fire-and-forget 一个轻量查询让 DNS/TLS 早建立，后续 loadData 会复用连接
+    try { fetch(`${window.SB_URL}/rest/v1/partners?select=id&limit=1`, { headers: { 'apikey': window.SB_ANON, 'Authorization': `Bearer ${window.SB_ANON}` } }); } catch (_) {}
     await loadData();
     renderAll();
   } catch (e) {
@@ -313,10 +315,10 @@ async function loadData() {
   const cached = readAdminCache();
   if (cached) { DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH; renderAll(); }
 
-  // ② 远端拉新：首次冷启动不重试（冷启动慢不是抖动），有缓存兜底时再启用重试
+  // ② 远端拉新：跨境到 supabase.co（新加坡）抖动大，给充足超时 + 重试预算；最坏走缓存兜底
   const isColdStart = !cached;
-  const retries = isColdStart ? 0 : 2;
-  const timeoutMs = isColdStart ? 25000 : 15000;
+  const retries = isColdStart ? 1 : 3;
+  const timeoutMs = isColdStart ? 45000 : 25000;
   // 串行拉取：避免 supabase-js 并发复用连接时的内部竞争（偶发 25s 卡死的根因）。
   // 顺序收集结果，保持与解构顺序一致；任一失败照常进入 failed 分支走缓存兜底。
   const tasks = [
