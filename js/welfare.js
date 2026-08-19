@@ -15,12 +15,13 @@
     if (!TOKEN) { showErr('链接无效', '链接里没有 token。请使用完整的专属链接（应形如 ' + (window.APP_ORIGIN || location.origin) + '/welfare.html?t=...）。'); return; }
     if (TOKEN === 'TOKEN' || !/^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(TOKEN)) { showErr('链接无效', '链接里的 token 不正确。请使用你收到的<b>真实</b>专属链接，<b>不要手动修改链接</b>。'); return; }
     try {
-      const { data: pd, error: e1 } = await sb.rpc('get_my_partner', { p_token: TOKEN });
-      if (e1 || !pd || !pd.ok) { showErr('链接无效', '找不到对应的伙伴记录。可能链接已失效，请联系福利派送官重新发送你的专属链接。'); return; }
+      // v40：换 Api.rpcRace 双链路 fallback（Worker 链路 403 → 直连兜底）
+      const pd = await Api.rpcRace('get_my_partner', { p_token: TOKEN });
+      if (!pd || !pd.ok || !pd.partner) { showErr('链接无效', '找不到对应的伙伴记录。可能链接已失效，请联系福利派送官重新发送你的专属链接。'); return; }
       PARTNER = pd.partner;
       try {
-        const { data: isd, error: e2 } = await sb.rpc('my_invite_stats', { p_token: TOKEN });
-        if (!e2 && isd && isd.ok) INVITE_STATS = isd;
+        const isd = await Api.rpcRace('my_invite_stats', { p_token: TOKEN });
+        if (isd && isd.ok) INVITE_STATS = isd;
       } catch (e2) { /* 不影响主流程 */ }
       render();
     } catch (e) { showErr('网络异常', '请检查网络后刷新重试。'); }
@@ -104,8 +105,8 @@
       btnCheckin.addEventListener('click', async () => {
         btnCheckin.disabled = true; btnCheckin.textContent = '签到中…';
         try {
-          const { data, error } = await sb.rpc('checkin', { p_token: TOKEN });
-          if (error) throw new Error(error.message);
+          // v40：换 Api.rpcRace 双链路 fallback
+          const data = await Api.rpcRace('checkin', { p_token: TOKEN });
           if (data && data.checked) { alert('签到成功，获得 ' + data.gained + ' 积分！🔥'); load(); }
           else if (data && data.already) { load(); }
           else alert('签到失败，请重试');
@@ -131,8 +132,8 @@
         if (!confirm('确认用 ' + cost + ' 积分兑换「' + item + '」？\n（兑换后福利官会为你寄出）')) return;
         rd.style.opacity = '.5';
         try {
-          const { data, error } = await sb.rpc('redeem_points', { p_token: TOKEN, p_cost: cost, p_item: item });
-          if (error) throw new Error(error.message);
+          // v40：换 Api.rpcRace 双链路 fallback
+          const data = await Api.rpcRace('redeem_points', { p_token: TOKEN, p_cost: cost, p_item: item });
           if (data && data.ok) { alert('兑换成功 🎁 福利官将为你寄出「' + item + '」'); load(); }
           else alert((data && data.error) || '兑换失败');
         } catch (e) { alert(e.message || '网络异常'); rd.style.opacity = '1'; }
