@@ -215,17 +215,33 @@ function showLogin(show) { document.querySelector('.login').classList.toggle('hi
 async function doLogin(pwd) {
   const btn = document.getElementById('login-btn');
   if (btn) { btn.disabled = true; btn.textContent = '登录中…'; }
-  try {
-    // 登录 RPC 加 retryRpc + 8s 单次超时，避免 SDK 直连 / SDK → Worker 都偶发卡死时看起来「没反应」
-    await retryRpc(() => Api.login(pwd), 1, 8000);
-    showLogin(false); init();
-  } catch (e) {
-    const msg = String(e && e.message || e);
-    toast('登录失败：' + msg);
-    console.error('[doLogin]', e);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '登 录'; }
+  // v34：双链路兜底，自动 fallback
+  // 顺序：(1) 默认链路（config.js 通常配为 Worker 代理 → Cloudflare 边缘）
+  //      (2) 直连 Supabase 新加坡（绕过 Worker）
+  // 单次 18s 超时（RPC + 双跳要留足时间）；不内部重试，由双链路兜底即可
+  const directUrl = 'https://ecvsamlwjbxovqaziyww.supabase.co';
+  const tries = [];
+  if (window.SB_URL && window.SB_URL !== directUrl) tries.push({ url: window.SB_URL, label: '边缘节点' });
+  tries.push({ url: directUrl, label: '直连' });
+  let lastErr = null;
+  for (let i = 0; i < tries.length; i++) {
+    const it = tries[i];
+    try {
+      await withTimeout(Api.loginAt(it.url, pwd), 18000);
+      showLogin(false); init();
+      if (i > 0) toast('登录成功（' + it.label + '回退）');
+      console.info('[doLogin] 成功 via ' + it.label);
+      if (btn) { btn.disabled = false; btn.textContent = '登 录'; }
+      return;
+    } catch (e) {
+      lastErr = e;
+      console.warn('[doLogin]' + it.label + '失败：', e && (e.message || e));
+    }
   }
+  const msg = String(lastErr && lastErr.message || lastErr || '');
+  toast('登录失败：' + msg);
+  console.error('[doLogin] 全部链路失败：', lastErr);
+  if (btn) { btn.disabled = false; btn.textContent = '登 录'; }
 }
 function logout() { Api.logout(); showLogin(true); ['ov-detail', 'ov-add', 'ov-gift'].forEach(id => document.getElementById(id).classList.remove('show')); }
 
