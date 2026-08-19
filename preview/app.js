@@ -276,10 +276,17 @@ async function init() {
     renderAll();
   } catch (e) {
     console.error('[init] 致命错误:', e);
+    // 致命错误也暴露给 UI 横幅
+    window.FETCH_ERR = {
+      msgs: [String(e && e.message || e)],
+      failedTables: ['init'],
+      hasCache: false,
+      at: Date.now()
+    };
     try { toast('数据加载失败，请刷新'); } catch (_) {}
     // 兜底：缓存里有就用缓存，没有至少 render 一次空态
     const cached = readAdminCache();
-    if (cached) { DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH; }
+    if (cached) { DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH; window.FETCH_ERR.hasCache = true; }
     try { renderAll(); } catch (_) {}
   } finally {
     hideLoading();
@@ -328,13 +335,25 @@ async function loadData() {
   }
 
   const failed = results.filter(r => r.status === 'rejected');
+  // 先清零：成功路径保持 null；只有失败才覆盖
+  window.FETCH_ERR = null;
   if (failed.length) {
-    const msgs = failed.map(r => String(r.reason && r.reason.message || r.reason)).slice(0, 3);
+    const TBL = ['partners','gifts','shipments','interactions','deals'];
+    const failedTables = failed.map(r => TBL[results.indexOf(r)]).filter(Boolean);
+    const msgs = failed.map(r => {
+      const e = r.reason; return (e && e.message) ? String(e.message) : String(e);
+    }).slice(0, 3);
     console.warn('[loadData] 部分远端查询失败，保留缓存继续渲染:', msgs);
-    // 首次进入无缓存：至少 render 一次占位
-    if (!DB || !DB.partners || !DB.partners.length) {
-      try { renderAll(); } catch (e) { console.error('[renderAll] 兜底渲染失败', e); }
-    } else {
+    // 暴露给 UI：在首页显示真实错误 + 重试入口
+    window.FETCH_ERR = {
+      msgs,
+      failedTables,
+      hasCache: !!(DB && DB.partners && DB.partners.length),
+      at: Date.now()
+    };
+    // 无论有没有缓存，都强制 render 一次：让错误横幅出现（缓存分支之前虽然 render 过，但 FETCH_ERR 是后置设置的）
+    try { renderAll(); } catch (e) { console.error('[renderAll] 兜底渲染失败', e); }
+    if (DB && DB.partners && DB.partners.length) {
       try { toast('数据未刷新（部分请求失败），显示最近缓存'); } catch (_) {}
     }
     return;
@@ -349,6 +368,16 @@ async function loadData() {
   if (COLLAPSED_GROUPS.size === 0) initCollapsedGroups();
   writeAdminCache();
   renderAll();
+}
+// 手动重试：用户点错误横幅的「重试」按钮时调用；清空错误 → loading → loadData
+async function retryLoad() {
+  window.FETCH_ERR = null;
+  showLoading('重新加载数据…');
+  try {
+    await loadData();
+  } finally {
+    hideLoading();
+  }
 }
 function initCollapsedGroups() {
   const dayMap = new Map();
@@ -446,7 +475,17 @@ function renderHome() {
     ${ps.length > RECENT_LIMIT ? `<button class="view-all-btn" data-act="tab" data-tab="partners">查看全部 ${ps.length} 位伙伴 →</button>` : ''}`;
 
   const d = DASH || {};
-  document.getElementById('view-home').innerHTML = `
+  // 失败横幅：把"无声失败"变成"有声错误"——直接显示 Supabase 真实报错 + 重试入口
+  const err = window.FETCH_ERR;
+  const errBanner = err ? `<div class="err-banner" style="margin:12px 16px 0;padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,#FFF1F2,#FFE3EA);border:1px solid #FFCBD2;color:#A0303A;font-size:13px;line-height:1.5;box-sizing:border-box">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:${err.msgs[0] ? '6px' : '0'}">
+        <div style="font-weight:600">⚠️ 数据没加载出来（${esc((err.failedTables || []).join('/') || '未知表')}）</div>
+        <button id="err-retry" style="border:none;background:#FF6B5C;color:#fff;padding:6px 14px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0">重试</button>
+      </div>
+      ${err.msgs[0] ? `<div style="opacity:.85;word-break:break-all">${esc(err.msgs.join(' · '))}</div>` : ''}
+      <div style="margin-top:4px;opacity:.7;font-size:12px">${err.hasCache ? '已显示最近缓存（120s 内）' : '首次访问无缓存，请检查网络后重试'}</div>
+    </div>` : '';
+  document.getElementById('view-home').innerHTML = `${errBanner}
     <div class="header">
       <div class="row">
         <div class="hi">${dynamicGreeting()} 👋</div>
@@ -479,6 +518,9 @@ function renderHome() {
     </div>
     <div class="sec-title">最近入驻</div>
     ${todos}`;
+  // 绑定错误横幅的重试按钮
+  const errBtn = document.getElementById('err-retry');
+  if (errBtn) errBtn.onclick = () => retryLoad();
   // 填充统计数字
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('st-total', d.totalPartners || 0);
