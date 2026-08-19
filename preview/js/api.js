@@ -97,9 +97,26 @@ function normDeal(r) {
   };
 }
 
+// 直连 fetch：绕开 supabase-js SDK 的额外开销（auth/realtime 握手），用 11:28 已验证的 670ms 快路径
+// 只用于读路径（list* / sbSelect）；写路径仍走 sb（insert/update/delete 的 SDK 封装更可靠）
+async function directFetch(path, init) {
+  const res = await fetch(`${window.SB_URL}${path}`, {
+    ...(init || {}),
+    headers: {
+      'apikey': window.SB_ANON,
+      'Authorization': `Bearer ${window.SB_ANON}`,
+      ...((init && init.headers) || {})
+    }
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}: ${t.slice(0, 200) || res.statusText}`);
+  }
+  return res.json();
+}
+
 async function sbSelect(table, transform) {
-  const { data, error } = await sb.from(table).select('*').order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
+  const data = await directFetch(`/rest/v1/${table}?select=*&order=created_at.desc`);
   return (data || []).map(transform);
 }
 
@@ -233,13 +250,11 @@ const Api = {
 
   // ---- 羊毛情报 / 补贴好物 ----
   async listDeals() {
-    const { data, error } = await sb.from('deals').select('*').order('sort_order', { ascending: true }).order('created_at', { ascending: false });
-    if (error) throw new Error(error.message);
+    const data = await directFetch('/rest/v1/deals?select=*&order=sort_order.asc&order=created_at.desc');
     return (data || []).map(normDeal);
   },
   async listPublishedDeals() {
-    const { data, error } = await sb.from('deals').select('*').eq('status', 'published').order('sort_order', { ascending: true }).order('created_at', { ascending: false });
-    if (error) throw new Error(error.message);
+    const data = await directFetch('/rest/v1/deals?select=*&status=eq.published&order=sort_order.asc&order=created_at.desc');
     return (data || []).map(normDeal);
   },
   async createDeal(b) {
