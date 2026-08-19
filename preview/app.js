@@ -246,13 +246,14 @@ function withTimeout(promise, ms) {
   });
 }
 // 全屏 loading：避免首次冷启动 30s 白屏看起来像坏了
+let _loadingTimer = null;
 function showLoading(msg) {
   let el = document.getElementById('app-loading');
   if (!el) {
     el = document.createElement('div');
     el.id = 'app-loading';
-    el.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.9);z-index:9999;font-size:14px;color:#666;font-family:system-ui,-apple-system,sans-serif;';
-    el.innerHTML = '<div style="text-align:center"><div style="width:36px;height:36px;border:3px solid #eee;border-top-color:#FF6B5C;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div><div></div></div>';
+    el.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.82);z-index:9999;font-size:13px;color:#888;font-family:system-ui,-apple-system,sans-serif;';
+    el.innerHTML = '<div style="text-align:center"><div style="width:28px;height:28px;border:2.5px solid #eee;border-top-color:#FF6B5C;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px"></div><div></div></div>';
     // 注入 spin 关键帧（一次性）
     if (!document.getElementById('app-loading-css')) {
       const s = document.createElement('style');
@@ -263,14 +264,24 @@ function showLoading(msg) {
     document.body.appendChild(el);
   }
   el.style.display = 'flex';
-  el.querySelector('div div:last-child').textContent = msg || '数据加载中…';
+  el.querySelector('div div:last-child').textContent = msg || '加载中…';
+}
+// 延迟显示：快加载（< 600ms）不闪遮罩，慢加载才兜底——避免 VPN/正常网络下的「白屏闪一下」丑态
+function showLoadingDelayed(msg, delayMs) {
+  hideLoading();
+  delayMs = delayMs == null ? 600 : delayMs;
+  if (delayMs <= 0) { showLoading(msg); return; }
+  if (_loadingTimer) clearTimeout(_loadingTimer);
+  _loadingTimer = setTimeout(() => { _loadingTimer = null; showLoading(msg); }, delayMs);
 }
 function hideLoading() {
+  if (_loadingTimer) { clearTimeout(_loadingTimer); _loadingTimer = null; }
   const el = document.getElementById('app-loading');
   if (el) el.style.display = 'none';
 }
 async function init() {
-  showLoading('数据加载中…首次访问可能需要 30–45 秒，请稍候');
+  // 延迟 600ms 才显示 loading——VPN/正常网络秒加载时不闪遮罩
+  showLoadingDelayed('加载中…');
   try {
     // 预热：fire-and-forget 一个轻量查询让 DNS/TLS 早建立，后续 loadData 会复用连接
     try { fetch(`${window.SB_URL}/rest/v1/partners?select=id&limit=1`, { headers: { 'apikey': window.SB_ANON, 'Authorization': `Bearer ${window.SB_ANON}` } }); } catch (_) {}
@@ -374,7 +385,7 @@ async function loadData() {
 // 手动重试：用户点错误横幅的「重试」按钮时调用；清空错误 → loading → loadData
 async function retryLoad() {
   window.FETCH_ERR = null;
-  showLoading('重新加载数据…');
+  showLoadingDelayed('重新加载中…');
   try {
     await loadData();
   } finally {
