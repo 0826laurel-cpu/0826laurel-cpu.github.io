@@ -305,6 +305,9 @@ function hideLoading() {
   if (el) el.style.display = 'none';
 }
 async function init() {
+  // v35：进入即置 loading（让用户看见，不会误以为「数据已经加载完但没数据」）
+  window.LOADING = true;
+  try { renderAll(); } catch (_) {}
   // B: 缓存优先渲染——先秒显上次数据（仿模特页 me_cache 瞬时缓存），再静默刷新。
   // 命中缓存：用户立即看到真实数据，不再白屏/卡登录；未命中：骨架态兜底。
   const cached = readAdminCache();
@@ -337,6 +340,9 @@ async function init() {
     }
     try { renderAll(); } catch (_) {}
   }
+  // v35：无论成功失败都关闭 loading
+  window.LOADING = false;
+  try { renderAll(); } catch (_) {}
 }
 // 运营后台数据缓存（登录后/刷新秒开；写操作后 loadData 会覆盖；TTL 与模特页 me_cache 对齐）
 const ADMIN_CACHE_KEY = 'admin_cache';
@@ -520,6 +526,18 @@ function renderHome() {
   const d = DASH || {};
   // 失败横幅：把"无声失败"变成"有声错误"——直接显示 Supabase 真实报错 + 重试入口
   const err = window.FETCH_ERR;
+  // v35：加载中条——避免用户看到空 0 数据误以为"已经加载完没数据"。
+  // LOADING 状态由 init() 进入和 loadData() 飞行的全程置位；成功/失败重置
+  const loading = window.LOADING ? `<div class="loading-bar" style="margin:12px 16px 0;padding:10px 14px;border-radius:14px;background:linear-gradient(135deg,#FFF8EC,#FFE8C7);border:1px solid #F5D08A;color:#8A5A1B;font-size:13px;line-height:1.5;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:14px;height:14px;border:2px solid #F5D08A;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></span><span style="font-weight:600">正在加载数据…</span></div>
+      <span style="opacity:.7;font-size:12px">首次约需 5–10 秒</span>
+    </div>` : '';
+  // v35：空数据提示——既无缓存又无远端数据时（数据仍 0），显示显眼的「暂无数据 + 重试」而不是沉默
+  const emptyState = (!err && (!DB || !DB.partners || !DB.partners.length) && !window.LOADING) ? `<div class="empty-state" style="margin:12px 16px 0;padding:14px;border-radius:14px;background:linear-gradient(135deg,#F4F6FB,#E8EEFF);border:1px solid #C7D5F5;color:#3A4A7A;font-size:13px;line-height:1.5;box-sizing:border-box">
+      <div style="font-weight:600;margin-bottom:4px">📭 暂无伙伴数据</div>
+      <div style="opacity:.85">可能是首次访问或网络异常导致没拉到</div>
+      <button id="empty-reload" style="margin-top:8px;border:none;background:#5B7CFA;color:#fff;padding:6px 14px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">重新加载</button>
+    </div>` : '';
   const errBanner = err ? `<div class="err-banner" style="margin:12px 16px 0;padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,#FFF1F2,#FFE3EA);border:1px solid #FFCBD2;color:#A0303A;font-size:13px;line-height:1.5;box-sizing:border-box">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:${err.msgs[0] ? '6px' : '0'}">
         <div style="font-weight:600">⚠️ 数据没加载出来（${esc((err.failedTables || []).join('/') || '未知表')}）</div>
@@ -528,7 +546,7 @@ function renderHome() {
       ${err.msgs[0] ? `<div style="opacity:.85;word-break:break-all">${esc(err.msgs.join(' · '))}</div>` : ''}
       <div style="margin-top:4px;opacity:.7;font-size:12px">${err.hasCache ? '已显示最近缓存（120s 内）' : '首次访问无缓存，请检查网络后重试'}</div>
     </div>` : '';
-  document.getElementById('view-home').innerHTML = `${errBanner}
+  document.getElementById('view-home').innerHTML = `${loading}${errBanner}${emptyState}
     <div class="header">
       <div class="row">
         <div class="hi">${dynamicGreeting()} 👋</div>
@@ -564,6 +582,9 @@ function renderHome() {
   // 绑定错误横幅的重试按钮
   const errBtn = document.getElementById('err-retry');
   if (errBtn) errBtn.onclick = () => retryLoad();
+  // v35：绑定空数据重试按钮
+  const emptyBtn = document.getElementById('empty-reload');
+  if (emptyBtn) emptyBtn.onclick = () => retryLoad();
   // 填充统计数字
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('st-total', d.totalPartners || 0);

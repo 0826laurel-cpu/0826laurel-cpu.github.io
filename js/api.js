@@ -97,10 +97,9 @@ function normDeal(r) {
   };
 }
 
-// 直连 fetch：绕开 supabase-js SDK 的额外开销（auth/realtime 握手），用 11:28 已验证的 670ms 快路径
-// 只用于读路径（list* / sbSelect）；写路径仍走 sb（insert/update/delete 的 SDK 封装更可靠）
-async function directFetch(path, init) {
-  const res = await fetch(`${window.SB_URL}${path}`, {
+// 内部：单链路 fetch。baseUrl 任意指定，便于公开 directFetch 自动 fallback
+async function directFetchAt(baseUrl, path, init) {
+  const res = await fetch(`${baseUrl}${path}`, {
     ...(init || {}),
     headers: {
       'apikey': window.SB_ANON,
@@ -113,6 +112,33 @@ async function directFetch(path, init) {
     throw new Error(`HTTP ${res.status}: ${t.slice(0, 200) || res.statusText}`);
   }
   return res.json();
+}
+// 公开：自动双链路 fallback —— 默认 window.SB_URL（=Worker 代理/Cloudflare 边缘），
+// 失败/超时无缝切到直连 Supabase 新加坡（解决 Worker 在微信 X5 内核 / 4G 抖动下的偶发不通）
+// 异常信息带 [.via=Worker/.via=Direct] 后缀，便于错误横幅区分走的是哪条链路
+async function directFetch(path, init, attemptTag) {
+  attemptTag = attemptTag || '?';
+  const directUrl = 'https://ecvsamlwjbxovqaziyww.supabase.co';
+  const tries = [];
+  if (window.SB_URL && window.SB_URL !== directUrl) tries.push({ url: window.SB_URL, label: 'Worker' });
+  tries.push({ url: directUrl, label: 'Direct' });
+  let lastErr = null;
+  for (let i = 0; i < tries.length; i++) {
+    const it = tries[i];
+    try {
+      const v = await directFetchAt(it.url, path, init);
+      if (attemptTag === 'login' && i > 0) console.info('[fetch]', path, '走回退链路', it.label);
+      return v;
+    } catch (e) {
+      lastErr = e;
+      const msg = String(e && e.message || e);
+      console.warn('[fetch]', path, 'via', it.label, '失败：', msg.slice(0, 120));
+      // 网络/超时类错误继续下一条链路；4xx 不重试（业务错重试无意义）
+      const transient = /Failed to fetch|NetworkError|timeout|AbortError|TypeError.*fetch|503|502|504|ETIMEDOUT|ENETUNREACH|fetch failed/i.test(msg);
+      if (!transient) throw e;
+    }
+  }
+  throw new Error((lastErr && lastErr.message || 'all-fail') + ' [.via=AllFailed]');
 }
 
 async function sbSelect(table, transform) {
