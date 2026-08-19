@@ -221,9 +221,34 @@ async function doLogin(pwd) {
 function logout() { Api.logout(); showLogin(true); ['ov-detail', 'ov-add', 'ov-gift'].forEach(id => document.getElementById(id).classList.remove('show')); }
 
 // ---------- 初始化 ----------
+// 网络抖动自救：单 RPC 重试 2 次，指数退避 300/600ms；只对网络类错误重试，业务错立即抛
+async function retryRpc(fn, retries) {
+  retries = retries == null ? 2 : retries;
+  let lastErr;
+  for (let i = 0; i <= retries; i++) {
+    try { return await fn(); }
+    catch (e) {
+      lastErr = e;
+      const msg = String(e && e.message || e);
+      const transient = /Failed to fetch|NetworkError|timeout|AbortError|TypeError.*fetch|503|502|504|ETIMEDOUT|ENETUNREACH|fetch failed/i.test(msg);
+      if (!transient || i >= retries) throw e;
+      await new Promise(r => setTimeout(r, 300 * Math.pow(2, i)));
+    }
+  }
+  throw lastErr;
+}
 async function init() {
-  await loadData();
-  renderAll();
+  try {
+    await loadData();
+    renderAll();
+  } catch (e) {
+    console.error('[init] 致命错误:', e);
+    try { toast('数据加载失败，请刷新'); } catch (_) {}
+    // 兜底：缓存里有就用缓存，没有至少 render 一次空态
+    const cached = readAdminCache();
+    if (cached) { DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH; }
+    try { renderAll(); } catch (_) {}
+  }
 }
 // 运营后台数据缓存（登录后/刷新秒开；写操作后 loadData 会覆盖；TTL 短保证实时性）
 const ADMIN_CACHE_KEY = 'admin_cache';
@@ -242,13 +267,33 @@ function writeAdminCache() {
 }
 
 async function loadData() {
-  // ① 缓存优先：秒开（避免每次登录/刷新都等 5 个跨境 REST 查询）
+  // ① 缓存兜底：命中即先 render（即使后续远端全挂也不再白屏）
   const cached = readAdminCache();
   if (cached) { DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH; renderAll(); }
-  // ② 后台拉取最新（listPartners 已不再重复查 interactions，整体并行）
-  const [partners, gifts, shipments, interactions, deals] = await Promise.all([
-    Api.listPartners(), Api.listGifts(), Api.listShipments(), Api.listInteractions(), Api.listDeals()
+
+  // ② 远端拉新：allSettled + 重试，单个失败不致命
+  const results = await Promise.allSettled([
+    retryRpc(() => Api.listPartners(), 2),
+    retryRpc(() => Api.listGifts(), 2),
+    retryRpc(() => Api.listShipments(), 2),
+    retryRpc(() => Api.listInteractions(), 2),
+    retryRpc(() => Api.listDeals(), 2)
   ]);
+
+  const failed = results.filter(r => r.status === 'rejected');
+  if (failed.length) {
+    const msgs = failed.map(r => String(r.reason && r.reason.message || r.reason)).slice(0, 3);
+    console.warn('[loadData] 部分远端查询失败，保留缓存继续渲染:', msgs);
+    // 首次进入无缓存：至少 render 一次占位
+    if (!DB || !DB.partners || !DB.partners.length) {
+      try { renderAll(); } catch (e) { console.error('[renderAll] 兜底渲染失败', e); }
+    } else {
+      try { toast('数据未刷新（部分请求失败），显示最近缓存'); } catch (_) {}
+    }
+    return;
+  }
+
+  const [partners, gifts, shipments, interactions, deals] = results.map(r => r.value);
   partners.forEach(p => { p.interactions = interactions.filter(i => i.partnerId == p.id); });
   DB = { partners, gifts, shipments, deals };
   STATS = computeStats();
