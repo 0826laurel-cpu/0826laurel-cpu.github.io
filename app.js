@@ -280,16 +280,18 @@ function hideLoading() {
   if (el) el.style.display = 'none';
 }
 async function init() {
-  // 延迟 600ms 才显示 loading——VPN/正常网络秒加载时不闪遮罩
-  showLoadingDelayed('加载中…');
+  // 立刻渲染骨架态：避免白屏，让用户立即看到完整页面结构（0/0/0/0 + 「还没有伙伴入驻」）
+  if (!DB || !Array.isArray(DB.partners)) DB = { partners: [], gifts: [], shipments: [], deals: [] };
+  if (!STATS) STATS = computeStats();
+  if (!DASH) DASH = computeDashboard();
+  try { renderAll(); } catch (_) {}
   try {
-    // 预热：fire-and-forget 一个轻量查询让 DNS/TLS 早建立，后续 loadData 会复用连接
+    // 预热：fire-and-forget 一个轻量查询让 DNS/TLS 早建立
     try { fetch(`${window.SB_URL}/rest/v1/partners?select=id&limit=1`, { headers: { 'apikey': window.SB_ANON, 'Authorization': `Bearer ${window.SB_ANON}` } }); } catch (_) {}
     await loadData();
-    renderAll();
+    // loadData 内部已 renderAll，无需再调
   } catch (e) {
     console.error('[init] 致命错误:', e);
-    // 致命错误也暴露给 UI 横幅
     window.FETCH_ERR = {
       msgs: [String(e && e.message || e)],
       failedTables: ['init'],
@@ -297,13 +299,11 @@ async function init() {
       at: Date.now()
     };
     try { toast('数据加载失败，请刷新'); } catch (_) {}
-    // 兜底：缓存里有就用缓存，没有至少 render 一次空态
     const cached = readAdminCache();
     if (cached) { DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH; window.FETCH_ERR.hasCache = true; }
     try { renderAll(); } catch (_) {}
-  } finally {
-    hideLoading();
   }
+  // 不再调用 showLoading/hideLoading：去掉全屏遮罩，避免「白屏闪一下」丑态
 }
 // 运营后台数据缓存（登录后/刷新秒开；写操作后 loadData 会覆盖；TTL 短保证实时性）
 const ADMIN_CACHE_KEY = 'admin_cache';
@@ -382,15 +382,12 @@ async function loadData() {
   writeAdminCache();
   renderAll();
 }
-// 手动重试：用户点错误横幅的「重试」按钮时调用；清空错误 → loading → loadData
+// 手动重试：用户点错误横幅的「重试」按钮时调用；清空错误 → 静默重跑 loadData
+// 不显示全屏遮罩——失败时横幅会自动回来，成功时数据自然出现
 async function retryLoad() {
   window.FETCH_ERR = null;
-  showLoadingDelayed('重新加载中…');
-  try {
-    await loadData();
-  } finally {
-    hideLoading();
-  }
+  try { renderAll(); } catch (_) {}
+  try { await loadData(); } catch (_) {}
 }
 function initCollapsedGroups() {
   const dayMap = new Map();
