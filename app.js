@@ -215,19 +215,17 @@ function showLogin(show) { document.querySelector('.login').classList.toggle('hi
 async function doLogin(pwd) {
   const btn = document.getElementById('login-btn');
   if (btn) { btn.disabled = true; btn.textContent = '登录中…'; }
-  // v34：双链路兜底，自动 fallback
-  // 顺序：(1) 默认链路（config.js 通常配为 Worker 代理 → Cloudflare 边缘）
-  //      (2) 直连 Supabase 新加坡（绕过 Worker）
+  // v36：直连优先，Worker 兜底（orderedPaths 来自 api.js，会「钉住」成功链路，避免每次白等）
   // 单次 18s 超时（RPC + 双跳要留足时间）；不内部重试，由双链路兜底即可
-  const directUrl = 'https://ecvsamlwjbxovqaziyww.supabase.co';
-  const tries = [];
-  if (window.SB_URL && window.SB_URL !== directUrl) tries.push({ url: window.SB_URL, label: '边缘节点' });
-  tries.push({ url: directUrl, label: '直连' });
+  const tries = (typeof orderedPaths === 'function')
+    ? orderedPaths()
+    : [{ url: window.SB_URL, label: '直连' }];
   let lastErr = null;
   for (let i = 0; i < tries.length; i++) {
     const it = tries[i];
     try {
       await withTimeout(Api.loginAt(it.url, pwd), 18000);
+      try { if (typeof pinPath === 'function') pinPath(it.label); } catch (_) {}
       showLogin(false); init();
       if (i > 0) toast('登录成功（' + it.label + '回退）');
       console.info('[doLogin] 成功 via ' + it.label);

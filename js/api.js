@@ -113,20 +113,42 @@ async function directFetchAt(baseUrl, path, init) {
   }
   return res.json();
 }
-// 公开：自动双链路 fallback —— 默认 window.SB_URL（=Worker 代理/Cloudflare 边缘），
-// 失败/超时无缝切到直连 Supabase 新加坡（解决 Worker 在微信 X5 内核 / 4G 抖动下的偶发不通）
-// 异常信息带 [.via=Worker/.via=Direct] 后缀，便于错误横幅区分走的是哪条链路
+// 链路顺序：直连优先，Worker 兜底；成功过的链路会被「钉住」，之后优先用它，避免每次白等 18s
+const PATH_PIN_KEY = 'admin_path_pin';
+function orderedPaths() {
+  const direct = window.SB_DIRECT || 'https://ecvsamlwjbxovqaziyww.supabase.co';
+  const worker = window.SB_PROXY_URL;
+  let pinned = null;
+  try { pinned = localStorage.getItem(PATH_PIN_KEY); } catch (_) {}
+  const arr = [];
+  if (pinned === 'worker' && worker) {
+    arr.push({ url: worker, label: 'Worker' });
+    arr.push({ url: direct, label: 'Direct' });
+  } else if (pinned === 'direct') {
+    arr.push({ url: direct, label: 'Direct' });
+    if (worker) arr.push({ url: worker, label: 'Worker' });
+  } else {
+    // 默认：直连优先（国内手机/电脑都稳，模特页已验证），Worker 仅兜底
+    arr.push({ url: direct, label: 'Direct' });
+    if (worker) arr.push({ url: worker, label: 'Worker' });
+  }
+  return arr;
+}
+function pinPath(label) {
+  try { localStorage.setItem(PATH_PIN_KEY, label === 'Worker' ? 'worker' : 'direct'); } catch (_) {}
+}
+// 公开：自动双链路 fallback —— 默认直连 Supabase 新加坡（国内手机/电脑都稳，还原 v32 之前手机可用的链路），
+// 失败/超时无缝切到 Worker 代理（仅作备用兜底，解决直连偶发慢时的自救）。
+// 异常信息带 [.via=Direct/.via=Worker] 后缀，便于错误横幅区分走的是哪条链路
 async function directFetch(path, init, attemptTag) {
   attemptTag = attemptTag || '?';
-  const directUrl = 'https://ecvsamlwjbxovqaziyww.supabase.co';
-  const tries = [];
-  if (window.SB_URL && window.SB_URL !== directUrl) tries.push({ url: window.SB_URL, label: 'Worker' });
-  tries.push({ url: directUrl, label: 'Direct' });
+  const tries = orderedPaths();
   let lastErr = null;
   for (let i = 0; i < tries.length; i++) {
     const it = tries[i];
     try {
       const v = await directFetchAt(it.url, path, init);
+      pinPath(it.label);
       if (attemptTag === 'login' && i > 0) console.info('[fetch]', path, '走回退链路', it.label);
       return v;
     } catch (e) {

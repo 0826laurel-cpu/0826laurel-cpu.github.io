@@ -1,8 +1,11 @@
 // config.js — 公有配置（publishable key 可安全暴露在前端，非私密）
-// Cloudflare Worker 代理（国内加速 Supabase）：留空=直连新加坡节点；
-// 部署 Worker 后把地址填到 SB_PROXY_URL，所有读/写路径自动切到边缘节点（详见 tools/supabase-proxy/README.md）
+// 主链路 = 直连 Supabase 新加坡：国内手机/电脑都稳（模特页 me.html 已验证手机可通）。
+// Cloudflare Worker 代理（supabase-proxy.wgbproxy.workers.dev）仅作「备用兜底」——
+// 实测 *.workers.dev 在国内手机蜂窝网路由极差、常被卡死，若把它当首选会让手机端登录/数据全程卡住。
+// 故默认直连，Worker 仅在直连失败时才回退（见 js/api.js / app.js 的 orderedPaths()）。
 window.SB_PROXY_URL = 'https://supabase-proxy.wgbproxy.workers.dev';
-window.SB_URL = window.SB_PROXY_URL || 'https://ecvsamlwjbxovqaziyww.supabase.co';
+window.SB_DIRECT = 'https://ecvsamlwjbxovqaziyww.supabase.co';
+window.SB_URL = window.SB_DIRECT; // 首选：直连（v36 起，还原 v32 之前手机可用的链路）
 window.SB_ANON = 'sb_publishable_zc1yT6MeRA19HRL4_lruXw_-PnAVmzu';
 // 系统权威前端域名（私域/福利站统一入口）。
 // 所有“拼接专属链接 / 跳转 / 分享链接”都引用这个常量，而不是 location.origin。
