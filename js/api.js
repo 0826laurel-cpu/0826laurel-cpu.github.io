@@ -123,9 +123,12 @@ async function sbSelect(table, transform) {
 const Api = {
   // ---- 认证（密码 RPC 校验 + 前端 localStorage 闸门；RLS 已放行 anon，anon key 直连读写）----
   async login(pwd) {
-    // 改用裸 fetch 直打 /rest/v1/rpc/admin_login（POST + JSON），走 Worker 代理时跟 listPartners 一致：670ms 已验证路径
-    // SDK 的 sb.rpc 在国内偶发卡死，故全部读/写 RPC 都改裸 fetch
-    const r = await directFetch('/rest/v1/rpc/admin_login', {
+    // 默认走 config.js 配置的链路（通常是 Worker 代理）
+    return await this.loginAt(window.SB_URL, pwd);
+  },
+  // 支持双链路兜底：Worker → 直连。baseUrl 任意指定，便于 doLogin 在 Worker 卡顿时无缝回退到直连 supabase
+  async loginAt(baseUrl, pwd) {
+    const res = await fetch(`${baseUrl}/rest/v1/rpc/admin_login`, {
       method: 'POST',
       headers: {
         'apikey': window.SB_ANON,
@@ -134,6 +137,11 @@ const Api = {
       },
       body: JSON.stringify({ p_pwd: pwd })
     });
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${t.slice(0, 200) || res.statusText}`);
+    }
+    const r = await res.json();
     if (!r || !r.ok) throw new Error((r && r.error) || '密码错误');
     localStorage.setItem('p_admin', '1');
     return { ok: true };
