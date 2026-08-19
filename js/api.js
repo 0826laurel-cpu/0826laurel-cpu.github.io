@@ -430,15 +430,13 @@ const Api = {
     return data;
   },
   async getRebatesByCode(code) {
-    const { data, error } = await sb.rpc('get_my_rebates', { p_code: code });
-    if (error) throw new Error(error.message);
-    return data || [];
+    // v39：换 Api.rpcRace 双链路 fallback（之前 sb.rpc 走 Worker 域 CORS 失败，try/catch 被吞导致前端返款为空）
+    return (await this.rpcRace('get_my_rebates', { p_code: code })) || [];
   },
   // 模特专属页首页「返款进度」：按 model_id 拉取该模特全部返款记录
   async getRebatesByModel(modelId) {
-    const { data, error } = await sb.rpc('get_my_rebates_by_model', { p_model_id: modelId });
-    if (error) throw new Error(error.message);
-    return data || [];
+    // v39：换 Api.rpcRace 双链路 fallback（之前 sb.rpc 走 Worker 域 CORS 失败，try/catch 被吞导致「暂无返款任务」假空）
+    return (await this.rpcRace('get_my_rebates_by_model', { p_model_id: modelId })) || [];
   },
   async uploadRebateVoucher(file) {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
