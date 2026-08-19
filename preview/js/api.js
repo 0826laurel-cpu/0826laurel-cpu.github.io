@@ -97,22 +97,121 @@ function normDeal(r) {
   };
 }
 
-// 直连 fetch：绕开 supabase-js SDK 的额外开销（auth/realtime 握手），用 11:28 已验证的 670ms 快路径
-// 只用于读路径（list* / sbSelect）；写路径仍走 sb（insert/update/delete 的 SDK 封装更可靠）
-async function directFetch(path, init) {
-  const res = await fetch(`${window.SB_URL}${path}`, {
-    ...(init || {}),
-    headers: {
-      'apikey': window.SB_ANON,
-      'Authorization': `Bearer ${window.SB_ANON}`,
-      ...((init && init.headers) || {})
+// 内部：单链路 fetch，带 AbortController 超时（浏览器原生 fetch 无超时，挂起会卡死整页）
+async function directFetchAt(baseUrl, path, init, timeoutMs) {
+  const ac = new AbortController();
+  const t = setTimeout(() => { try { ac.abort(); } catch (_) {} }, timeoutMs || 10000);
+  try {
+    const res = await fetch(`${baseUrl}${path}`, {
+      ...(init || {}),
+      signal: ac.signal,
+      headers: {
+        'apikey': window.SB_ANON,
+        'Authorization': `Bearer ${window.SB_ANON}`,
+        ...((init && init.headers) || {})
+      }
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200) || res.statusText}`);
     }
-  });
-  if (!res.ok) {
-    const t = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${t.slice(0, 200) || res.statusText}`);
+    return await res.json();
+  } finally {
+    clearTimeout(t);
   }
-  return res.json();
+}
+// 链路顺序：Worker 优先（国内手机/电脑最稳，v32–v35 实证），直连兜底；成功过的链路会被「钉住」
+const PATH_PIN_KEY = 'admin_path_pin';
+function orderedPaths() {
+  const direct = window.SB_DIRECT || 'https://ecvsamlwjbxovqaziyww.supabase.co';
+  const worker = window.SB_PROXY_URL;
+  let pinned = null;
+  try { pinned = localStorage.getItem(PATH_PIN_KEY); } catch (_) {}
+  const arr = [];
+  if (pinned === 'direct') {
+    arr.push({ url: direct, label: 'Direct' });
+    if (worker) arr.push({ url: worker, label: 'Worker' });
+  } else {
+    // 默认 + pinned='worker'：Worker 优先，Direct 兜底（v32–v35 实证稳定）
+    if (worker) arr.push({ url: worker, label: 'Worker' });
+    arr.push({ url: direct, label: 'Direct' });
+  }
+  return arr;
+}
+function pinPath(label) {
+  try { localStorage.setItem(PATH_PIN_KEY, label === 'Worker' ? 'worker' : 'direct'); } catch (_) {}
+}
+// 公开：并行竞速双链路 —— Worker 与直连同时发起，谁先成功用谁；每条带 10s AbortController 超时。
+// 解决「串行先等 Worker 卡 45s 才回退直连、再卡 45s」导致的整页几分钟转圈（手机蜂窝网挂起型失败）。
+// 成功链路 pinPath 钉住；异常信息带 [.via=AllFailed] 便于错误横幅诊断。
+async function directFetch(path, init, attemptTag) {
+  attemptTag = attemptTag || '?';
+  const paths = orderedPaths();
+  return new Promise((resolve, reject) => {
+    let settled = 0;
+    const errs = [];
+    const ctrls = [];
+    paths.forEach((it, idx) => {
+      const ac = new AbortController(); ctrls.push(ac);
+      const timer = setTimeout(() => { try { ac.abort(); } catch (_) {} }, 10000);
+      directFetchAt(it.url, path, init, 10000)
+        .then(v => {
+          clearTimeout(timer);
+          ctrls.forEach(c => { try { c.abort(); } catch (_) {} }); // 取消其余链路，释放连接
+          pinPath(it.label);
+          if (attemptTag === 'login' && idx > 0) console.info('[fetch]', path, '走回退链路', it.label);
+          resolve(v);
+        })
+        .catch(e => {
+          clearTimeout(timer);
+          const m = String(e && e.message || e);
+          if (!/AbortError|aborted/i.test(m)) errs.push(it.label + ': ' + m.slice(0, 100));
+          settled++;
+          if (settled >= paths.length) {
+            reject(new Error((errs.length ? errs.join(' | ') : 'all-fail') + ' [.via=AllFailed]'));
+          }
+        });
+    });
+  });
+}
+
+// 登录 RPC 并行竞速：Worker/Direct 同时打，谁先回谁赢；15s 超时兜底
+async function loginRace(pwd) {
+  const paths = orderedPaths();
+  return new Promise((resolve, reject) => {
+    let settled = 0;
+    const errs = [];
+    const ctrls = [];
+    paths.forEach((it, idx) => {
+      const ac = new AbortController(); ctrls.push(ac);
+      const timer = setTimeout(() => { try { ac.abort(); } catch (_) {} }, 15000);
+      fetch(`${it.url}/rest/v1/rpc/admin_login`, {
+        method: 'POST',
+        signal: ac.signal,
+        headers: {
+          'apikey': window.SB_ANON,
+          'Authorization': `Bearer ${window.SB_ANON}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ p_pwd: pwd })
+      })
+        .then(async res => {
+          clearTimeout(timer);
+          if (!res.ok) { const txt = await res.text().catch(() => ''); throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200) || res.statusText}`); }
+          const r = await res.json();
+          if (!r || !r.ok) throw new Error((r && r.error) || '密码错误');
+          ctrls.forEach(c => { try { c.abort(); } catch (_) {} });
+          resolve({ ok: true, label: it.label, idx });
+        })
+        .catch(e => {
+          clearTimeout(timer);
+          const m = String(e && e.message || e);
+          if (!/AbortError|aborted/i.test(m)) errs.push(it.label + ': ' + m.slice(0, 100));
+          settled++;
+          if (settled >= paths.length) reject(new Error(errs.length ? errs.join(' | ') : '登录失败'));
+        });
+    });
+  });
 }
 
 async function sbSelect(table, transform) {
@@ -123,9 +222,12 @@ async function sbSelect(table, transform) {
 const Api = {
   // ---- 认证（密码 RPC 校验 + 前端 localStorage 闸门；RLS 已放行 anon，anon key 直连读写）----
   async login(pwd) {
-    // 改用裸 fetch 直打 /rest/v1/rpc/admin_login（POST + JSON），走 Worker 代理时跟 listPartners 一致：670ms 已验证路径
-    // SDK 的 sb.rpc 在国内偶发卡死，故全部读/写 RPC 都改裸 fetch
-    const r = await directFetch('/rest/v1/rpc/admin_login', {
+    // 默认走 config.js 配置的链路（通常是 Worker 代理）
+    return await this.loginAt(window.SB_URL, pwd);
+  },
+  // 支持双链路兜底：Worker → 直连。baseUrl 任意指定，便于 doLogin 在 Worker 卡顿时无缝回退到直连 supabase
+  async loginAt(baseUrl, pwd) {
+    const res = await fetch(`${baseUrl}/rest/v1/rpc/admin_login`, {
       method: 'POST',
       headers: {
         'apikey': window.SB_ANON,
@@ -134,6 +236,11 @@ const Api = {
       },
       body: JSON.stringify({ p_pwd: pwd })
     });
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${t.slice(0, 200) || res.statusText}`);
+    }
+    const r = await res.json();
     if (!r || !r.ok) throw new Error((r && r.error) || '密码错误');
     localStorage.setItem('p_admin', '1');
     return { ok: true };
@@ -323,15 +430,13 @@ const Api = {
     return data;
   },
   async getRebatesByCode(code) {
-    const { data, error } = await sb.rpc('get_my_rebates', { p_code: code });
-    if (error) throw new Error(error.message);
-    return data || [];
+    // v39：换 Api.rpcRace 双链路 fallback（之前 sb.rpc 走 Worker 域 CORS 失败，try/catch 被吞导致前端返款为空）
+    return (await this.rpcRace('get_my_rebates', { p_code: code })) || [];
   },
   // 模特专属页首页「返款进度」：按 model_id 拉取该模特全部返款记录
   async getRebatesByModel(modelId) {
-    const { data, error } = await sb.rpc('get_my_rebates_by_model', { p_model_id: modelId });
-    if (error) throw new Error(error.message);
-    return data || [];
+    // v39：换 Api.rpcRace 双链路 fallback（之前 sb.rpc 走 Worker 域 CORS 失败，try/catch 被吞导致「暂无返款任务」假空）
+    return (await this.rpcRace('get_my_rebates_by_model', { p_model_id: modelId })) || [];
   },
   async uploadRebateVoucher(file) {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
@@ -359,6 +464,23 @@ const Api = {
     const { data, error } = await sb.rpc('public_leaderboard', { p_limit: limit || 10 });
     if (error) throw new Error(error.message);
     return data || [];
+  },
+
+  // 通用 RPC 双链路 fallback（v38）：替换 sb.rpc(...) 用于模特端 me.html
+  // 解决 Supabase JS SDK 在浏览器里对 Worker 域名的 CORS preflight 兼容问题
+  // （电脑端 sb.rpc → 'TypeError: Failed to fetch'，但裸 fetch 经 Worker + 直连双链路都能通）
+  async rpcRace(fnName, params) {
+    const r = await directFetch('/rest/v1/rpc/' + fnName, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params || {})
+    }, 'rpc-' + fnName);
+    // 兼容两种返回：{ ok:true, partner } / { ok:false, error } / 直接数组
+    if (r && typeof r === 'object' && 'ok' in r) {
+      if (r.ok) return r; // 成功：返回完整对象（含 partner/shipments/payout_qr_url 等）
+      throw new Error(r.error || ('RPC ' + fnName + ' failed'));
+    }
+    return r; // 直接返回（如数组）
   }
 };
 
