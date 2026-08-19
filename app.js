@@ -310,13 +310,22 @@ async function loadData() {
   const isColdStart = !cached;
   const retries = isColdStart ? 0 : 2;
   const timeoutMs = isColdStart ? 25000 : 15000;
-  const results = await Promise.allSettled([
-    retryRpc(() => Api.listPartners(),    retries, timeoutMs),
-    retryRpc(() => Api.listGifts(),       retries, timeoutMs),
-    retryRpc(() => Api.listShipments(),   retries, timeoutMs),
-    retryRpc(() => Api.listInteractions(),retries, timeoutMs),
-    retryRpc(() => Api.listDeals(),       retries, timeoutMs)
-  ]);
+  // 串行拉取：避免 supabase-js 并发复用连接时的内部竞争（偶发 25s 卡死的根因）。
+  // 顺序收集结果，保持与解构顺序一致；任一失败照常进入 failed 分支走缓存兜底。
+  const tasks = [
+    () => Api.listPartners(),
+    () => Api.listGifts(),
+    () => Api.listShipments(),
+    () => Api.listInteractions(),
+    () => Api.listDeals()
+  ];
+  const results = [];
+  for (const t of tasks) {
+    results.push(
+      await retryRpc(t, retries, timeoutMs)
+        .then(v => ({ status: 'fulfilled', value: v }), e => ({ status: 'rejected', reason: e }))
+    );
+  }
 
   const failed = results.filter(r => r.status === 'rejected');
   if (failed.length) {

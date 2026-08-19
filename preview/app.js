@@ -221,12 +221,13 @@ async function doLogin(pwd) {
 function logout() { Api.logout(); showLogin(true); ['ov-detail', 'ov-add', 'ov-gift'].forEach(id => document.getElementById(id).classList.remove('show')); }
 
 // ---------- 初始化 ----------
-// 网络抖动自救：单 RPC 重试 2 次，指数退避 300/600ms；只对网络类错误重试，业务错立即抛
-async function retryRpc(fn, retries) {
+// 网络抖动自救：单 RPC 重试 + 单次超时；只对网络类错误重试，业务错立即抛
+async function retryRpc(fn, retries, timeoutMs) {
   retries = retries == null ? 2 : retries;
+  timeoutMs = timeoutMs == null ? 12000 : timeoutMs;
   let lastErr;
   for (let i = 0; i <= retries; i++) {
-    try { return await fn(); }
+    try { return await withTimeout(fn(), timeoutMs); }
     catch (e) {
       lastErr = e;
       const msg = String(e && e.message || e);
@@ -237,7 +238,39 @@ async function retryRpc(fn, retries) {
   }
   throw lastErr;
 }
+// 单次 fetch 包超时（浏览器 fetch 没有内置超时）
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('RPC timeout after ' + ms + 'ms')), ms);
+    promise.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+  });
+}
+// 全屏 loading：避免首次冷启动 30s 白屏看起来像坏了
+function showLoading(msg) {
+  let el = document.getElementById('app-loading');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'app-loading';
+    el.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.9);z-index:9999;font-size:14px;color:#666;font-family:system-ui,-apple-system,sans-serif;';
+    el.innerHTML = '<div style="text-align:center"><div style="width:36px;height:36px;border:3px solid #eee;border-top-color:#FF6B5C;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div><div></div></div>';
+    // 注入 spin 关键帧（一次性）
+    if (!document.getElementById('app-loading-css')) {
+      const s = document.createElement('style');
+      s.id = 'app-loading-css';
+      s.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(s);
+    }
+    document.body.appendChild(el);
+  }
+  el.style.display = 'flex';
+  el.querySelector('div div:last-child').textContent = msg || '数据加载中…';
+}
+function hideLoading() {
+  const el = document.getElementById('app-loading');
+  if (el) el.style.display = 'none';
+}
 async function init() {
+  showLoading('数据加载中…首次访问可能需要 20–25 秒，请稍候');
   try {
     await loadData();
     renderAll();
@@ -248,6 +281,8 @@ async function init() {
     const cached = readAdminCache();
     if (cached) { DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH; }
     try { renderAll(); } catch (_) {}
+  } finally {
+    hideLoading();
   }
 }
 // 运营后台数据缓存（登录后/刷新秒开；写操作后 loadData 会覆盖；TTL 短保证实时性）
@@ -271,14 +306,26 @@ async function loadData() {
   const cached = readAdminCache();
   if (cached) { DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH; renderAll(); }
 
-  // ② 远端拉新：allSettled + 重试，单个失败不致命
-  const results = await Promise.allSettled([
-    retryRpc(() => Api.listPartners(), 2),
-    retryRpc(() => Api.listGifts(), 2),
-    retryRpc(() => Api.listShipments(), 2),
-    retryRpc(() => Api.listInteractions(), 2),
-    retryRpc(() => Api.listDeals(), 2)
-  ]);
+  // ② 远端拉新：首次冷启动不重试（冷启动慢不是抖动），有缓存兜底时再启用重试
+  const isColdStart = !cached;
+  const retries = isColdStart ? 0 : 2;
+  const timeoutMs = isColdStart ? 25000 : 15000;
+  // 串行拉取：避免 supabase-js 并发复用连接时的内部竞争（偶发 25s 卡死的根因）。
+  // 顺序收集结果，保持与解构顺序一致；任一失败照常进入 failed 分支走缓存兜底。
+  const tasks = [
+    () => Api.listPartners(),
+    () => Api.listGifts(),
+    () => Api.listShipments(),
+    () => Api.listInteractions(),
+    () => Api.listDeals()
+  ];
+  const results = [];
+  for (const t of tasks) {
+    results.push(
+      await retryRpc(t, retries, timeoutMs)
+        .then(v => ({ status: 'fulfilled', value: v }), e => ({ status: 'rejected', reason: e }))
+    );
+  }
 
   const failed = results.filter(r => r.status === 'rejected');
   if (failed.length) {
