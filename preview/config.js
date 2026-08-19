@@ -1,5 +1,8 @@
 // config.js — 公有配置（publishable key 可安全暴露在前端，非私密）
-window.SB_URL = 'https://ecvsamlwjbxovqaziyww.supabase.co';
+// Cloudflare Worker 代理（国内加速 Supabase）：留空=直连新加坡节点；
+// 部署 Worker 后把地址填到 SB_PROXY_URL，所有读/写路径自动切到边缘节点（详见 tools/supabase-proxy/README.md）
+window.SB_PROXY_URL = '';
+window.SB_URL = window.SB_PROXY_URL || 'https://ecvsamlwjbxovqaziyww.supabase.co';
 window.SB_ANON = 'sb_publishable_zc1yT6MeRA19HRL4_lruXw_-PnAVmzu';
 // 系统权威前端域名（私域/福利站统一入口）。
 // 所有“拼接专属链接 / 跳转 / 分享链接”都引用这个常量，而不是 location.origin。

@@ -280,34 +280,42 @@ function hideLoading() {
   if (el) el.style.display = 'none';
 }
 async function init() {
-  // 立刻渲染骨架态：避免白屏，让用户立即看到完整页面结构（0/0/0/0 + 「还没有伙伴入驻」）
-  if (!DB || !Array.isArray(DB.partners)) DB = { partners: [], gifts: [], shipments: [], deals: [] };
-  if (!STATS) STATS = computeStats();
-  if (!DASH) DASH = computeDashboard();
+  // B: 缓存优先渲染——先秒显上次数据（仿模特页 me_cache 瞬时缓存），再静默刷新。
+  // 命中缓存：用户立即看到真实数据，不再白屏/卡登录；未命中：骨架态兜底。
+  const cached = readAdminCache();
+  if (cached) {
+    DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH;
+  } else {
+    if (!DB || !Array.isArray(DB.partners)) DB = { partners: [], gifts: [], shipments: [], deals: [] };
+    if (!STATS) STATS = computeStats();
+    if (!DASH) DASH = computeDashboard();
+  }
   try { renderAll(); } catch (_) {}
   try {
     // 预热：fire-and-forget 一个轻量查询让 DNS/TLS 早建立
     try { fetch(`${window.SB_URL}/rest/v1/partners?select=id&limit=1`, { headers: { 'apikey': window.SB_ANON, 'Authorization': `Bearer ${window.SB_ANON}` } }); } catch (_) {}
     await loadData();
-    // loadData 内部已 renderAll，无需再调
+    // loadData 内部成功会 renderAll + writeAdminCache；失败分支也会 renderAll（错误横幅）
   } catch (e) {
     console.error('[init] 致命错误:', e);
     window.FETCH_ERR = {
       msgs: [String(e && e.message || e)],
       failedTables: ['init'],
-      hasCache: false,
+      hasCache: !!cached,
       at: Date.now()
     };
     try { toast('数据加载失败，请刷新'); } catch (_) {}
-    const cached = readAdminCache();
-    if (cached) { DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH; window.FETCH_ERR.hasCache = true; }
+    // 致命错误兜底：若开头没读到缓存（刚过期），再试一次兜底缓存，避免白屏
+    if (!cached) {
+      const c2 = readAdminCache();
+      if (c2) { DB = c2.DB; STATS = c2.STATS; DASH = c2.DASH; window.FETCH_ERR.hasCache = true; }
+    }
     try { renderAll(); } catch (_) {}
   }
-  // 不再调用 showLoading/hideLoading：去掉全屏遮罩，避免「白屏闪一下」丑态
 }
-// 运营后台数据缓存（登录后/刷新秒开；写操作后 loadData 会覆盖；TTL 短保证实时性）
+// 运营后台数据缓存（登录后/刷新秒开；写操作后 loadData 会覆盖；TTL 与模特页 me_cache 对齐）
 const ADMIN_CACHE_KEY = 'admin_cache';
-const ADMIN_CACHE_TTL = 120 * 1000;
+const ADMIN_CACHE_TTL = 300 * 1000; // 5 分钟：够长避免频繁冷启动白屏，够短保证数据新鲜
 function readAdminCache() {
   try {
     const raw = localStorage.getItem(ADMIN_CACHE_KEY);
