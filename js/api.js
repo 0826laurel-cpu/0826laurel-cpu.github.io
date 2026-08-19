@@ -97,23 +97,30 @@ function normDeal(r) {
   };
 }
 
-// 内部：单链路 fetch。baseUrl 任意指定，便于公开 directFetch 自动 fallback
-async function directFetchAt(baseUrl, path, init) {
-  const res = await fetch(`${baseUrl}${path}`, {
-    ...(init || {}),
-    headers: {
-      'apikey': window.SB_ANON,
-      'Authorization': `Bearer ${window.SB_ANON}`,
-      ...((init && init.headers) || {})
+// 内部：单链路 fetch，带 AbortController 超时（浏览器原生 fetch 无超时，挂起会卡死整页）
+async function directFetchAt(baseUrl, path, init, timeoutMs) {
+  const ac = new AbortController();
+  const t = setTimeout(() => { try { ac.abort(); } catch (_) {} }, timeoutMs || 10000);
+  try {
+    const res = await fetch(`${baseUrl}${path}`, {
+      ...(init || {}),
+      signal: ac.signal,
+      headers: {
+        'apikey': window.SB_ANON,
+        'Authorization': `Bearer ${window.SB_ANON}`,
+        ...((init && init.headers) || {})
+      }
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200) || res.statusText}`);
     }
-  });
-  if (!res.ok) {
-    const t = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${t.slice(0, 200) || res.statusText}`);
+    return await res.json();
+  } finally {
+    clearTimeout(t);
   }
-  return res.json();
 }
-// 链路顺序：直连优先，Worker 兜底；成功过的链路会被「钉住」，之后优先用它，避免每次白等 18s
+// 链路顺序：Worker 优先（国内手机/电脑最稳，v32–v35 实证），直连兜底；成功过的链路会被「钉住」
 const PATH_PIN_KEY = 'admin_path_pin';
 function orderedPaths() {
   const direct = window.SB_DIRECT || 'https://ecvsamlwjbxovqaziyww.supabase.co';
@@ -121,46 +128,90 @@ function orderedPaths() {
   let pinned = null;
   try { pinned = localStorage.getItem(PATH_PIN_KEY); } catch (_) {}
   const arr = [];
-  if (pinned === 'worker' && worker) {
-    arr.push({ url: worker, label: 'Worker' });
-    arr.push({ url: direct, label: 'Direct' });
-  } else if (pinned === 'direct') {
+  if (pinned === 'direct') {
     arr.push({ url: direct, label: 'Direct' });
     if (worker) arr.push({ url: worker, label: 'Worker' });
   } else {
-    // 默认：直连优先（国内手机/电脑都稳，模特页已验证），Worker 仅兜底
-    arr.push({ url: direct, label: 'Direct' });
+    // 默认 + pinned='worker'：Worker 优先，Direct 兜底（v32–v35 实证稳定）
     if (worker) arr.push({ url: worker, label: 'Worker' });
+    arr.push({ url: direct, label: 'Direct' });
   }
   return arr;
 }
 function pinPath(label) {
   try { localStorage.setItem(PATH_PIN_KEY, label === 'Worker' ? 'worker' : 'direct'); } catch (_) {}
 }
-// 公开：自动双链路 fallback —— 默认直连 Supabase 新加坡（国内手机/电脑都稳，还原 v32 之前手机可用的链路），
-// 失败/超时无缝切到 Worker 代理（仅作备用兜底，解决直连偶发慢时的自救）。
-// 异常信息带 [.via=Direct/.via=Worker] 后缀，便于错误横幅区分走的是哪条链路
+// 公开：并行竞速双链路 —— Worker 与直连同时发起，谁先成功用谁；每条带 10s AbortController 超时。
+// 解决「串行先等 Worker 卡 45s 才回退直连、再卡 45s」导致的整页几分钟转圈（手机蜂窝网挂起型失败）。
+// 成功链路 pinPath 钉住；异常信息带 [.via=AllFailed] 便于错误横幅诊断。
 async function directFetch(path, init, attemptTag) {
   attemptTag = attemptTag || '?';
-  const tries = orderedPaths();
-  let lastErr = null;
-  for (let i = 0; i < tries.length; i++) {
-    const it = tries[i];
-    try {
-      const v = await directFetchAt(it.url, path, init);
-      pinPath(it.label);
-      if (attemptTag === 'login' && i > 0) console.info('[fetch]', path, '走回退链路', it.label);
-      return v;
-    } catch (e) {
-      lastErr = e;
-      const msg = String(e && e.message || e);
-      console.warn('[fetch]', path, 'via', it.label, '失败：', msg.slice(0, 120));
-      // 网络/超时类错误继续下一条链路；4xx 不重试（业务错重试无意义）
-      const transient = /Failed to fetch|NetworkError|timeout|AbortError|TypeError.*fetch|503|502|504|ETIMEDOUT|ENETUNREACH|fetch failed/i.test(msg);
-      if (!transient) throw e;
-    }
-  }
-  throw new Error((lastErr && lastErr.message || 'all-fail') + ' [.via=AllFailed]');
+  const paths = orderedPaths();
+  return new Promise((resolve, reject) => {
+    let settled = 0;
+    const errs = [];
+    const ctrls = [];
+    paths.forEach((it, idx) => {
+      const ac = new AbortController(); ctrls.push(ac);
+      const timer = setTimeout(() => { try { ac.abort(); } catch (_) {} }, 10000);
+      directFetchAt(it.url, path, init, 10000)
+        .then(v => {
+          clearTimeout(timer);
+          ctrls.forEach(c => { try { c.abort(); } catch (_) {} }); // 取消其余链路，释放连接
+          pinPath(it.label);
+          if (attemptTag === 'login' && idx > 0) console.info('[fetch]', path, '走回退链路', it.label);
+          resolve(v);
+        })
+        .catch(e => {
+          clearTimeout(timer);
+          const m = String(e && e.message || e);
+          if (!/AbortError|aborted/i.test(m)) errs.push(it.label + ': ' + m.slice(0, 100));
+          settled++;
+          if (settled >= paths.length) {
+            reject(new Error((errs.length ? errs.join(' | ') : 'all-fail') + ' [.via=AllFailed]'));
+          }
+        });
+    });
+  });
+}
+
+// 登录 RPC 并行竞速：Worker/Direct 同时打，谁先回谁赢；15s 超时兜底
+async function loginRace(pwd) {
+  const paths = orderedPaths();
+  return new Promise((resolve, reject) => {
+    let settled = 0;
+    const errs = [];
+    const ctrls = [];
+    paths.forEach((it, idx) => {
+      const ac = new AbortController(); ctrls.push(ac);
+      const timer = setTimeout(() => { try { ac.abort(); } catch (_) {} }, 15000);
+      fetch(`${it.url}/rest/v1/rpc/admin_login`, {
+        method: 'POST',
+        signal: ac.signal,
+        headers: {
+          'apikey': window.SB_ANON,
+          'Authorization': `Bearer ${window.SB_ANON}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ p_pwd: pwd })
+      })
+        .then(async res => {
+          clearTimeout(timer);
+          if (!res.ok) { const txt = await res.text().catch(() => ''); throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200) || res.statusText}`); }
+          const r = await res.json();
+          if (!r || !r.ok) throw new Error((r && r.error) || '密码错误');
+          ctrls.forEach(c => { try { c.abort(); } catch (_) {} });
+          resolve({ ok: true, label: it.label, idx });
+        })
+        .catch(e => {
+          clearTimeout(timer);
+          const m = String(e && e.message || e);
+          if (!/AbortError|aborted/i.test(m)) errs.push(it.label + ': ' + m.slice(0, 100));
+          settled++;
+          if (settled >= paths.length) reject(new Error(errs.length ? errs.join(' | ') : '登录失败'));
+        });
+    });
+  });
 }
 
 async function sbSelect(table, transform) {

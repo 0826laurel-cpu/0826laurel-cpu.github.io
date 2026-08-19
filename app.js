@@ -215,31 +215,22 @@ function showLogin(show) { document.querySelector('.login').classList.toggle('hi
 async function doLogin(pwd) {
   const btn = document.getElementById('login-btn');
   if (btn) { btn.disabled = true; btn.textContent = '登录中…'; }
-  // v36：直连优先，Worker 兜底（orderedPaths 来自 api.js，会「钉住」成功链路，避免每次白等）
-  // 单次 18s 超时（RPC + 双跳要留足时间）；不内部重试，由双链路兜底即可
-  const tries = (typeof orderedPaths === 'function')
-    ? orderedPaths()
-    : [{ url: window.SB_URL, label: '直连' }];
-  let lastErr = null;
-  for (let i = 0; i < tries.length; i++) {
-    const it = tries[i];
-    try {
-      await withTimeout(Api.loginAt(it.url, pwd), 18000);
-      try { if (typeof pinPath === 'function') pinPath(it.label); } catch (_) {}
-      showLogin(false); init();
-      if (i > 0) toast('登录成功（' + it.label + '回退）');
-      console.info('[doLogin] 成功 via ' + it.label);
-      if (btn) { btn.disabled = false; btn.textContent = '登 录'; }
-      return;
-    } catch (e) {
-      lastErr = e;
-      console.warn('[doLogin]' + it.label + '失败：', e && (e.message || e));
-    }
+  // v37：登录 RPC 并行竞速（Worker/Direct 同时打，谁先回谁赢，15s 超时兜底）
+  // 取代旧的「串行先等 Worker 18s 再回退直连」，避免手机蜂窝网挂起时长时间无响应
+  try {
+    const r = await loginRace(pwd);
+    try { if (typeof pinPath === 'function') pinPath(r.label); } catch (_) {}
+    localStorage.setItem('p_admin', '1');
+    showLogin(false); init();
+    if (r.idx > 0) toast('登录成功（' + r.label + '回退）');
+    console.info('[doLogin] 成功 via ' + r.label);
+  } catch (e) {
+    const msg = String(e && e.message || e);
+    toast('登录失败：' + msg);
+    console.error('[doLogin] 全部链路失败：', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '登 录'; }
   }
-  const msg = String(lastErr && lastErr.message || lastErr || '');
-  toast('登录失败：' + msg);
-  console.error('[doLogin] 全部链路失败：', lastErr);
-  if (btn) { btn.disabled = false; btn.textContent = '登 录'; }
 }
 function logout() { Api.logout(); showLogin(true); ['ov-detail', 'ov-add', 'ov-gift'].forEach(id => document.getElementById(id).classList.remove('show')); }
 
@@ -364,11 +355,8 @@ async function loadData() {
   if (cached) { DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH; renderAll(); }
 
   // ② 远端拉新：跨境到 supabase.co（新加坡）抖动大，给充足超时 + 重试预算；最坏走缓存兜底
-  const isColdStart = !cached;
-  const retries = isColdStart ? 1 : 3;
-  const timeoutMs = isColdStart ? 45000 : 25000;
-  // 串行拉取：避免 supabase-js 并发复用连接时的内部竞争（偶发 25s 卡死的根因）。
-  // 顺序收集结果，保持与解构顺序一致；任一失败照常进入 failed 分支走缓存兜底。
+  // 并行拉取：5 张表同时打，每条内部走 directFetch 的「Worker/Direct 并行竞速 + 10s 超时」，
+  // 最坏 ~10–20s 全部返回（取代旧的串行累积，避免整页几分钟转圈）。失败时各自进入 rejected 分支走缓存兜底。
   const tasks = [
     () => Api.listPartners(),
     () => Api.listGifts(),
@@ -376,13 +364,7 @@ async function loadData() {
     () => Api.listInteractions(),
     () => Api.listDeals()
   ];
-  const results = [];
-  for (const t of tasks) {
-    results.push(
-      await retryRpc(t, retries, timeoutMs)
-        .then(v => ({ status: 'fulfilled', value: v }), e => ({ status: 'rejected', reason: e }))
-    );
-  }
+  const results = await Promise.allSettled(tasks.map(t => t()));
 
   const failed = results.filter(r => r.status === 'rejected');
   // 先清零：成功路径保持 null；只有失败才覆盖
