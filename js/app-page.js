@@ -210,9 +210,10 @@
   }
   async function loadPayoutQr() {
     try {
-      const qr = await window.sb.rpc('get_my_partner_payout_qr', { p_token: TOKEN });
-      if (qr && qr.data && qr.data.ok) { PAYOUT_QR_URL = qr.data.payout_qr_url || null; render(); }
-    } catch (e) {}
+      // v38：改用 Api.rpcRace 双链路 fallback（避免 sb.rpc 在浏览器对 Worker 域 CORS 兼容问题）
+      const r = await Api.rpcRace('get_my_partner_payout_qr', { p_token: TOKEN });
+      if (r && r.ok) { PAYOUT_QR_URL = r.payout_qr_url || null; render(); }
+    } catch (e) { console.warn('[loadPayoutQr]', e && (e.message || e)); }
   }
 
   async function load() {
@@ -230,18 +231,18 @@
         render();
       }
       // ② 主数据并行拉取：get_my_partner + my_shipments 同时发，省掉一次往返
-      const [pdRes, sdRes] = await Promise.all([
-        window.sb.rpc('get_my_partner', { p_token: TOKEN }),
-        window.sb.rpc('my_shipments', { p_token: TOKEN })
+      // v38：改用 Api.rpcRace 双链路 fallback（电脑端 sb.rpc 走 Worker 域失败 → 切直连）
+      const [pd, sd] = await Promise.all([
+        Api.rpcRace('get_my_partner', { p_token: TOKEN }),
+        Api.rpcRace('my_shipments', { p_token: TOKEN })
       ]);
-      const pd = pdRes.data, e1 = pdRes.error;
-      if (e1 || !pd || !pd.ok) {
-        if (!cached) showErr('链接无效', '找不到对应的伙伴记录。可能链接已失效，请联系福利派送官重新发送你的专属链接。' + (e1 ? ' (' + esc(e1.message || e1) + ')' : ''));
+      // pd 形如 {ok:true, partner:{...}, token} / sd 形如 {ok:true, shipments:[...]}（或抛错）
+      if (!pd || !pd.ok || !pd.partner) {
+        showErr('链接无效', '找不到对应的伙伴记录。可能链接已失效，请联系福利派送官重新发送你的专属链接。' + (pd && pd.error ? ' (' + esc(pd.error) + ')' : ''));
         return;
       }
-      const sd = sdRes.data, e2 = sdRes.error;
-      if (e2) {
-        if (!cached) showErr('加载失败', '物流信息加载失败，请稍后刷新重试。' + (e2.message ? ' (' + esc(e2.message) + ')' : ''));
+      if (!sd || !sd.ok) {
+        showErr('加载失败', '物流信息加载失败，请稍后刷新重试。' + (sd && sd.error ? ' (' + esc(sd.error) + ')' : ''));
         return;
       }
       PARTNER = pd.partner; SHIPS = ((sd && sd.shipments) || []).map(normShip);
@@ -578,8 +579,8 @@
       postal: document.getElementById('a-postal').value.trim()
     };
     try {
-      const { data, error } = await window.sb.rpc('update_my_partner_addr', { p_token: TOKEN, p_address: address });
-      if (error) throw new Error(error.message);
+      // v38：改用 Api.rpcRace 双链路 fallback
+      const data = await Api.rpcRace('update_my_partner_addr', { p_token: TOKEN, p_address: address });
       if (data && data.ok) { alert('地址已保存 ✅'); load(); }
       else alert('保存失败，请重试');
     } catch (e) { alert(e.message || '网络异常，请稍后重试'); }
@@ -647,11 +648,11 @@
     payoutQrMsg('上传中…');
     console.log('[payout-qr] sending RPC', { p_token_len: (TOKEN || '').length, dataUrl_len: (dataUrl || '').length, dataUrl_prefix: (dataUrl || '').slice(0, 30) });
     try {
-      const { data, error } = await window.sb.rpc('update_my_partner_payout_qr', {
+      // v38：改用 Api.rpcRace 双链路 fallback
+      const data = await Api.rpcRace('update_my_partner_payout_qr', {
         p_token: TOKEN, p_payout_qr_url: dataUrl
       });
-      console.log('[payout-qr] RPC result', { data, error });
-      if (error) throw new Error(JSON.stringify({ message: error.message, code: error.code, hint: error.hint, details: error.details }));
+      console.log('[payout-qr] RPC result', { data });
       if (!data || !data.ok) throw new Error(JSON.stringify(data) || '保存失败');
       PAYOUT_QR_URL = dataUrl;
       payoutQrMsg('已上传 ✅');
@@ -668,10 +669,10 @@
     if (!confirm('确定删除收款码？后续打款会受阻。')) return;
     payoutQrMsg('删除中…');
     try {
-      const { data, error } = await window.sb.rpc('update_my_partner_payout_qr', {
+      // v38：改用 Api.rpcRace 双链路 fallback
+      const data = await Api.rpcRace('update_my_partner_payout_qr', {
         p_token: TOKEN, p_payout_qr_url: null
       });
-      if (error) throw new Error(error.message);
       if (!data || !data.ok) throw new Error((data && data.error) || '删除失败');
       PAYOUT_QR_URL = null;
       payoutQrMsg('已删除');

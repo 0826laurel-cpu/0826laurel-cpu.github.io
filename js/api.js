@@ -466,6 +466,23 @@ const Api = {
     const { data, error } = await sb.rpc('public_leaderboard', { p_limit: limit || 10 });
     if (error) throw new Error(error.message);
     return data || [];
+  },
+
+  // 通用 RPC 双链路 fallback（v38）：替换 sb.rpc(...) 用于模特端 me.html
+  // 解决 Supabase JS SDK 在浏览器里对 Worker 域名的 CORS preflight 兼容问题
+  // （电脑端 sb.rpc → 'TypeError: Failed to fetch'，但裸 fetch 经 Worker + 直连双链路都能通）
+  async rpcRace(fnName, params) {
+    const r = await directFetch('/rest/v1/rpc/' + fnName, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params || {})
+    }, 'rpc-' + fnName);
+    // 兼容两种返回：{ ok:true, partner } / { ok:false, error } / 直接数组
+    if (r && typeof r === 'object' && 'ok' in r) {
+      if (r.ok) return r; // 成功：返回完整对象（含 partner/shipments/payout_qr_url 等）
+      throw new Error(r.error || ('RPC ' + fnName + ' failed'));
+    }
+    return r; // 直接返回（如数组）
   }
 };
 
