@@ -225,8 +225,8 @@ async function doLogin(pwd) {
     if (r.idx > 0) toast('登录成功（' + r.label + '回退）');
     console.info('[doLogin] 成功 via ' + r.label);
   } catch (e) {
-    const msg = String(e && e.message || e);
-    toast('登录失败：' + msg);
+    // v41：友好错误替代「登录失败：TypeError: Failed to fetch」技术裸露
+    toast(friendlyError(e, '登录失败'), { err: true });
     console.error('[doLogin] 全部链路失败：', e);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '登 录'; }
@@ -880,7 +880,7 @@ async function doRebateLogin() {
     REBATE_TAB = 'form';
     toast('验证成功');
     renderRebate();
-  } catch (e) { toast('验证失败：' + e.message, { err: true }); }
+  } catch (e) { toast(friendlyError(e, '返款后台验证失败'), { err: true }); }
 }
 
 async function saveRebate() {
