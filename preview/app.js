@@ -309,8 +309,15 @@ async function init() {
   }
   try { renderAll(); } catch (_) {}
   try {
-    // 预热：fire-and-forget 一个轻量查询让 DNS/TLS 早建立
-    try { fetch(`${window.SB_URL}/rest/v1/partners?select=id&limit=1`, { headers: { 'apikey': window.SB_ANON, 'Authorization': `Bearer ${window.SB_ANON}` } }); } catch (_) {}
+    // 预热：fire-and-forget 一个轻量查询让 DNS/TLS 早建立（v42：加 8s 超时，避免挂起连接长期占用）
+    try {
+      const ac = new AbortController();
+      const pt = setTimeout(() => ac.abort(), 8000);
+      fetch(`${window.SB_URL}/rest/v1/partners?select=id&limit=1`, {
+        headers: { 'apikey': window.SB_ANON, 'Authorization': `Bearer ${window.SB_ANON}` },
+        signal: ac.signal
+      }).catch(() => {}).finally(() => clearTimeout(pt));
+    } catch (_) {}
     await loadData();
     // loadData 内部成功会 renderAll + writeAdminCache；失败分支也会 renderAll（错误横幅）
   } catch (e) {
