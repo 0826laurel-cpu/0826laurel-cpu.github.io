@@ -311,33 +311,47 @@ const Api = {
     return await sbSelect('partners', normPartner);
   },
   async createPartner(b) {
-    const { error } = await sb.from('partners').insert({
-      name: b.name, wechat: b.wechat || '', phone: b.phone || '',
-      tier: b.tier || 'normal', status: b.status || 'contacted',
-      note: b.note || '', tags: b.tags || [], source: 'manual'
+    // v45-fix：改走 directFetchWrite（避免 sb.from insert SDK 直连 Failed to fetch）
+    await directFetchWrite('/rest/v1/partners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        name: b.name, wechat: b.wechat || '', phone: b.phone || '',
+        tier: b.tier || 'normal', status: b.status || 'contacted',
+        note: b.note || '', tags: b.tags || [], source: 'manual'
+      })
     });
-    if (error) throw new Error(error.message);
   },
   async updatePartner(id, b) {
-    const { error } = await sb.from('partners').update({
-      name: b.name, wechat: b.wechat || '', phone: b.phone || '',
-      tier: b.tier || 'normal', status: b.status || 'contacted',
-      tags: b.tags || [], note: b.note || ''
-    }).eq('id', id);
-    if (error) throw new Error(error.message);
+    // v45-fix：同上
+    await directFetchWrite('/rest/v1/partners?id=eq.' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        name: b.name, wechat: b.wechat || '', phone: b.phone || '',
+        tier: b.tier || 'normal', status: b.status || 'contacted',
+        tags: b.tags || [], note: b.note || ''
+      })
+    });
   },
   async deletePartner(id) {
-    const { error } = await sb.from('partners').delete().eq('id', id);
-    if (error) throw new Error(error.message);
+    // v45-fix：同上
+    await directFetchWrite('/rest/v1/partners?id=eq.' + encodeURIComponent(id), {
+      method: 'DELETE'
+    });
   },
 
   // ---- 礼品 ----
   async listGifts() { return sbSelect('gifts', normGift); },
   async createGift(b) {
-    const { error } = await sb.from('gifts').insert({
-      partner_id: b.partnerId, gift_name: b.giftName, price: b.price || 0, note: b.note || '', at: Date.now()
+    // v45-fix：改走 directFetchWrite（避免 sb.from insert SDK 直连 Failed to fetch）
+    await directFetchWrite('/rest/v1/gifts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        partner_id: b.partnerId, gift_name: b.giftName, price: b.price || 0, note: b.note || '', at: Date.now()
+      })
     });
-    if (error) throw new Error(error.message);
   },
 
   // ---- 发货 / 物流 ----
@@ -408,12 +422,21 @@ const Api = {
   // ---- 互动 ----
   async listInteractions() { return sbSelect('interactions', normInteraction); },
   async createInteraction(b) {
-    const { error } = await sb.from('interactions').insert({
-      partner_id: b.partnerId, type: b.type || 'note', text: b.text, status: b.status || '', at: Date.now()
+    // v45-fix：改走 directFetchWrite（避免 sb.from insert SDK 直连 Failed to fetch）
+    // 先写 interactions，再按需更新 partners.status（两步顺序执行，不 race）
+    await directFetchWrite('/rest/v1/interactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        partner_id: b.partnerId, type: b.type || 'note', text: b.text, status: b.status || '', at: Date.now()
+      })
     });
-    if (error) throw new Error(error.message);
     if (b.status) {
-      await sb.from('partners').update({ status: b.status }).eq('id', b.partnerId);
+      await directFetchWrite('/rest/v1/partners?id=eq.' + encodeURIComponent(b.partnerId), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ status: b.status })
+      });
     }
   },
 
@@ -428,9 +451,13 @@ const Api = {
     }); // {ok:true, shipment:{...}} | {ok:false, message}
   },
   async saveShipLogs(id, logs) {
+    // v45-fix：改走 directFetchWrite（避免 sb.from update SDK 直连 Failed to fetch；与发货同表同坑）
     const status = (Array.isArray(logs) && logs.some(l => l.desc && /签收/.test(l.desc))) ? 'signed' : 'transit';
-    const { error } = await sb.from('shipments').update({ logs, status }).eq('id', id);
-    if (error) throw new Error(error.message);
+    await directFetchWrite('/rest/v1/shipments?id=eq.' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ logs, status })
+    });
   },
 
   // ---- 羊毛情报 / 补贴好物 ----
@@ -443,26 +470,47 @@ const Api = {
     return (data || []).map(normDeal);
   },
   async createDeal(b) {
-    const { error } = await sb.from('deals').insert(dealRow(b));
-    if (error) throw new Error(error.message);
+    // v45-fix：改走 directFetchWrite（避免 sb.from insert SDK 直连 Failed to fetch）
+    await directFetchWrite('/rest/v1/deals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(dealRow(b))
+    });
   },
   async updateDeal(id, b) {
-    const { error } = await sb.from('deals').update(dealRow(b)).eq('id', id);
-    if (error) throw new Error(error.message);
+    // v45-fix：同上
+    await directFetchWrite('/rest/v1/deals?id=eq.' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(dealRow(b))
+    });
   },
   async deleteDeal(id) {
-    const { error } = await sb.from('deals').delete().eq('id', id);
-    if (error) throw new Error(error.message);
+    // v45-fix：同上
+    await directFetchWrite('/rest/v1/deals?id=eq.' + encodeURIComponent(id), {
+      method: 'DELETE'
+    });
   },
   async publishDeal(id, published) {
-    const { error } = await sb.from('deals').update({ status: published ? 'published' : 'draft', published_at: published ? new Date().toISOString() : null }).eq('id', id);
-    if (error) throw new Error(error.message);
+    // v45-fix：同上
+    await directFetchWrite('/rest/v1/deals?id=eq.' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ status: published ? 'published' : 'draft', published_at: published ? new Date().toISOString() : null })
+    });
   },
   // 调用 Supabase Edge Function（签名代理）拉取/转链多多进宝商品
   async fetchPdd(payload) {
-    const { data, error } = await sb.functions.invoke('fetch-pdd', { body: payload });
-    if (error) throw new Error(error.message || '函数调用失败');
-    return data;
+    // v45-fix：sb.functions.invoke 走 SDK 直连 → Failed to fetch 隐患；改裸 fetch 到 Edge Function 端点
+    // （Worker 代理为 dumb pipe，/functions/v1/* 同样转发）。directFetchAt 会自动带 apikey + Authorization。
+    const r = await directFetchWrite('/functions/v1/fetch-pdd', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    // 兼容 Edge Function 返回 {data, error} 结构（与原 sb.functions.invoke 语义一致）
+    if (r && r.error) throw new Error((r.error && r.error.message) || (typeof r.error === 'string' ? r.error : '函数调用失败'));
+    return (r && r.data !== undefined) ? r.data : r;
   },
 
   // ---- 返款管理（rebate）----
