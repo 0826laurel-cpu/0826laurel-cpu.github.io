@@ -272,7 +272,8 @@
       detail: document.getElementById('a-detail').value.trim()
     };
     try {
-      const { data, error } = await sb.rpc('register_member', {
+      // v42：sb.rpc 走 Worker 域在电脑端撞 CORS → Failed to fetch；改用 Api.rpcRace 双链路竞速
+      const data = await Api.rpcRace('register_member', {
         p_platform: platform,
         p_model_id: modelId,
         p_password: pwd,
@@ -281,19 +282,13 @@
         p_address: address,
         p_invited_by: REF
       });
-      if (error) throw new Error(error.message);
-      if (!data || !data.ok) {
-        if (data && data.error === 'EXISTS') {
-          showToast('该模特ID已注册，已为你切到登录');
-          setMode('login');
-          return;
-        }
-        throw new Error('注册失败，请稍后重试');
-      }
+      // rpcRace 已对 data.ok===false 抛错；此处 data.ok 必为 true
       localStorage.setItem(LS_KEY, data.token);
       window.location.replace((window.APP_ORIGIN || location.origin) + '/me.html?t=' + data.token);
     } catch (e) {
-      showToast(e.message || '网络异常，请稍后重试');
+      const msg = String(e && e.message || e);
+      if (msg === 'EXISTS') { showToast('该模特ID已注册，已为你切到登录'); setMode('login'); return; }
+      showToast(friendlyError(e, '注册失败'));
       btn.disabled = false; btn.textContent = '注册进入后台';
     }
   }
@@ -308,20 +303,18 @@
     const btn = document.getElementById('l-submit');
     btn.disabled = true; btn.textContent = '登录中…';
     try {
-      const { data, error } = await sb.rpc('login_member', {
+      // v42：sb.rpc 走 Worker 域在电脑端撞 CORS → Failed to fetch；改用 Api.rpcRace 双链路竞速
+      const data = await Api.rpcRace('login_member', {
         p_platform: platform,
         p_model_id: modelId,
         p_password: pwd
       });
-      if (error) throw new Error(error.message);
-      if (!data || !data.ok) {
-        if (data && data.error === 'NO_MATCH') { showToast('平台 / 模特ID 或密码不正确'); btn.disabled = false; btn.textContent = '登录 🎁'; return; }
-        throw new Error('登录失败，请稍后重试');
-      }
       localStorage.setItem(LS_KEY, data.token);
       window.location.replace((window.APP_ORIGIN || location.origin) + '/me.html?t=' + data.token);
     } catch (e) {
-      showToast(e.message || '网络异常，请稍后重试');
+      const msg = String(e && e.message || e);
+      if (msg === 'NO_MATCH') { showToast('平台 / 模特ID 或密码不正确'); btn.disabled = false; btn.textContent = '登录 🎁'; return; }
+      showToast(friendlyError(e, '登录失败'));
       btn.disabled = false; btn.textContent = '登录 🎁';
     }
   }
