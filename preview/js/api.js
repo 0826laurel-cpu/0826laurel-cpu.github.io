@@ -202,6 +202,27 @@ async function directFetch(path, init, attemptTag) {
   });
 }
 
+// 写路径串行兜底：Worker → Direct，每条 10s AbortController 超时。
+// v45：写路径与读路径 (directFetch 并行竞速) 互补——写不能 race，否则双链路可能双写。
+// 触发原因：sb.from(...).insert/update/delete 与 sb.rpc(...) 在用户手机偶发
+//   "TypeError: Failed to fetch"（Worker 域名偶尔不可达、SDK 无超时兜底）。
+// 串行兜底先用 Worker（国内手机最稳），失败/超时再走直连；最坏 20s 兜底不挂死整页。
+async function directFetchWrite(path, init) {
+  const paths = orderedPaths();
+  const errs = [];
+  for (const it of paths) {
+    try {
+      const r = await directFetchAt(it.url, path, init, 10000);
+      pinPath(it.label);
+      return r;
+    } catch (e) {
+      const m = String(e && e.message || e);
+      if (!/AbortError|aborted/i.test(m)) errs.push(it.label + ': ' + m.slice(0, 100));
+    }
+  }
+  throw new Error((errs.length ? errs.join(' | ') : 'all-fail') + ' [.via=AllFailed]');
+}
+
 // 登录 RPC 并行竞速：Worker/Direct 同时打，谁先回谁赢；15s 超时兜底
 async function loginRace(pwd) {
   const paths = orderedPaths();
@@ -313,38 +334,50 @@ const Api = {
   // ---- 发货 / 物流 ----
   async listShipments() { return sbSelect('shipments', normShipment); },
   async createShipment(b) {
+    // v45：改走 directFetchWrite（Worker → Direct 串行兜底），避免 sb.from(...).insert()
+    //   在用户手机偶发 "TypeError: Failed to fetch"（SDK 无超时，Worker 域名抖动整页卡死）。
     // 兜底：填了快递单号就一定是"已揽收"状态（承运商已分配运单），不能继续显示"待发货"
     let status = b.status || 'pending';
     if (b.trackingNo && (status === 'pending' || !status)) status = 'collected';
     const logs = b.note ? [{ status, desc: b.note, time: Date.now() }] : [];
-    const { error } = await sb.from('shipments').insert({
-      partner_id: b.partnerId, gift_name: b.giftName, carrier: b.carrier || '',
-      tracking_no: b.trackingNo || '', phone: b.phone || '', status, logs,
-      product_link: b.productLink || '', product_title: b.productTitle || '',
-      value: Number(b.value) || 0
+    await directFetchWrite('/rest/v1/shipments', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        partner_id: b.partnerId, gift_name: b.giftName, carrier: b.carrier || '',
+        tracking_no: b.trackingNo || '', phone: b.phone || '', status, logs,
+        product_link: b.productLink || '', product_title: b.productTitle || '',
+        value: Number(b.value) || 0
+      })
     });
-    if (error) throw new Error(error.message);
   },
   async addShipLog(id, b) {
-    const { data: cur, error: e1 } = await sb.from('shipments').select('logs').eq('id', id).single();
-    if (e1) throw new Error(e1.message);
-    const logs = Array.isArray(cur.logs) ? cur.logs : [];
+    // v45：改走 directFetchWrite（同 createShipment 原因，避免 SDK 写路径 Failed to fetch）
+    const curRows = await directFetchWrite('/rest/v1/shipments?select=logs,tracking_no&id=eq.' + encodeURIComponent(id));
+    const row = Array.isArray(curRows) ? curRows[0] : null;
+    if (!row) throw new Error('发货记录不存在');
+    const logs = Array.isArray(row.logs) ? row.logs : [];
     logs.unshift({ status: b.status, desc: b.desc || '', time: Date.now() });
     const upd = { status: b.status, logs };
     if (b.trackingNo) upd.tracking_no = b.trackingNo;
-    else if (b.status !== 'pending') {
-      // 兜底：从接口/补单切换状态时如果没带 trackingNo，沿用现单号（保持状态一致）
-      const { data: cur2 } = await sb.from('shipments').select('tracking_no').eq('id', id).single();
-      if (cur2 && cur2.tracking_no) upd.tracking_no = cur2.tracking_no;
-    }
+    else if (b.status !== 'pending' && row.tracking_no) upd.tracking_no = row.tracking_no;
     if (typeof b.value === 'number' && b.value > 0) upd.value = b.value;
-    const { data, error } = await sb.from('shipments').update(upd).eq('id', id).select().single();
-    if (error) throw new Error(error.message);
+    const updRows = await directFetchWrite('/rest/v1/shipments?id=eq.' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body: JSON.stringify(upd)
+    });
+    const data = Array.isArray(updRows) ? updRows[0] : updRows;
     return normShipment(data);
   },
   async deleteShipment(id) {
-    const { error } = await sb.from('shipments').delete().eq('id', id);
-    if (error) throw new Error(error.message);
+    // v45：改走 directFetchWrite（同上）
+    await directFetchWrite('/rest/v1/shipments?id=eq.' + encodeURIComponent(id), {
+      method: 'DELETE'
+    });
   },
 
   // ---- 送礼墙 / 站内通知（anon 可调用 SECURITY DEFINER RPC）----
