@@ -1,6 +1,33 @@
 // api.js — 数据层（直连 Supabase，替代原 Node 后端 /api）
 // 依赖：vendor/supabase.js（全局 supabase）、js/sb.js（全局 sb）、config.js
 
+// v41 友好错误：把 TypeError/NetworkError/timeout 等技术错误转成中文+可行动引导
+// 任何 catch 块统一用 friendlyError(e, ctx) 替代 '失败：' + e.message，避免给用户看原始堆栈
+function friendlyError(e, ctx) {
+  const msg = String((e && e.message) || e || '');
+  if (/Failed to fetch|fetch failed|NetworkError|TypeError.*fetch/i.test(msg)) {
+    return '网络连接失败，请检查网络后重试';
+  }
+  if (/timeout|AbortError|ETIMEDOUT|ENETUNREACH/i.test(msg)) {
+    return '请求超时，请稍后重试';
+  }
+  if (/AllFailed|\[.via=AllFailed\]/i.test(msg)) {
+    return '服务器连接不稳定，请稍后重试';
+  }
+  if (/401|403|JWT|invalid.*key|apikey/i.test(msg)) {
+    return '认证失败，请重新登录';
+  }
+  if (/duplicate|unique|already exists|23505/i.test(msg)) {
+    return '记录已存在，无需重复添加';
+  }
+  if (/not found|404/i.test(msg) && !/partners|shipments|gifts|interactions|deals/i.test(msg)) {
+    return '未找到对应数据';
+  }
+  // 默认：业务前缀 + 通用引导（不再裸露 TypeError/NetworkError 等英文技术名词）
+  return (ctx ? ctx + '：' : '操作失败，') + '请稍后重试';
+}
+window.friendlyError = friendlyError;
+
 function toMs(v) {
   if (!v) return 0;
   if (typeof v === 'number') return v;
@@ -322,17 +349,18 @@ const Api = {
 
   // ---- 送礼墙 / 站内通知（anon 可调用 SECURITY DEFINER RPC）----
   async shipFeed(limit) {
-    const { data, error } = await sb.rpc('ship_feed', { p_limit: limit || 20 });
-    if (error) throw new Error(error.message);
-    return (data && data.feed) || [];
+    // v41：换 Api.rpcRace 双链路 fallback（避免浏览器内 sb.rpc 在 Worker 域偶发 Failed to fetch）
+    const r = await this.rpcRace('ship_feed', { p_limit: limit || 20 });
+    return (r && r.feed) || [];
   },
   async shipStats() {
-    const { data, error } = await sb.rpc('ship_stats');
-    if (error) throw new Error(error.message);
-    return (data && data.stats) || { total_sent: 0, total_receivers: 0, total_signed: 0 };
+    // v41：换 Api.rpcRace 双链路 fallback
+    const r = await this.rpcRace('ship_stats');
+    return (r && r.stats) || { total_sent: 0, total_receivers: 0, total_signed: 0 };
   },
   async touchSeen(token) {
-    try { await sb.rpc('touch_partner_seen', { p_token: token }); } catch (e) { /* 失败不影响主流程 */ }
+    // v41：换 Api.rpcRace 双链路 fallback，失败仍静默（不影响主流程）
+    try { await this.rpcRace('touch_partner_seen', { p_token: token }); } catch (_) { /* 静默 */ }
   },
 
   // ---- 互动 ----
@@ -350,13 +378,12 @@ const Api = {
   // ---- 快递100 实时查询（Postgres RPC: kd100_track；否则抛 NO_KD100）----
   async trackShipment(shipment, phone) {
     if (!window.KD100_FN) throw new Error('NO_KD100');
-    const { data, error } = await sb.rpc('kd100_track', {
+    // v41：换 Api.rpcRace 双链路 fallback
+    return await this.rpcRace('kd100_track', {
       p_tracking: shipment.trackingNo,
       p_carrier: shipment.carrier,
       p_phone: phone || shipment.phone || ''
-    });
-    if (error) throw new Error(error.message);
-    return data; // {ok:true, shipment:{trackingNo, carrier, logs}} | {ok:false, message}
+    }); // {ok:true, shipment:{...}} | {ok:false, message}
   },
   async saveShipLogs(id, logs) {
     const status = (Array.isArray(logs) && logs.some(l => l.desc && /签收/.test(l.desc))) ? 'signed' : 'transit';
@@ -398,21 +425,21 @@ const Api = {
 
   // ---- 返款管理（rebate）----
   async checkRebateAdmin(pw) {
-    const { data, error } = await sb.rpc('admin_check_pw', { p_admin_pw: pw });
-    if (error) throw new Error(error.message);
-    return data === true;
+    // v41：换 Api.rpcRace 双链路 fallback（修电脑浏览器 sb.rpc 走 Worker 域 CORS Failed to fetch → 显示「验证失败：TypeError」）
+    return await this.rpcRace('admin_check_pw', { p_admin_pw: pw });
   },
   async listRebatesPending(pw) {
-    const { data, error } = await sb.rpc('admin_pending_list', { p_admin_pw: pw });
-    if (error) throw new Error(error.message);
-    return data || [];
+    // v41：换 Api.rpcRace 双链路 fallback
+    const r = await this.rpcRace('admin_pending_list', { p_admin_pw: pw });
+    return r || [];
   },
   async listRebatesPaid(pw) {
-    const { data, error } = await sb.rpc('admin_paid_list', { p_admin_pw: pw });
-    if (error) throw new Error(error.message);
-    return data || [];
+    // v41：换 Api.rpcRace 双链路 fallback
+    const r = await this.rpcRace('admin_paid_list', { p_admin_pw: pw });
+    return r || [];
   },
   async addRebate(pw, b) {
+    // 写 RPC：保留 sb.rpc（v27 决策：写路径 SDK 错误处理更友好，避免双链路 retry 重复添加）
     const { data, error } = await sb.rpc('admin_add_rebate', {
       p_admin_pw: pw,
       p_model_code: b.modelCode || '',
@@ -426,7 +453,7 @@ const Api = {
       p_status: b.status || '已返',
       p_voucher_url: b.voucherUrl || null
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(friendlyError(error, '添加返款失败'));
     return data;
   },
   async getRebatesByCode(code) {
@@ -451,19 +478,18 @@ const Api = {
   },
   // 返款公示页数据
   async rebatePublicStats() {
-    const { data, error } = await sb.rpc('public_stats');
-    if (error) throw new Error(error.message);
-    return data;
+    // v41：换 Api.rpcRace 双链路 fallback
+    return await this.rpcRace('public_stats');
   },
   async rebatePublicFeed(limit) {
-    const { data, error } = await sb.rpc('public_feed', { p_limit: limit || 30 });
-    if (error) throw new Error(error.message);
-    return data || [];
+    // v41：换 Api.rpcRace 双链路 fallback
+    const r = await this.rpcRace('public_feed', { p_limit: limit || 30 });
+    return r || [];
   },
   async rebatePublicLeaderboard(limit) {
-    const { data, error } = await sb.rpc('public_leaderboard', { p_limit: limit || 10 });
-    if (error) throw new Error(error.message);
-    return data || [];
+    // v41：换 Api.rpcRace 双链路 fallback
+    const r = await this.rpcRace('public_leaderboard', { p_limit: limit || 10 });
+    return r || [];
   },
 
   // 通用 RPC 双链路 fallback（v38）：替换 sb.rpc(...) 用于模特端 me.html

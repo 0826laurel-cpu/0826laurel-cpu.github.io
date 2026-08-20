@@ -215,14 +215,19 @@ function showLogin(show) { document.querySelector('.login').classList.toggle('hi
 async function doLogin(pwd) {
   const btn = document.getElementById('login-btn');
   if (btn) { btn.disabled = true; btn.textContent = '登录中…'; }
+  // v37：登录 RPC 并行竞速（Worker/Direct 同时打，谁先回谁赢，15s 超时兜底）
+  // 取代旧的「串行先等 Worker 18s 再回退直连」，避免手机蜂窝网挂起时长时间无响应
   try {
-    // 登录 RPC 加 retryRpc + 8s 单次超时，避免 SDK 直连 / SDK → Worker 都偶发卡死时看起来「没反应」
-    await retryRpc(() => Api.login(pwd), 1, 8000);
+    const r = await loginRace(pwd);
+    try { if (typeof pinPath === 'function') pinPath(r.label); } catch (_) {}
+    localStorage.setItem('p_admin', '1');
     showLogin(false); init();
+    if (r.idx > 0) toast('登录成功（' + r.label + '回退）');
+    console.info('[doLogin] 成功 via ' + r.label);
   } catch (e) {
-    const msg = String(e && e.message || e);
-    toast('登录失败：' + msg);
-    console.error('[doLogin]', e);
+    // v41：友好错误替代「登录失败：TypeError: Failed to fetch」技术裸露
+    toast(friendlyError(e, '登录失败'), { err: true });
+    console.error('[doLogin] 全部链路失败：', e);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '登 录'; }
   }
@@ -289,6 +294,9 @@ function hideLoading() {
   if (el) el.style.display = 'none';
 }
 async function init() {
+  // v35：进入即置 loading（让用户看见，不会误以为「数据已经加载完但没数据」）
+  window.LOADING = true;
+  try { renderAll(); } catch (_) {}
   // B: 缓存优先渲染——先秒显上次数据（仿模特页 me_cache 瞬时缓存），再静默刷新。
   // 命中缓存：用户立即看到真实数据，不再白屏/卡登录；未命中：骨架态兜底。
   const cached = readAdminCache();
@@ -321,6 +329,9 @@ async function init() {
     }
     try { renderAll(); } catch (_) {}
   }
+  // v35：无论成功失败都关闭 loading
+  window.LOADING = false;
+  try { renderAll(); } catch (_) {}
 }
 // 运营后台数据缓存（登录后/刷新秒开；写操作后 loadData 会覆盖；TTL 与模特页 me_cache 对齐）
 const ADMIN_CACHE_KEY = 'admin_cache';
@@ -344,11 +355,8 @@ async function loadData() {
   if (cached) { DB = cached.DB; STATS = cached.STATS; DASH = cached.DASH; renderAll(); }
 
   // ② 远端拉新：跨境到 supabase.co（新加坡）抖动大，给充足超时 + 重试预算；最坏走缓存兜底
-  const isColdStart = !cached;
-  const retries = isColdStart ? 1 : 3;
-  const timeoutMs = isColdStart ? 45000 : 25000;
-  // 串行拉取：避免 supabase-js 并发复用连接时的内部竞争（偶发 25s 卡死的根因）。
-  // 顺序收集结果，保持与解构顺序一致；任一失败照常进入 failed 分支走缓存兜底。
+  // 并行拉取：5 张表同时打，每条内部走 directFetch 的「Worker/Direct 并行竞速 + 10s 超时」，
+  // 最坏 ~10–20s 全部返回（取代旧的串行累积，避免整页几分钟转圈）。失败时各自进入 rejected 分支走缓存兜底。
   const tasks = [
     () => Api.listPartners(),
     () => Api.listGifts(),
@@ -356,13 +364,7 @@ async function loadData() {
     () => Api.listInteractions(),
     () => Api.listDeals()
   ];
-  const results = [];
-  for (const t of tasks) {
-    results.push(
-      await retryRpc(t, retries, timeoutMs)
-        .then(v => ({ status: 'fulfilled', value: v }), e => ({ status: 'rejected', reason: e }))
-    );
-  }
+  const results = await Promise.allSettled(tasks.map(t => t()));
 
   const failed = results.filter(r => r.status === 'rejected');
   // 先清零：成功路径保持 null；只有失败才覆盖
@@ -504,6 +506,18 @@ function renderHome() {
   const d = DASH || {};
   // 失败横幅：把"无声失败"变成"有声错误"——直接显示 Supabase 真实报错 + 重试入口
   const err = window.FETCH_ERR;
+  // v35：加载中条——避免用户看到空 0 数据误以为"已经加载完没数据"。
+  // LOADING 状态由 init() 进入和 loadData() 飞行的全程置位；成功/失败重置
+  const loading = window.LOADING ? `<div class="loading-bar" style="margin:12px 16px 0;padding:10px 14px;border-radius:14px;background:linear-gradient(135deg,#FFF8EC,#FFE8C7);border:1px solid #F5D08A;color:#8A5A1B;font-size:13px;line-height:1.5;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:14px;height:14px;border:2px solid #F5D08A;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></span><span style="font-weight:600">正在加载数据…</span></div>
+      <span style="opacity:.7;font-size:12px">首次约需 5–10 秒</span>
+    </div>` : '';
+  // v35：空数据提示——既无缓存又无远端数据时（数据仍 0），显示显眼的「暂无数据 + 重试」而不是沉默
+  const emptyState = (!err && (!DB || !DB.partners || !DB.partners.length) && !window.LOADING) ? `<div class="empty-state" style="margin:12px 16px 0;padding:14px;border-radius:14px;background:linear-gradient(135deg,#F4F6FB,#E8EEFF);border:1px solid #C7D5F5;color:#3A4A7A;font-size:13px;line-height:1.5;box-sizing:border-box">
+      <div style="font-weight:600;margin-bottom:4px">📭 暂无伙伴数据</div>
+      <div style="opacity:.85">可能是首次访问或网络异常导致没拉到</div>
+      <button id="empty-reload" style="margin-top:8px;border:none;background:#5B7CFA;color:#fff;padding:6px 14px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">重新加载</button>
+    </div>` : '';
   const errBanner = err ? `<div class="err-banner" style="margin:12px 16px 0;padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,#FFF1F2,#FFE3EA);border:1px solid #FFCBD2;color:#A0303A;font-size:13px;line-height:1.5;box-sizing:border-box">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:${err.msgs[0] ? '6px' : '0'}">
         <div style="font-weight:600">⚠️ 数据没加载出来（${esc((err.failedTables || []).join('/') || '未知表')}）</div>
@@ -512,7 +526,7 @@ function renderHome() {
       ${err.msgs[0] ? `<div style="opacity:.85;word-break:break-all">${esc(err.msgs.join(' · '))}</div>` : ''}
       <div style="margin-top:4px;opacity:.7;font-size:12px">${err.hasCache ? '已显示最近缓存（120s 内）' : '首次访问无缓存，请检查网络后重试'}</div>
     </div>` : '';
-  document.getElementById('view-home').innerHTML = `${errBanner}
+  document.getElementById('view-home').innerHTML = `${loading}${errBanner}${emptyState}
     <div class="header">
       <div class="row">
         <div class="hi">${dynamicGreeting()} 👋</div>
@@ -548,6 +562,9 @@ function renderHome() {
   // 绑定错误横幅的重试按钮
   const errBtn = document.getElementById('err-retry');
   if (errBtn) errBtn.onclick = () => retryLoad();
+  // v35：绑定空数据重试按钮
+  const emptyBtn = document.getElementById('empty-reload');
+  if (emptyBtn) emptyBtn.onclick = () => retryLoad();
   // 填充统计数字
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('st-total', d.totalPartners || 0);
@@ -863,7 +880,7 @@ async function doRebateLogin() {
     REBATE_TAB = 'form';
     toast('验证成功');
     renderRebate();
-  } catch (e) { toast('验证失败：' + e.message, { err: true }); }
+  } catch (e) { toast(friendlyError(e, '返款后台验证失败'), { err: true }); }
 }
 
 async function saveRebate() {
