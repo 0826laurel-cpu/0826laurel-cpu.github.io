@@ -134,7 +134,7 @@ function bindStatEls() {
   statEl.week_amount = { el: document.getElementById('s-week'), isMoney: true };
 }
 
-// 平滑滚动到目标值（无闪烁/缩放，避免“卡住”或“花屏”）
+// 平滑滚动到目标值（无闪烁/缩放，避免"卡住"或"花屏"）
 function setStat(key, value, opts){
   const conf = statEl[key];
   if (!conf || !conf.el) return;
@@ -151,11 +151,17 @@ function setStat(key, value, opts){
   liveStats[key] = value;
 }
 
+// v44：ticker 行为收敛
+//   - 真数据时：固定显示真聚合，不启动 ticker（防真数据被前端公式"覆盖"）
+//   - 无真数据时：保留前端公式 ticker，让公示台看起来"在动"，但仍是按日期推演的真实递增
 let tickerTimer = null;
+let _hasRealData = false;
 function startStatsTicker() {
   if (tickerTimer) clearInterval(tickerTimer);
-  // 每 1 秒按统一时间重新计算，所有用户/所有窗口向同一目标值递增，保证数字对齐一致
+  // 无真数据才启动，每 1 秒按统一时间重新计算（同一时刻任何窗口数值一致）
+  if (_hasRealData){ if (tickerTimer){ clearInterval(tickerTimer); tickerTimer=null; } return; }
   tickerTimer = setInterval(() => {
+    if (_hasRealData){ clearInterval(tickerTimer); tickerTimer=null; return; }
     const s = computeStats();
     STATS_KEYS.forEach(k => setStat(k, s[k], { duration: 800 }));
   }, 1000);
@@ -163,6 +169,7 @@ function startStatsTicker() {
 
 function renderStats(s){
   bindStatEls();
+  _hasRealData = !!(s && s.has_real_data);
   liveStats.total_amount = 0;
   liveStats.total_count = 0;
   liveStats.model_count = 0;
@@ -172,14 +179,29 @@ function renderStats(s){
   countUp(statEl.total_count.el, s.total_count, false);
   countUp(statEl.model_count.el, s.model_count, false);
   countUp(statEl.week_amount.el, s.week_amount, true);
-  // 入场结束后启动持续实时滚动
+  // 入场结束后启动持续实时滚动（仅在 _hasRealData=false 时真正生效）
   setTimeout(startStatsTicker, 1300);
 }
 
 async function loadStats(){
-  // 公示台使用按日期计算的值（见文件顶部计算逻辑说明），不直接读取真实订单汇总，
-  // 以保证展示数字符合“模特人数 586 起点、每周累计、周一归零”的规则。
-  return computeStats();
+  // v44 策略：有真数据时优先用 rebates 表的真聚合；没有时退回前端公式（保活动感但不污染真数据）
+  try {
+    const j = await rebateRpc('public_stats');
+    const s = (j && typeof j === 'object') ? j : null;
+    if (s && s.total_amount !== undefined){
+      return {
+        total_amount: Number(s.total_amount) || 0,
+        total_count:  Number(s.total_count)  || 0,
+        model_count:  Number(s.model_count)  || 0,
+        week_amount:  Number(s.week_amount)  || 0,
+        has_real_data: !!s.has_real_data
+      };
+    }
+  } catch (e) {
+    console.warn('[rebate stats] 真聚合拉取失败，回退前端公式兜底：', e);
+  }
+  const fb = computeStats();
+  return { ...fb, has_real_data: false };
 }
 async function loadFeed(){
   const data = await rebateRpc('public_feed', { p_limit: 30 });
@@ -247,8 +269,11 @@ function genLiveRow(){
     created_at: new Date().toISOString()
   };
 }
+// v44：feed ticker 只在「无真数据」时启用 —— 真数据情况下不叠加前端模拟，避免污染 / 覆盖真实入库记录
 function initFeedTicker(){
+  if (_hasRealFeed) return;
   setInterval(() => {
+    if (_hasRealFeed) return;
     const row = genLiveRow();
     if (_liveFeedCache) {
       _liveFeedCache.unshift(row);
@@ -258,9 +283,13 @@ function initFeedTicker(){
   }, 7000);
 }
 let _liveBoardCache = null;
+let _hasRealFeed = false;     // v44：是否有 public_feed 真数据
 function initBoardTicker(){
+  // v44：仅在无真数据时给达人榜"自嗨"，保留组件视觉效果；同时配合 seed_daily_rebates 让榜单真实增长
+  if (_hasRealFeed) return;
   // 每 12 秒给达人榜前三抖一笔 +¥18–88（量级匹配新基础值，避免累积放大失真）
   setInterval(() => {
+    if (_hasRealFeed) return;
     if (_liveBoardCache && _liveBoardCache.length){
       const i = Math.floor(Math.random() * Math.min(3, _liveBoardCache.length));
       const r = _liveBoardCache[i];
@@ -362,6 +391,7 @@ function showRebateError(msg){
     const mergedBoard = realBoard.slice(0, 12);
     _liveFeedCache = mergedFeed.slice();
     _liveBoardCache = mergedBoard.slice();
+    _hasRealFeed = realFeed.length > 0 || realBoard.length > 0;   // v44：让 ticker 知道是否真有数据
     renderFeed(_liveFeedCache);
     renderBoard(_liveBoardCache);
     if (!realFeed.length && !realBoard.length){

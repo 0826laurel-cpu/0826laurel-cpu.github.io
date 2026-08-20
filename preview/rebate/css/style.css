@@ -13,9 +13,10 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Helvetica,Arial,sans-serif;
   color:var(--ink);background:linear-gradient(160deg,var(--bg1),var(--bg2) 45%,var(--bg3));
   min-height:100vh;padding-bottom:40px;
-  overflow-x:hidden;
+  overflow-x:hidden;overflow-y:auto;           /* v44: 改为默认可纵向滚动，独立打开也可下滑 */
   scrollbar-width:none;-ms-overflow-style:none;
 }
+body.is-iframe{overflow-y:hidden!important;}   /* v44: 被父 iframe 嵌入时，让父级接管滚动避免双滚动条 */
 body::-webkit-scrollbar{display:none;width:0;height:0;}
 .wrap{max-width:480px;margin:0 auto;padding:12px 6px 0;}
 

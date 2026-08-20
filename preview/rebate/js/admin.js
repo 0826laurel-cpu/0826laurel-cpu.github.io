@@ -69,6 +69,8 @@ function enterPanel(){
   document.getElementById('gate').style.display = 'none';
   document.getElementById('panel').style.display = 'block';
   setVal('f-date', new Date().toISOString().slice(0,10));
+  // v44：补种子按钮的默认日期 = 今天
+  setVal('seed-date-input', new Date().toISOString().slice(0,10));
   // 来自伙伴卡片的预填 → 锁字段，杜绝误覆盖
   if (URL_PREFILL.model){
     setVal('f-model-id', URL_PREFILL.model);
@@ -118,6 +120,30 @@ document.getElementById('logout').addEventListener('click', ()=>{
   document.getElementById('panel').style.display = 'none';
   document.getElementById('gate').style.display = 'block';
   setVal('pw', '');
+});
+
+// ========== v44：补今日种子按钮 ==========
+document.getElementById('seed-btn').addEventListener('click', async ()=>{
+  const cntRaw = parseInt(val('seed-count') || '6', 10);
+  const cnt = Math.max(1, Math.min(30, isNaN(cntRaw) ? 6 : cntRaw));
+  const dateStr = val('seed-date-input');
+  if (!dateStr){ toast('请选目标日期'); return; }
+
+  const btn = document.getElementById('seed-btn');
+  const oldText = btn.textContent;
+  btn.disabled = true; btn.textContent = '补种中…';
+
+  try {
+    const data = await rebateRpc('seed_daily_rebates', { p_target_date: dateStr, p_count: cnt });
+    if (!data || data.ok === false){ toast('补种失败：' + (data && data.error || 'RPC 异常')); btn.disabled = false; btn.textContent = oldText; return; }
+    toast('✅ 已为 ' + data.target_date + ' 补 ' + data.inserted + ' 条新动态');
+    btn.disabled = false; btn.textContent = oldText;
+    loadPending();
+    loadPaid();
+  } catch (e) {
+    toast('补种失败：' + (e && e.message || '网络异常'));
+    btn.disabled = false; btn.textContent = oldText;
+  }
 });
 
 // 凭证图片选择 + 预览

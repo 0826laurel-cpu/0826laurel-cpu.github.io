@@ -1,8 +1,12 @@
 // config.js — 公有配置（publishable key 可安全暴露在前端，非私密）
-// Cloudflare Worker 代理（国内加速 Supabase）：留空=直连新加坡节点；
-// 部署 Worker 后把地址填到 SB_PROXY_URL，所有读/写路径自动切到边缘节点（详见 tools/supabase-proxy/README.md）
+// 默认首选 = Cloudflare Worker 代理（supabase-proxy.wgbproxy.workers.dev）：
+//   实测在国内手机蜂窝网（模特页 me.html v32–v35 期间）Worker 比直连更稳——
+//   Worker 在全球边缘节点 + 30s GET 缓存能吸收跨境抖动；直连 supabase.co（新加坡）
+//   在用户手机网络偶发 18s+ 不通。把 Worker 当首选可避免 SDK 直连失败抛 TypeError。
+// 直连 SB_DIRECT 仅作兜底（Worker 失败/被微信 X5 拦截时切回）。
 window.SB_PROXY_URL = 'https://supabase-proxy.wgbproxy.workers.dev';
-window.SB_URL = window.SB_PROXY_URL || 'https://ecvsamlwjbxovqaziyww.supabase.co';
+window.SB_DIRECT = 'https://ecvsamlwjbxovqaziyww.supabase.co';
+window.SB_URL = window.SB_PROXY_URL || window.SB_DIRECT; // 首选：Worker（v37 还原 v32–v35 链路）
 window.SB_ANON = 'sb_publishable_zc1yT6MeRA19HRL4_lruXw_-PnAVmzu';
 // 系统权威前端域名（私域/福利站统一入口）。
 // 所有“拼接专属链接 / 跳转 / 分享链接”都引用这个常量，而不是 location.origin。
