@@ -142,7 +142,16 @@ async function directFetchAt(baseUrl, path, init, timeoutMs) {
       const txt = await res.text().catch(() => '');
       throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200) || res.statusText}`);
     }
-    return await res.json();
+    // v45-fix：Supabase 对 return=minimal / 204·205 返回空 body，直接 res.json() 会抛
+    // SyntaxError，被上层当成 AllFailed 假阴性（且会触发串行兜底双写）。统一处理：空 body
+    // 直接返回 null；非空再按 content-type 决定 json 解析（解析失败兜底返回原文）。
+    const ct = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
+    if (res.status === 204 || res.status === 205 || !/json/i.test(ct)) {
+      const txt = await res.text().catch(() => '');
+      if (!txt) return null;
+      try { return JSON.parse(txt); } catch (_) { return txt; }
+    }
+    return await res.json().catch(() => null);
   } finally {
     clearTimeout(t);
   }
