@@ -237,11 +237,15 @@ body{overflow:hidden}
 
   <!-- 封面 -->
   <section class="screen cover">
-    <div class="cover-bg">
-      <img src="posters/p1.jpg" alt=""><img src="posters/p2.jpg" alt="">
-      <img src="posters/p3.jpg" alt=""><img src="posters/p4.jpg" alt="">
-      <img src="posters/p5.jpg" alt=""><img src="posters/p6.jpg" alt="">
-      <img src="posters/p7.jpg" alt=""><img src="posters/p8.jpg" alt="">
+    <div class="cover-bg" id="coverBg">
+      <picture><source srcset="posters/p1.webp" type="image/webp"><img src="posters/p1.jpg" alt=""></picture>
+      <picture><source srcset="posters/p2.webp" type="image/webp"><img src="posters/p2.jpg" alt=""></picture>
+      <picture><source srcset="posters/p3.webp" type="image/webp"><img src="posters/p3.jpg" alt=""></picture>
+      <picture><source srcset="posters/p4.webp" type="image/webp"><img src="posters/p4.jpg" alt=""></picture>
+      <picture><source srcset="posters/p5.webp" type="image/webp"><img src="posters/p5.jpg" alt=""></picture>
+      <picture><source srcset="posters/p6.webp" type="image/webp"><img src="posters/p6.jpg" alt=""></picture>
+      <picture><source srcset="posters/p7.webp" type="image/webp"><img src="posters/p7.jpg" alt=""></picture>
+      <picture><source srcset="posters/p8.webp" type="image/webp"><img src="posters/p8.jpg" alt=""></picture>
     </div>
     <div class="cover-in">
       <div class="eyebrow">MODEL PLATFORM GUIDE</div>
@@ -329,16 +333,24 @@ const DATA=[
 
 const reel=document.getElementById('reel');
 
+// WebP 支持检测（同步决策图片后缀）
+let webpSupported=false;
+try{
+  const c=document.createElement('canvas');
+  if(c.getContext&&c.toDataURL('image/webp').indexOf('data:image/webp')===0) webpSupported=true;
+}catch(e){}
+const picExt = webpSupported ? 'webp' : 'jpg';
+
 // 生成平台屏
 DATA.forEach((p,i)=>{
   const n=i+1;
   const s=document.createElement('section');
   s.className='screen plat';
   s.innerHTML=`
-    <div class="blur-bg" style="background-image:url(posters/p${n}.jpg)"></div>
+    <div class="blur-bg" style="background-image:url(posters/p${n}.${picExt})"></div>
     <div class="veil"></div>
     <div class="idx">${String(n).padStart(2,'0')}</div>
-    <div class="stage"><img class="poster" src="posters/p${n}.jpg" alt="${p.n}" loading="lazy"></div>
+    <div class="stage"><picture><source srcset="posters/p${n}.webp" type="image/webp"><img class="poster" src="posters/p${n}.jpg" alt="${p.n}" loading="lazy"></picture></div>
     <div class="info">
       <div class="kicker">${p.k}</div>
       <h2>${p.n}</h2>
