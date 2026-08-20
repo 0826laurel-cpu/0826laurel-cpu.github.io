@@ -149,6 +149,8 @@
       </div>
       ${REF ? `<div class="ref-banner">🎁 由邀请码 <b>${esc(REF)}</b> 的模特邀请你加入福利圈</div>` : ''}
 
+      ${previewStripHtml()}
+
       <div class="auth-tabs">
         <button class="auth-tab active" id="tab-register" type="button">新用户注册</button>
         <button class="auth-tab" id="tab-login" type="button">老用户登录</button>
@@ -158,7 +160,274 @@
 
     document.getElementById('tab-register').addEventListener('click', () => setMode('register'));
     document.getElementById('tab-login').addEventListener('click', () => setMode('login'));
+    bindPreviewStrip();
     setMode('register');
+  }
+
+  // ========== 抢先看：后台预览（演示模式，全部为示例数据） ==========
+  function previewStripHtml() {
+    return `
+      <div class="preview-strip" id="preview-strip">
+        <div class="ps-head">
+          <div class="ps-eye">👀</div>
+          <div class="ps-title">
+            <b>抢先看：你的专属模特后台</b>
+            <span class="ps-sub">入驻前先逛逛 —— 填完信息，这些都会变成真的</span>
+          </div>
+          <button class="ps-enter" id="ps-enter" type="button">进入预览</button>
+        </div>
+        <div class="ps-cards" id="ps-cards">
+          <div class="ps-card" data-pv="home"><div class="psc-ico">📊</div><div class="psc-t">福利概览</div><div class="psc-d">本月已收 / 累计价值<br>一目了然</div></div>
+          <div class="ps-card" data-pv="home"><div class="psc-ico">🚚</div><div class="psc-t">物流同步</div><div class="psc-d">快递单号实时追踪<br>签收状态更新</div></div>
+          <div class="ps-card" data-pv="rebate"><div class="psc-ico">💰</div><div class="psc-t">返款进度</div><div class="psc-d">待返→处理中→已返<br>进度透明可见</div></div>
+          <div class="ps-card" data-pv="welfare"><div class="psc-ico">🎉</div><div class="psc-t">福利社群</div><div class="psc-d">伙伴收礼动态<br>一起分享快乐</div></div>
+        </div>
+        <div class="ps-hint">👆 点击卡片，立即体验</div>
+      </div>`;
+  }
+
+  function bindPreviewStrip() {
+    const strip = document.getElementById('preview-strip');
+    const enter = document.getElementById('ps-enter');
+    if (!strip || !enter) return;
+    const open = () => openPreview('home');
+    enter.addEventListener('click', open);
+    strip.querySelectorAll('.ps-card').forEach(card => {
+      card.addEventListener('click', () => openPreview(card.dataset.pv || 'home'));
+    });
+  }
+
+  function openPreview(initialTab) {
+    let overlay = document.getElementById('preview-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'preview-overlay';
+      overlay.className = 'preview-overlay';
+      overlay.innerHTML = previewOverlayHtml();
+      document.body.appendChild(overlay);
+      bindPreviewOverlay(overlay);
+    }
+    overlay.classList.add('show');
+    switchPreviewTab(overlay, initialTab || 'home');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closePreview() {
+    const overlay = document.getElementById('preview-overlay');
+    if (overlay) overlay.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  function previewOverlayHtml() {
+    return `
+      <div class="po-top">
+        <span class="po-badge"><span class="dot"></span>演示模式 · 示例数据</span>
+        <button class="po-close" id="po-close" type="button">✕</button>
+      </div>
+      <div class="po-body">
+        <div class="po-view active" id="pv-home">${previewHomeHtml()}</div>
+        <div class="po-view" id="pv-rebate">${previewRebateHtml()}</div>
+        <div class="po-view" id="pv-welfare">${previewWelfareHtml()}</div>
+      </div>
+      <div class="po-bottom">
+        <div class="po-tabs">
+          <button class="po-tab on" data-pv="home" type="button">🏠 首页</button>
+          <button class="po-tab" data-pv="rebate" type="button">💰 返款</button>
+          <button class="po-tab" data-pv="welfare" type="button">🎁 福利</button>
+        </div>
+        <button class="po-cta" id="po-cta" type="button">✨ 立即入驻，解锁我的专属后台</button>
+      </div>`;
+  }
+
+  function bindPreviewOverlay(overlay) {
+    const close = overlay.querySelector('#po-close');
+    if (close) close.addEventListener('click', closePreview);
+    overlay.querySelectorAll('.po-tab').forEach(tab => {
+      tab.addEventListener('click', () => switchPreviewTab(overlay, tab.dataset.pv));
+    });
+    const cta = overlay.querySelector('#po-cta');
+    if (cta) cta.addEventListener('click', () => {
+      closePreview();
+      const reg = document.getElementById('tab-register');
+      const form = document.getElementById('auth-body');
+      if (reg && !reg.classList.contains('active')) reg.click();
+      if (form) {
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(() => {
+          const first = form.querySelector('input');
+          if (first) first.focus({ preventScroll: true });
+        }, 500);
+      }
+    });
+  }
+
+  function switchPreviewTab(overlay, pv) {
+    if (!overlay) return;
+    overlay.querySelectorAll('.po-tab').forEach(t => t.classList.toggle('on', t.dataset.pv === pv));
+    overlay.querySelectorAll('.po-view').forEach(v => v.classList.toggle('active', v.id === 'pv-' + pv));
+  }
+
+  // ---- 预览：首页（示例数据） ----
+  function previewHomeHtml() {
+    return `
+      <div class="po-card">
+        <div class="po-hero">
+          <div class="po-hero-icon">🎁</div>
+          <h3>小美 · 模特专属后台</h3>
+          <p class="lead">这是你的私人福利空间 —— 实时查看福利派送官寄出的小礼物和物流动态～</p>
+          <span class="po-meta"><span class="pulse"></span>福利派送官亲自寄出 · 智能物流同步</span>
+        </div>
+      </div>
+
+      <div class="po-card">
+        <div class="po-block-title">📊 我的福利概览</div>
+        <div class="po-ov-grid">
+          <div class="po-ov"><div class="n">3</div><div class="l">本月已收</div></div>
+          <div class="po-ov"><div class="n">1</div><div class="l">待收货</div></div>
+          <div class="po-ov"><div class="n" style="color:#FF6B5C">¥528</div><div class="l">累计福利价值</div></div>
+        </div>
+      </div>
+
+      <div class="po-card">
+        <div class="po-block-title">💰 我的返款进度 <span style="font-size:12px;color:#9AA0AD;font-weight:normal;margin-left:6px">共 2 笔 · 累计 ¥498</span></div>
+        ${previewRebateItems()}
+      </div>
+
+      <div class="po-card">
+        <div class="po-block-title" style="display:flex;align-items:center;justify-content:space-between">
+          收件地址
+          <span class="po-addr-badge">✓ 已设置</span>
+        </div>
+        <div class="po-addr-row"><span class="ico">🧑</span><span class="text">小美 · 138****8000</span></div>
+        <div class="po-addr-row full"><span class="ico">🏠</span><span class="text">浙江省 杭州市 西湖区 文一路 100 号</span></div>
+      </div>
+
+      <div class="po-card">
+        <div class="po-block-title">🚚 我的礼品与物流 <span style="font-size:12px;color:#9AA0AD;font-weight:normal;margin-left:6px">共 2 件</span></div>
+        ${previewShipsHtml()}
+      </div>
+
+      <div class="po-card">
+        <div class="po-block-title">🎉 福利社群动态</div>
+        <div class="po-wall-stats">
+          <div class="ws"><div class="n">128</div><div class="l">已送出礼品</div></div>
+          <div class="ws"><div class="n">86</div><div class="l">位伙伴已收到</div></div>
+          <div class="ws"><div class="n" style="color:#2BB673">72</div><div class="l">已签收</div></div>
+        </div>
+        ${previewWallItems()}
+      </div>`;
+  }
+
+  function previewRebateItems() {
+    return `
+      <div class="po-reb-item">
+        <div class="po-reb-head"><div class="nm">美妆礼盒返款</div><div class="amt" style="color:#2BB673">¥299</div></div>
+        <div class="po-reb-sub"><span>📦 订单 20260812xxxx</span><span style="color:#2BB673;font-weight:700">已返</span></div>
+        <div class="po-steps">
+          <span class="po-step" style="background:#2BB673;color:#fff">待返</span>
+          <span class="po-bar" style="background:#2BB673"></span>
+          <span class="po-step" style="background:#2BB673;color:#fff">处理中</span>
+          <span class="po-bar" style="background:#2BB673"></span>
+          <span class="po-step" style="background:#2BB673;color:#fff">已返</span>
+        </div>
+      </div>
+      <div class="po-reb-item">
+        <div class="po-reb-head"><div class="nm">服装返款</div><div class="amt" style="color:#5B7CFA">¥199</div></div>
+        <div class="po-reb-sub"><span>📦 订单 20260815xxxx</span><span style="color:#5B7CFA;font-weight:700">处理中</span></div>
+        <div class="po-steps">
+          <span class="po-step" style="background:#5B7CFA;color:#fff">待返</span>
+          <span class="po-bar" style="background:#5B7CFA"></span>
+          <span class="po-step" style="background:#5B7CFA;color:#fff">处理中</span>
+          <span class="po-bar" style="background:#EDEDF0"></span>
+          <span class="po-step" style="background:#F0F1F4;color:#9AA0AD">已返</span>
+        </div>
+      </div>`;
+  }
+
+  function previewShipsHtml() {
+    return `
+      <div class="po-ship">
+        <div class="po-ship-head"><div class="nm">美妆礼盒</div><span class="po-status" style="background:#2BB673">已签收</span></div>
+        <div class="po-track">
+          <div class="po-track-label">📮 快递单号</div>
+          <div class="po-track-row"><span class="po-track-no">SF1380026458123</span></div>
+        </div>
+        <div class="po-tl">
+          <div class="it"><span class="dot" style="background:#2BB673"></span><div><div class="tt">已签收，感谢你的参与 🎀</div><div class="ta">08-18 14:32</div></div></div>
+          <div class="it"><span class="dot" style="background:#FFD9D2;border:2px solid #FF6B5C"></span><div><div class="tt">运输中 · 已到达杭州</div><div class="ta">08-17 09:12</div></div></div>
+          <div class="it"><span class="dot" style="background:#FFD9D2"></span><div><div class="tt">已揽收</div><div class="ta">08-16 19:45</div></div></div>
+        </div>
+      </div>
+      <div class="po-ship">
+        <div class="po-ship-head"><div class="nm">服装新品</div><span class="po-status" style="background:#5B7CFA">运输中</span></div>
+        <div class="po-track">
+          <div class="po-track-label">📮 快递单号</div>
+          <div class="po-track-row"><span class="po-track-no">YT8765432109876</span></div>
+        </div>
+        <div class="po-tl">
+          <div class="it"><span class="dot" style="background:#5B7CFA"></span><div><div class="tt">运输中 · 下一站杭州</div><div class="ta">08-19 10:20</div></div></div>
+          <div class="it"><span class="dot" style="background:#FFD9D2"></span><div><div class="tt">已揽收</div><div class="ta">08-19 08:05</div></div></div>
+        </div>
+      </div>`;
+  }
+
+  function previewWallItems() {
+    const items = [
+      { n: '小美', c: '#FF7091', g: '美妆礼盒' },
+      { n: '晓雨', c: '#5B7CFA', g: '香氛礼盒' },
+      { n: '可可', c: '#2BB673', g: '夏季服装' },
+      { n: '娜娜', c: '#B794F4', g: '零食大礼包' }
+    ];
+    return items.map((it, i) => `
+      <div class="po-wall-item">
+        <div class="av" style="background:${it.c}">${it.n.slice(0, 1)}</div>
+        <div class="wi">
+          <div class="wi-text">模特 <b>${it.n}</b> · ${['08-19 15:02', '08-19 11:30', '08-18 20:14', '08-18 16:47'][i]} 收到了 <b>${it.g}</b></div>
+          <div class="wi-meta">福利派送官已发货</div>
+        </div>
+      </div>`).join('');
+  }
+
+  // ---- 预览：返款（示例数据） ----
+  function previewRebateHtml() {
+    return `
+      <div class="po-card">
+        <div class="po-block-title">💰 返款进度</div>
+        <p style="font-size:12px;color:#6B7280;line-height:1.7;margin-bottom:12px">每一笔订单的返款进度都透明可见，确认收货隔天更新，返款凭证随时可查～</p>
+        ${previewRebateItems()}
+        <div class="po-reb-item">
+          <div class="po-reb-head"><div class="nm">鞋包返款</div><div class="amt" style="color:#FF6B5C">¥129</div></div>
+          <div class="po-reb-sub"><span>📦 订单 20260816xxxx</span><span style="color:#FF6B5C;font-weight:700">待返</span></div>
+          <div class="po-steps">
+            <span class="po-step" style="background:#FF6B5C;color:#fff">待返</span>
+            <span class="po-bar" style="background:#EDEDF0"></span>
+            <span class="po-step" style="background:#F0F1F4;color:#9AA0AD">处理中</span>
+            <span class="po-bar" style="background:#EDEDF0"></span>
+            <span class="po-step" style="background:#F0F1F4;color:#9AA0AD">已返</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ---- 预览：福利（示例数据） ----
+  function previewWelfareHtml() {
+    return `
+      <div class="po-card">
+        <div class="po-block-title">🎁 互动福利中心</div>
+        <p style="font-size:12px;color:#6B7280;line-height:1.7;margin-bottom:14px">专属福利活动都在这里 —— 签到、任务、惊喜礼品，每天都有新玩法～</p>
+        <div class="po-reb-item" style="background:linear-gradient(135deg,#FFF7EA,#FFEEF3);border-color:#FFE0CB">
+          <div class="po-reb-head"><div class="nm">📅 今日签到</div><div class="amt" style="color:#FF6B5C">+¥5</div></div>
+          <div class="po-reb-sub"><span>连续签到 7 天，额外奖励 ¥30</span></div>
+        </div>
+        <div class="po-reb-item">
+          <div class="po-reb-head"><div class="nm">🎯 本周任务 · 完成 3 单拍摄</div><div class="amt" style="color:#2BB673">¥50</div></div>
+          <div class="po-reb-sub"><span>进度 2/3</span></div>
+        </div>
+        <div class="po-reb-item">
+          <div class="po-reb-head"><div class="nm">🎁 新人见面礼</div><div class="amt" style="color:#5B7CFA">¥20</div></div>
+          <div class="po-reb-sub"><span>入驻后 3 天内自动到账</span></div>
+        </div>
+      </div>`;
   }
 
   function setMode(mode) {
