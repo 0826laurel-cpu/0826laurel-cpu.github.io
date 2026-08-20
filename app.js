@@ -919,7 +919,7 @@ async function saveRebate() {
     REBATE_PREFILL = null;
     REBATE_TAB = 'paid';
     renderRebate();
-  } catch (e) { toast(e.message || '提交失败', { err: true }); }
+  } catch (e) { toast(friendlyError(e, '提交返款'), { err: true }); }
 }
 
 function renderRebateRows(rows, type) {
@@ -2099,36 +2099,61 @@ document.addEventListener('click', async e => {
     else if (act === 'ship-create') {
       const pid = document.getElementById('sh-pid').value;
       const giftName = document.getElementById('sh-gift').value.trim();
+      const carrier = document.getElementById('sh-carrier').value.trim();
+      const phone = document.getElementById('sh-phone').value.trim();
       const value = Number(document.getElementById('sh-value').value || 0);
       if (!pid) { toast('请选择伙伴'); return; }
       if (!giftName) { toast('请填写礼品名称'); return; }
+      // v45：表单标了「*」/「必填」就要真校验，避开「填了单号却没承运商/手机号」的脏数据
+      if (!carrier) { toast('请选择快递公司'); return; }
+      if (!/^\d{4}$/.test(phone)) { toast('请填写收件人手机后四位（4 位数字，快递100 查询需要）'); return; }
       if (!value || value <= 0) { toast('请填写礼品价值，否则累计福利价值无法增加'); return; }
-      await api('/admin/shipment', { method: 'POST', body: JSON.stringify({
-        partnerId: pid, giftName, carrier: document.getElementById('sh-carrier').value.trim(),
-        trackingNo: document.getElementById('sh-no').value.trim(), phone: document.getElementById('sh-phone').value.trim(),
-        note: document.getElementById('sh-note').value.trim(),
-        productLink: document.getElementById('sh-link').value.trim(),
-        value
-      }) });
-      document.getElementById('ov-ship').classList.remove('show');
-      toast('已发货 📦'); await loadData();
+      const btn = el;
+      btn.disabled = true; btn.textContent = '提交中…';
+      try {
+        await api('/admin/shipment', { method: 'POST', body: JSON.stringify({
+          partnerId: pid, giftName, carrier,
+          trackingNo: document.getElementById('sh-no').value.trim(), phone,
+          note: document.getElementById('sh-note').value.trim(),
+          productLink: document.getElementById('sh-link').value.trim(),
+          value
+        }) });
+        document.getElementById('ov-ship').classList.remove('show');
+        toast('已发货 📦'); await loadData();
+      } catch (e) {
+        toast(friendlyError(e, '发货失败'), { err: true });
+      } finally {
+        btn.disabled = false; btn.textContent = '确认发货';
+      }
     }
     else if (act === 'ship-log') {
       const stEl = document.querySelector('#sh-status .chip.on');
       const status = stEl ? stEl.dataset.status : 'transit';
       const value = Number(document.getElementById('sh-value2').value || 0);
       if (!value || value <= 0) { toast('请填写礼品价值，否则累计福利价值无法增加'); return; }
-      const r = await api('/admin/shipment/log', { method: 'POST', body: JSON.stringify({
-        id: el.dataset.id, status, desc: document.getElementById('sh-desc').value.trim(),
-        trackingNo: document.getElementById('sh-no2').value.trim(), value
-      }) });
-      toast('已更新物流'); openShip(r.shipment); await loadData();
+      const btn = el;
+      btn.disabled = true; btn.textContent = '提交中…';
+      try {
+        const r = await api('/admin/shipment/log', { method: 'POST', body: JSON.stringify({
+          id: el.dataset.id, status, desc: document.getElementById('sh-desc').value.trim(),
+          trackingNo: document.getElementById('sh-no2').value.trim(), value
+        }) });
+        toast('已更新物流'); openShip(r.shipment); await loadData();
+      } catch (e) {
+        toast(friendlyError(e, '更新物流失败'), { err: true });
+      } finally {
+        btn.disabled = false; btn.textContent = '添加物流节点';
+      }
     }
     else if (act === 'ship-del') {
       if (!confirm('确定删除该发货记录？')) return;
-      await api('/admin/shipment/' + el.dataset.id, { method: 'DELETE' });
-      document.getElementById('ov-ship').classList.remove('show');
-      toast('已删除'); await loadData();
+      try {
+        await api('/admin/shipment/' + el.dataset.id, { method: 'DELETE' });
+        document.getElementById('ov-ship').classList.remove('show');
+        toast('已删除'); await loadData();
+      } catch (e) {
+        toast(friendlyError(e, '删除发货记录失败'), { err: true });
+      }
     }
     else if (act === 'refresh-ship') {
       const btn = el;

@@ -19,66 +19,9 @@
  * 完全相同；同时 odometer 入场时全部数字会一起快速滚动多圈，营造热烈感。
  */
 
-const DEMO = {
-  // stats 已改为 computeStats() 按日期动态计算，此处保留结构但不再作为默认展示值
-  feed:[
-    // 公示台动态调小到「0.1 元福利站」真实单笔返款量级（¥18–388）
-    {mask:'小雅', amount:228, item:'618 主推款拍摄', status:'已返', created_at:'2026-08-11T14:50:00'},
-    {mask:'Lily', amount:158, item:'日常返款结算', status:'已返', created_at:'2026-08-11T14:20:00'},
-    {mask:'阿星', amount:350, item:'品牌专场直播', status:'已返', created_at:'2026-08-11T13:05:00'},
-    {mask:'Crystal', amount:118, item:'短视频种草', status:'已返', created_at:'2026-08-11T11:40:00'},
-    {mask:'糖小幂', amount:268, item:'新品上架返款', status:'处理中', created_at:'2026-08-11T10:10:00'},
-    {mask:'萌萌', amount:168, item:'日常返款结算', status:'已返', created_at:'2026-08-11T09:30:00'},
-    {mask:'Sophie', amount:308, item:'联名款拍摄', status:'已返', created_at:'2026-08-10T22:15:00'},
-    {mask:'七月', amount:98, item:'短视频种草', status:'待返', created_at:'2026-08-10T20:00:00'},
-    {mask:'妮妮', amount:198, item:'618 主推款返款', status:'已返', created_at:'2026-08-10T18:42:00'},
-    {mask:'Vivi', amount:178, item:'日常返款结算', status:'已返', created_at:'2026-08-10T17:08:00'},
-    {mask:'小米', amount:388, item:'品牌专场返款', status:'已返', created_at:'2026-08-10T15:55:00'},
-    {mask:'Tina', amount:138, item:'联名款返款', status:'已返', created_at:'2026-08-10T14:20:00'},
-    {mask:'阿朵', amount:228, item:'主推款返款', status:'处理中', created_at:'2026-08-10T12:30:00'},
-    {mask:'小鹿', amount:158, item:'日常返款结算', status:'已返', created_at:'2026-08-10T10:48:00'},
-    {mask:'苏苏', amount:288, item:'品牌专场返款', status:'已返', created_at:'2026-08-10T09:15:00'},
-    {mask:'Anna', amount:198, item:'短视频种草', status:'已返', created_at:'2026-08-09T21:30:00'},
-    {mask:'糖糖', amount:98, item:'日常返款结算', status:'已返', created_at:'2026-08-09T19:05:00'},
-    {mask:'果果', amount:258, item:'618 主推款拍摄', status:'已返', created_at:'2026-08-09T17:22:00'},
-    {mask:'小鹿', amount:108, item:'联名款返款', status:'待返', created_at:'2026-08-09T15:40:00'},
-    {mask:'Lulu', amount:348, item:'品牌专场返款', status:'已返', created_at:'2026-08-09T13:18:00'},
-    {mask:'可可', amount:128, item:'日常返款结算', status:'已返', created_at:'2026-08-09T11:50:00'},
-    {mask:'Cici', amount:198, item:'短视频种草', status:'已返', created_at:'2026-08-09T10:08:00'},
-    {mask:'林风', amount:268, item:'品牌专场直播', status:'处理中', created_at:'2026-08-09T08:45:00'},
-    {mask:'阿南', amount:88, item:'日常返款结算', status:'已返', created_at:'2026-08-08T22:30:00'},
-    {mask:'豆豆', amount:228, item:'618 主推款返款', status:'已返', created_at:'2026-08-08T20:12:00'},
-    {mask:'琪琪', amount:148, item:'日常返款结算', status:'已返', created_at:'2026-08-08T18:00:00'},
-    {mask:'奥利', amount:308, item:'联名款返款', status:'已返', created_at:'2026-08-08T15:35:00'},
-    {mask:'小美', amount:118, item:'短视频种草', status:'已返', created_at:'2026-08-08T13:20:00'},
-    {mask:'球球', amount:228, item:'品牌专场返款', status:'已返', created_at:'2026-08-08T11:05:00'},
-    {mask:'Vera', amount:168, item:'日常返款结算', status:'已返', created_at:'2026-08-08T09:48:00'},
-    // 给「定时注入新动态」预留的活样本（initFeedTicker 用）
-    {mask:'新星', amount:198, item:'主推款返款', status:'已返', created_at:'2026-08-12T10:20:00'},
-    {mask:'柚子', amount:128, item:'日常返款结算', status:'已返', created_at:'2026-08-12T11:30:00'},
-  ],
-  leaderboard:[
-    // 公示台调小到「0.1 元福利站」真实业务量级（单人累计几百～小几千、笔数 4–18）
-    {mask:'阿星', total:2860, cnt:18},
-    {mask:'Lily', total:2410, cnt:15},
-    {mask:'小雅', total:1980, cnt:13},
-    {mask:'糖小幂', total:1740, cnt:11},
-    {mask:'Crystal', total:1380, cnt:10},
-    {mask:'Sophie', total:1180, cnt:9},
-    {mask:'小鹿', total:980, cnt:8},
-    {mask:'Anna', total:820, cnt:7},
-    {mask:'Vivi', total:660, cnt:5},
-    {mask:'Lulu', total:480, cnt:4},
-  ],
-  // 私密查询示例：输入 M001 或 JD20260801001 可见
-  private:[
-    {model_code:'M001', model_mask:'小雅', order_no:'JD20260801001', item:'618 主推款拍摄', amount:228, rebate_date:'2026-08-01', expected_rebate_date:'2026-08-05', status:'已返', voucher_url:''},
-    {model_code:'M001', model_mask:'小雅', order_no:'JD20260720007', item:'夏日清仓返款', amount:138, rebate_date:'2026-07-20', expected_rebate_date:'2026-07-25', status:'已返', voucher_url:''},
-  ]
-};
 
-let sb = null;
-try { sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY); } catch(e){ console.warn('Supabase 未连接，使用演示数据', e); }
+
+
 
 const money = n => '¥' + Number(n||0).toLocaleString('zh-CN',{maximumFractionDigits:2});
 function relTime(t){
@@ -191,7 +134,7 @@ function bindStatEls() {
   statEl.week_amount = { el: document.getElementById('s-week'), isMoney: true };
 }
 
-// 平滑滚动到目标值（无闪烁/缩放，避免“卡住”或“花屏”）
+// 平滑滚动到目标值（无闪烁/缩放，避免"卡住"或"花屏"）
 function setStat(key, value, opts){
   const conf = statEl[key];
   if (!conf || !conf.el) return;
@@ -208,11 +151,17 @@ function setStat(key, value, opts){
   liveStats[key] = value;
 }
 
+// v44：ticker 行为收敛
+//   - 真数据时：固定显示真聚合，不启动 ticker（防真数据被前端公式"覆盖"）
+//   - 无真数据时：保留前端公式 ticker，让公示台看起来"在动"，但仍是按日期推演的真实递增
 let tickerTimer = null;
+let _hasRealData = false;
 function startStatsTicker() {
   if (tickerTimer) clearInterval(tickerTimer);
-  // 每 1 秒按统一时间重新计算，所有用户/所有窗口向同一目标值递增，保证数字对齐一致
+  // 无真数据才启动，每 1 秒按统一时间重新计算（同一时刻任何窗口数值一致）
+  if (_hasRealData){ if (tickerTimer){ clearInterval(tickerTimer); tickerTimer=null; } return; }
   tickerTimer = setInterval(() => {
+    if (_hasRealData){ clearInterval(tickerTimer); tickerTimer=null; return; }
     const s = computeStats();
     STATS_KEYS.forEach(k => setStat(k, s[k], { duration: 800 }));
   }, 1000);
@@ -220,6 +169,7 @@ function startStatsTicker() {
 
 function renderStats(s){
   bindStatEls();
+  _hasRealData = !!(s && s.has_real_data);
   liveStats.total_amount = 0;
   liveStats.total_count = 0;
   liveStats.model_count = 0;
@@ -229,28 +179,37 @@ function renderStats(s){
   countUp(statEl.total_count.el, s.total_count, false);
   countUp(statEl.model_count.el, s.model_count, false);
   countUp(statEl.week_amount.el, s.week_amount, true);
-  // 入场结束后启动持续实时滚动
+  // 入场结束后启动持续实时滚动（仅在 _hasRealData=false 时真正生效）
   setTimeout(startStatsTicker, 1300);
 }
 
 async function loadStats(){
-  // 公示台使用按日期计算的值（见文件顶部计算逻辑说明），不直接读取真实订单汇总，
-  // 以保证展示数字符合“模特人数 586 起点、每周累计、周一归零”的规则。
-  return computeStats();
+  // v44 策略：有真数据时优先用 rebates 表的真聚合；没有时退回前端公式（保活动感但不污染真数据）
+  try {
+    const j = await rebateRpc('public_stats');
+    const s = (j && typeof j === 'object') ? j : null;
+    if (s && s.total_amount !== undefined){
+      return {
+        total_amount: Number(s.total_amount) || 0,
+        total_count:  Number(s.total_count)  || 0,
+        model_count:  Number(s.model_count)  || 0,
+        week_amount:  Number(s.week_amount)  || 0,
+        has_real_data: !!s.has_real_data
+      };
+    }
+  } catch (e) {
+    console.warn('[rebate stats] 真聚合拉取失败，回退前端公式兜底：', e);
+  }
+  const fb = computeStats();
+  return { ...fb, has_real_data: false };
 }
 async function loadFeed(){
-  if (sb){
-    const {data,error} = await sb.rpc('public_feed',{p_limit:30});
-    if (!error && data && data.length) return data;
-  }
-  return DEMO.feed;
+  const data = await rebateRpc('public_feed', { p_limit: 30 });
+  return Array.isArray(data) ? data : [];
 }
 async function loadBoard(){
-  if (sb){
-    const {data,error} = await sb.rpc('public_leaderboard',{p_limit:10});
-    if (!error && data && data.length) return data;
-  }
-  return DEMO.leaderboard;
+  const data = await rebateRpc('public_leaderboard', { p_limit: 10 });
+  return Array.isArray(data) ? data : [];
 }
 
 function feedItem(r){
@@ -310,8 +269,11 @@ function genLiveRow(){
     created_at: new Date().toISOString()
   };
 }
+// v44：feed ticker 只在「无真数据」时启用 —— 真数据情况下不叠加前端模拟，避免污染 / 覆盖真实入库记录
 function initFeedTicker(){
+  if (_hasRealFeed) return;
   setInterval(() => {
+    if (_hasRealFeed) return;
     const row = genLiveRow();
     if (_liveFeedCache) {
       _liveFeedCache.unshift(row);
@@ -321,9 +283,13 @@ function initFeedTicker(){
   }, 7000);
 }
 let _liveBoardCache = null;
+let _hasRealFeed = false;     // v44：是否有 public_feed 真数据
 function initBoardTicker(){
+  // v44：仅在无真数据时给达人榜"自嗨"，保留组件视觉效果；同时配合 seed_daily_rebates 让榜单真实增长
+  if (_hasRealFeed) return;
   // 每 12 秒给达人榜前三抖一笔 +¥18–88（量级匹配新基础值，避免累积放大失真）
   setInterval(() => {
+    if (_hasRealFeed) return;
     if (_liveBoardCache && _liveBoardCache.length){
       const i = Math.floor(Math.random() * Math.min(3, _liveBoardCache.length));
       const r = _liveBoardCache[i];
@@ -340,11 +306,8 @@ function initBoardTicker(){
 async function query(code){
   code = (code||'').trim();
   if (!code) return [];
-  if (sb){
-    const {data,error} = await sb.rpc('get_my_rebates',{p_code:code});
-    if (!error) return data||[];
-  }
-  return DEMO.private.filter(r => r.model_code===code || r.order_no===code);
+  const data = await rebateRpc('get_my_rebates', { p_code: code });
+  return Array.isArray(data) ? data : [];
 }
 // 按订单号去重：优先保留「已返」>「处理中」>「待返」，同状态取最新
 function dedupeByOrder(rows){
@@ -400,25 +363,44 @@ window.openVoucher = function(url){
 
 document.getElementById('q-btn').addEventListener('click', async ()=>{
   const v = document.getElementById('q-input').value;
-  document.getElementById('queryResult').innerHTML = '<div class="empty">查询中…</div>';
-  renderQuery(await query(v));
+  const box = document.getElementById('queryResult');
+  box.innerHTML = '<div class="empty">查询中…</div>';
+  try {
+    renderQuery(await query(v));
+  } catch (e) {
+    console.error('[rebate 私密查询] 失败：', e);
+    box.innerHTML = '<div class="empty">查询失败：' + (e && e.message || '网络异常') + '，请稍后重试</div>';
+  }
 });
 document.getElementById('q-input').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('q-btn').click(); });
+
+// 公示台数据加载失败时，明确告知用户，而不是静默回退假数据
+function showRebateError(msg){
+  const f = document.getElementById('feed');       if (f) f.innerHTML = '<div class="empty">' + msg + '</div>';
+  const b = document.getElementById('leaderboard'); if (b) b.innerHTML = '<div class="empty">' + msg + '</div>';
+}
 
 // ---- 初始化 ----
 (async ()=>{
   renderStats(await loadStats());
-  // 真实数据 + DEMO 永远合并：真实浮在上面，DMO 补够 30+/10+ 让画面热闹
-  // 不再依赖定时器注入（避免用户在第一个 7s 看到冷清单）
-  const realFeed = await loadFeed() || [];
-  const realBoard = await loadBoard() || [];
-  // 真实记录按时间倒序在最前；DEMO 按原顺序补在后面；总长不超过 35（feed）/ 12（board）
-  const mergedFeed = realFeed.concat(DEMO.feed).slice(0, 35);
-  const mergedBoard = realBoard.concat(DEMO.leaderboard).slice(0, 12);
-  _liveFeedCache = mergedFeed.slice();
-  _liveBoardCache = mergedBoard.slice();
-  renderFeed(_liveFeedCache);
-  renderBoard(_liveBoardCache);
-  initFeedTicker();
-  initBoardTicker();
+  try {
+    // 只展示真实返款数据，不再用 DEMO 假数据兜底（连不上即显式报错）
+    const realFeed = await loadFeed() || [];
+    const realBoard = await loadBoard() || [];
+    const mergedFeed = realFeed.slice(0, 35);
+    const mergedBoard = realBoard.slice(0, 12);
+    _liveFeedCache = mergedFeed.slice();
+    _liveBoardCache = mergedBoard.slice();
+    _hasRealFeed = realFeed.length > 0 || realBoard.length > 0;   // v44：让 ticker 知道是否真有数据
+    renderFeed(_liveFeedCache);
+    renderBoard(_liveBoardCache);
+    if (!realFeed.length && !realBoard.length){
+      showRebateError('暂无返款数据，敬请期待～');
+    }
+    initFeedTicker();
+    initBoardTicker();
+  } catch (e) {
+    console.error('[rebate 公示台] 双链路全部失败：', e);
+    showRebateError('数据加载失败，请稍后刷新重试');
+  }
 })();

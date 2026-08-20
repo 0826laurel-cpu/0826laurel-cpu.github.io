@@ -6,7 +6,7 @@
 <title>模特返款公示台</title>
 <link rel="stylesheet" href="css/style.css?v=13">
 </head>
-<body style="overflow:hidden">
+<body>
 <div class="wrap">
 
   <div class="hero">
@@ -58,10 +58,14 @@
 </div>
 
 <script src="../vendor/supabase.js"></script>
-<script src="js/config.js?v=6"></script>
-<script src="js/app.js?v=31"></script>
+<script src="js/config.js?v=9"></script>
+<script src="js/app.js?v=44"></script>
 <script>
 (function(){
+  // v44: 智能自适滚动 —— 被主站 me.html 的 iframe 嵌入时让父级接管；独立打开时自身可纵向滚动
+  var inIframe = (window.parent && window.parent !== window);
+  if (inIframe) document.body.classList.add('is-iframe');
+
   let lastH = 0;
   function report(){
     if(window.parent===window) return;

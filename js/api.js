@@ -142,7 +142,16 @@ async function directFetchAt(baseUrl, path, init, timeoutMs) {
       const txt = await res.text().catch(() => '');
       throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200) || res.statusText}`);
     }
-    return await res.json();
+    // v45-fix：Supabase 对 return=minimal / 204·205 返回空 body，直接 res.json() 会抛
+    // SyntaxError，被上层当成 AllFailed 假阴性（且会触发串行兜底双写）。统一处理：空 body
+    // 直接返回 null；非空再按 content-type 决定 json 解析（解析失败兜底返回原文）。
+    const ct = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
+    if (res.status === 204 || res.status === 205 || !/json/i.test(ct)) {
+      const txt = await res.text().catch(() => '');
+      if (!txt) return null;
+      try { return JSON.parse(txt); } catch (_) { return txt; }
+    }
+    return await res.json().catch(() => null);
   } finally {
     clearTimeout(t);
   }
@@ -200,6 +209,27 @@ async function directFetch(path, init, attemptTag) {
         });
     });
   });
+}
+
+// 写路径串行兜底：Worker → Direct，每条 10s AbortController 超时。
+// v45：写路径与读路径 (directFetch 并行竞速) 互补——写不能 race，否则双链路可能双写。
+// 触发原因：sb.from(...).insert/update/delete 与 sb.rpc(...) 在用户手机偶发
+//   "TypeError: Failed to fetch"（Worker 域名偶尔不可达、SDK 无超时兜底）。
+// 串行兜底先用 Worker（国内手机最稳），失败/超时再走直连；最坏 20s 兜底不挂死整页。
+async function directFetchWrite(path, init) {
+  const paths = orderedPaths();
+  const errs = [];
+  for (const it of paths) {
+    try {
+      const r = await directFetchAt(it.url, path, init, 10000);
+      pinPath(it.label);
+      return r;
+    } catch (e) {
+      const m = String(e && e.message || e);
+      if (!/AbortError|aborted/i.test(m)) errs.push(it.label + ': ' + m.slice(0, 100));
+    }
+  }
+  throw new Error((errs.length ? errs.join(' | ') : 'all-fail') + ' [.via=AllFailed]');
 }
 
 // 登录 RPC 并行竞速：Worker/Direct 同时打，谁先回谁赢；15s 超时兜底
@@ -313,38 +343,50 @@ const Api = {
   // ---- 发货 / 物流 ----
   async listShipments() { return sbSelect('shipments', normShipment); },
   async createShipment(b) {
+    // v45：改走 directFetchWrite（Worker → Direct 串行兜底），避免 sb.from(...).insert()
+    //   在用户手机偶发 "TypeError: Failed to fetch"（SDK 无超时，Worker 域名抖动整页卡死）。
     // 兜底：填了快递单号就一定是"已揽收"状态（承运商已分配运单），不能继续显示"待发货"
     let status = b.status || 'pending';
     if (b.trackingNo && (status === 'pending' || !status)) status = 'collected';
     const logs = b.note ? [{ status, desc: b.note, time: Date.now() }] : [];
-    const { error } = await sb.from('shipments').insert({
-      partner_id: b.partnerId, gift_name: b.giftName, carrier: b.carrier || '',
-      tracking_no: b.trackingNo || '', phone: b.phone || '', status, logs,
-      product_link: b.productLink || '', product_title: b.productTitle || '',
-      value: Number(b.value) || 0
+    await directFetchWrite('/rest/v1/shipments', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        partner_id: b.partnerId, gift_name: b.giftName, carrier: b.carrier || '',
+        tracking_no: b.trackingNo || '', phone: b.phone || '', status, logs,
+        product_link: b.productLink || '', product_title: b.productTitle || '',
+        value: Number(b.value) || 0
+      })
     });
-    if (error) throw new Error(error.message);
   },
   async addShipLog(id, b) {
-    const { data: cur, error: e1 } = await sb.from('shipments').select('logs').eq('id', id).single();
-    if (e1) throw new Error(e1.message);
-    const logs = Array.isArray(cur.logs) ? cur.logs : [];
+    // v45：改走 directFetchWrite（同 createShipment 原因，避免 SDK 写路径 Failed to fetch）
+    const curRows = await directFetchWrite('/rest/v1/shipments?select=logs,tracking_no&id=eq.' + encodeURIComponent(id));
+    const row = Array.isArray(curRows) ? curRows[0] : null;
+    if (!row) throw new Error('发货记录不存在');
+    const logs = Array.isArray(row.logs) ? row.logs : [];
     logs.unshift({ status: b.status, desc: b.desc || '', time: Date.now() });
     const upd = { status: b.status, logs };
     if (b.trackingNo) upd.tracking_no = b.trackingNo;
-    else if (b.status !== 'pending') {
-      // 兜底：从接口/补单切换状态时如果没带 trackingNo，沿用现单号（保持状态一致）
-      const { data: cur2 } = await sb.from('shipments').select('tracking_no').eq('id', id).single();
-      if (cur2 && cur2.tracking_no) upd.tracking_no = cur2.tracking_no;
-    }
+    else if (b.status !== 'pending' && row.tracking_no) upd.tracking_no = row.tracking_no;
     if (typeof b.value === 'number' && b.value > 0) upd.value = b.value;
-    const { data, error } = await sb.from('shipments').update(upd).eq('id', id).select().single();
-    if (error) throw new Error(error.message);
+    const updRows = await directFetchWrite('/rest/v1/shipments?id=eq.' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body: JSON.stringify(upd)
+    });
+    const data = Array.isArray(updRows) ? updRows[0] : updRows;
     return normShipment(data);
   },
   async deleteShipment(id) {
-    const { error } = await sb.from('shipments').delete().eq('id', id);
-    if (error) throw new Error(error.message);
+    // v45：改走 directFetchWrite（同上）
+    await directFetchWrite('/rest/v1/shipments?id=eq.' + encodeURIComponent(id), {
+      method: 'DELETE'
+    });
   },
 
   // ---- 送礼墙 / 站内通知（anon 可调用 SECURITY DEFINER RPC）----
@@ -439,22 +481,27 @@ const Api = {
     return r || [];
   },
   async addRebate(pw, b) {
-    // 写 RPC：保留 sb.rpc（v27 决策：写路径 SDK 错误处理更友好，避免双链路 retry 重复添加）
-    const { data, error } = await sb.rpc('admin_add_rebate', {
-      p_admin_pw: pw,
-      p_model_code: b.modelCode || '',
-      p_model_mask: b.modelMask || '',
-      p_model_id: b.modelId || '',
-      p_order_no: b.orderNo || '',
-      p_item: b.item || '',
-      p_amount: Number(b.amount) || 0,
-      p_rebate_date: b.rebateDate || null,
-      p_expected_rebate_date: b.expectedDate || null,
-      p_status: b.status || '已返',
-      p_voucher_url: b.voucherUrl || null
+    // v45-fix：改走 directFetchWrite（修 Supabase RPC SDK 在手机/部分网络 Failed to fetch）。
+    // 双链路串行兜底不会双写：Worker 成功即返回，绝不回退 Direct 重试。
+    // addRebate RPC 是 void 函数（PostgREST 默认 204 + 空 body，v45-fix 在 directFetchAt 已处理）。
+    const r = await directFetchWrite('/rest/v1/rpc/admin_add_rebate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        p_admin_pw: pw,
+        p_model_code: b.modelCode || '',
+        p_model_mask: b.modelMask || '',
+        p_model_id: b.modelId || '',
+        p_order_no: b.orderNo || '',
+        p_item: b.item || '',
+        p_amount: Number(b.amount) || 0,
+        p_rebate_date: b.rebateDate || null,
+        p_expected_rebate_date: b.expectedDate || null,
+        p_status: b.status || '已返',
+        p_voucher_url: b.voucherUrl || null
+      })
     });
-    if (error) throw new Error(friendlyError(error, '添加返款失败'));
-    return data;
+    return r; // success=undefined/null（return=minimal），错误已抛到上层
   },
   async getRebatesByCode(code) {
     // v39：换 Api.rpcRace 双链路 fallback（之前 sb.rpc 走 Worker 域 CORS 失败，try/catch 被吞导致前端返款为空）
@@ -466,15 +513,24 @@ const Api = {
     return (await this.rpcRace('get_my_rebates_by_model', { p_model_id: modelId })) || [];
   },
   async uploadRebateVoucher(file) {
+    // v45-fix：改走 directFetchWrite（修 Supabase Storage SDK 在手机/部分网络 Failed to fetch）。
+    // Storage REST 等价 SDK：POST /storage/v1/object/<bucket>/<encoded-path> + binary body + Content-Type
+    // （不走 multipart，Supabase REST 直接收 binary）。
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `voucher/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { data: upData, error: upError } = await sb.storage.from('rebate-vouchers').upload(path, file, {
-      contentType: file.type,
-      upsert: true
+    const encPath = path.split('/').map(encodeURIComponent).join('/');
+    await directFetchWrite('/storage/v1/object/rebate-vouchers/' + encPath, {
+      method: 'POST',
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream',
+        'x-upsert': 'true'
+      },
+      body: file
     });
-    if (upError) throw new Error(upError.message);
-    const { data: urlData } = sb.storage.from('rebate-vouchers').getPublicUrl(path);
-    return urlData.publicUrl;
+    // 公开 URL 用 supabase 直连域名拼接（getPublicUrl SDK 不发请求，纯本地拼接；为避免依赖 sb 加载，
+    // 这里直接手拼，浏览器 GET 公网资源不受 frontend 的 Worker 代理约束）。
+    const base = (window.SB_DIRECT || 'https://ecvsamlwjbxovqaziyww.supabase.co').replace(/\/$/, '');
+    return `${base}/storage/v1/object/public/rebate-vouchers/${path}`;
   },
   // 返款公示页数据
   async rebatePublicStats() {

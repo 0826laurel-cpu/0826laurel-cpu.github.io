@@ -47,8 +47,7 @@ async function resolveModelId(raw){
   const token = extractToken(raw);
   if (!token) return { modelId: raw, ok: false }; // 不是链接/UUID，原样返回（兼容手填编号）
   try {
-    const { data, error } = await sb.rpc('get_my_partner', { p_token: token });
-    if (error) return { modelId: raw, ok: false, warn: '查询模特失败：' + error.message };
+    const data = await rebateRpc('get_my_partner', { p_token: token });
     const p = (data && data.partner) ? data.partner : (Array.isArray(data) ? data[0] : null);
     if (!p || !p.model_id) return { modelId: raw, ok: false, warn: '该专属链接未找到对应模特编号，请确认链接正确' };
     return { modelId: p.model_id, name: p.name || '', ok: true };
@@ -70,6 +69,8 @@ function enterPanel(){
   document.getElementById('gate').style.display = 'none';
   document.getElementById('panel').style.display = 'block';
   setVal('f-date', new Date().toISOString().slice(0,10));
+  // v44：补种子按钮的默认日期 = 今天
+  setVal('seed-date-input', new Date().toISOString().slice(0,10));
   // 来自伙伴卡片的预填 → 锁字段，杜绝误覆盖
   if (URL_PREFILL.model){
     setVal('f-model-id', URL_PREFILL.model);
@@ -94,21 +95,24 @@ function enterPanel(){
 document.getElementById('pw-btn').addEventListener('click', async ()=>{
   const pw = document.getElementById('pw').value.trim();
   if (!pw){ toast('请输入密码'); return; }
-  if (!sb){ toast('未连接数据库'); return; }
 
   const btn = document.getElementById('pw-btn');
   const oldText = btn.textContent;
   btn.textContent = '验证中…'; btn.disabled = true;
 
-  const { data, error } = await sb.rpc('admin_check_pw', { p_admin_pw: pw });
-  btn.textContent = oldText; btn.disabled = false;
-
-  if (error || data !== true){
-    toast('密码错误');
-    return;
+  try {
+    const ok = await rebateRpc('admin_check_pw', { p_admin_pw: pw });
+    btn.textContent = oldText; btn.disabled = false;
+    if (ok !== true){
+      toast('密码错误');
+      return;
+    }
+    adminPw = pw;
+    enterPanel();
+  } catch (e) {
+    btn.textContent = oldText; btn.disabled = false;
+    toast('验证失败：' + (e && e.message || '网络异常'));
   }
-  adminPw = pw;
-  enterPanel();
 });
 
 document.getElementById('logout').addEventListener('click', ()=>{
@@ -116,6 +120,30 @@ document.getElementById('logout').addEventListener('click', ()=>{
   document.getElementById('panel').style.display = 'none';
   document.getElementById('gate').style.display = 'block';
   setVal('pw', '');
+});
+
+// ========== v44：补今日种子按钮 ==========
+document.getElementById('seed-btn').addEventListener('click', async ()=>{
+  const cntRaw = parseInt(val('seed-count') || '6', 10);
+  const cnt = Math.max(1, Math.min(30, isNaN(cntRaw) ? 6 : cntRaw));
+  const dateStr = val('seed-date-input');
+  if (!dateStr){ toast('请选目标日期'); return; }
+
+  const btn = document.getElementById('seed-btn');
+  const oldText = btn.textContent;
+  btn.disabled = true; btn.textContent = '补种中…';
+
+  try {
+    const data = await rebateRpc('seed_daily_rebates', { p_target_date: dateStr, p_count: cnt });
+    if (!data || data.ok === false){ toast('补种失败：' + (data && data.error || 'RPC 异常')); btn.disabled = false; btn.textContent = oldText; return; }
+    toast('✅ 已为 ' + data.target_date + ' 补 ' + data.inserted + ' 条新动态');
+    btn.disabled = false; btn.textContent = oldText;
+    loadPending();
+    loadPaid();
+  } catch (e) {
+    toast('补种失败：' + (e && e.message || '网络异常'));
+    btn.disabled = false; btn.textContent = oldText;
+  }
 });
 
 // 凭证图片选择 + 预览
@@ -204,9 +232,13 @@ function fmtDateTime(t){
 // 加载待返款列表
 async function loadPending(){
   const box = document.getElementById('pendingList');
-  if (!sb){ box.innerHTML = '<div class="pending-empty">未连接数据库</div>'; return; }
-  const { data, error } = await sb.rpc('admin_pending_list', { p_admin_pw: adminPw });
-  if (error){ box.innerHTML = '<div class="pending-empty">加载失败：' + error.message + '</div>'; return; }
+  let data;
+  try {
+    data = await rebateRpc('admin_pending_list', { p_admin_pw: adminPw });
+  } catch (e) {
+    box.innerHTML = '<div class="pending-empty">加载失败：' + (e && e.message || '网络异常') + '</div>';
+    return;
+  }
   document.getElementById('pending-count').textContent = (data || []).length;
   if (!data || data.length === 0){
     box.innerHTML = '<div class="pending-empty">暂无待返款订单 🎉</div>';
@@ -239,7 +271,7 @@ async function loadPending(){
   box.querySelectorAll('[data-action="pay"]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const order = btn.getAttribute('data-order');
-      const { data } = await sb.rpc('get_my_rebates', { p_code: order });
+      const data = await rebateRpc('get_my_rebates', { p_code: order });
       const r = (data||[]).find(x=>x.order_no===order);
       if (!r){ toast('未找到该订单'); return; }
       fillForm(r, { status: '已返', setDateToday: true });
@@ -248,7 +280,7 @@ async function loadPending(){
   box.querySelectorAll('[data-action="edit"]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const order = btn.getAttribute('data-order');
-      const { data } = await sb.rpc('get_my_rebates', { p_code: order });
+      const data = await rebateRpc('get_my_rebates', { p_code: order });
       const r = (data||[]).find(x=>x.order_no===order);
       if (!r){ toast('未找到该订单'); return; }
       fillForm(r, { status: r.status });
@@ -261,11 +293,14 @@ async function loadPending(){
       const ok = await confirmDelete(order);
       if (!ok) return;
       btn.disabled = true; btn.textContent = '删除中…';
-      const { data, error } = await sb.rpc('admin_delete_rebate', { p_admin_pw: adminPw, p_id: Number(id) });
-      if (error){ toast('删除失败：' + error.message); btn.disabled = false; btn.textContent = '删除'; return; }
-      if (!data || data.ok === false){ toast('未找到该记录（可能已被删除）'); btn.disabled = false; btn.textContent = '删除'; return; }
-      toast('✅ 已删除订单 ' + (data.deleted_order_no || order));
-      loadPending();
+      try {
+        const data = await rebateRpc('admin_delete_rebate', { p_admin_pw: adminPw, p_id: Number(id) });
+        if (!data || data.ok === false){ toast('未找到该记录（可能已被删除）'); btn.disabled = false; btn.textContent = '删除'; return; }
+        toast('✅ 已删除订单 ' + (data.deleted_order_no || order));
+        loadPending();
+      } catch (e) {
+        toast('删除失败：' + (e && e.message || '网络异常')); btn.disabled = false; btn.textContent = '删除';
+      }
     });
   });
 }
@@ -273,9 +308,13 @@ async function loadPending(){
 // 加载已返款列表
 async function loadPaid(){
   const box = document.getElementById('paidList');
-  if (!sb){ box.innerHTML = '<div class="pending-empty">未连接数据库</div>'; return; }
-  const { data, error } = await sb.rpc('admin_paid_list', { p_admin_pw: adminPw });
-  if (error){ box.innerHTML = '<div class="pending-empty">加载失败：' + error.message + '</div>'; return; }
+  let data;
+  try {
+    data = await rebateRpc('admin_paid_list', { p_admin_pw: adminPw });
+  } catch (e) {
+    box.innerHTML = '<div class="pending-empty">加载失败：' + (e && e.message || '网络异常') + '</div>';
+    return;
+  }
   if (!data || data.length === 0){
     box.innerHTML = '<div class="pending-empty">暂无已返款订单</div>';
     return;
@@ -312,11 +351,14 @@ async function loadPaid(){
       const ok = await confirmDelete(order);
       if (!ok) return;
       btn.disabled = true; btn.textContent = '删除中…';
-      const { data, error } = await sb.rpc('admin_delete_rebate', { p_admin_pw: adminPw, p_id: Number(id) });
-      if (error){ toast('删除失败：' + error.message); btn.disabled = false; btn.textContent = '删除'; return; }
-      if (!data || data.ok === false){ toast('未找到该记录（可能已被删除）'); btn.disabled = false; btn.textContent = '删除'; return; }
-      toast('✅ 已删除订单 ' + (data.deleted_order_no || order));
-      loadPaid();
+      try {
+        const data = await rebateRpc('admin_delete_rebate', { p_admin_pw: adminPw, p_id: Number(id) });
+        if (!data || data.ok === false){ toast('未找到该记录（可能已被删除）'); btn.disabled = false; btn.textContent = '删除'; return; }
+        toast('✅ 已删除订单 ' + (data.deleted_order_no || order));
+        loadPaid();
+      } catch (e) {
+        toast('删除失败：' + (e && e.message || '网络异常')); btn.disabled = false; btn.textContent = '删除';
+      }
     });
   });
 }
@@ -409,11 +451,14 @@ document.getElementById('submit-btn').addEventListener('click', async ()=>{
     toast('请填全：昵称 / 订单号 / 事项 / 金额'); return;
   }
   if (!sb){ toast('未连接数据库（演示环境无法写入）'); return; }
-  const {data,error} = await sb.rpc('admin_add_rebate', payload);
-  if (error){ toast('提交失败：' + error.message); return; }
-  if (data && data.ok === false){ toast(data.error || '提交失败'); return; }
-  toast('✅ 返款记录已提交');
-  resetForm();
-  loadPending();
-  loadPaid();
+  try {
+    const data = await rebateRpc('admin_add_rebate', payload);
+    if (data && data.ok === false){ toast(data.error || '提交失败'); return; }
+    toast('✅ 返款记录已提交');
+    resetForm();
+    loadPending();
+    loadPaid();
+  } catch (e) {
+    toast('提交失败：' + (e && e.message || '网络异常'));
+  }
 });
