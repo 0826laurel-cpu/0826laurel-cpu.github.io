@@ -481,22 +481,27 @@ const Api = {
     return r || [];
   },
   async addRebate(pw, b) {
-    // 写 RPC：保留 sb.rpc（v27 决策：写路径 SDK 错误处理更友好，避免双链路 retry 重复添加）
-    const { data, error } = await sb.rpc('admin_add_rebate', {
-      p_admin_pw: pw,
-      p_model_code: b.modelCode || '',
-      p_model_mask: b.modelMask || '',
-      p_model_id: b.modelId || '',
-      p_order_no: b.orderNo || '',
-      p_item: b.item || '',
-      p_amount: Number(b.amount) || 0,
-      p_rebate_date: b.rebateDate || null,
-      p_expected_rebate_date: b.expectedDate || null,
-      p_status: b.status || '已返',
-      p_voucher_url: b.voucherUrl || null
+    // v45-fix：改走 directFetchWrite（修 Supabase RPC SDK 在手机/部分网络 Failed to fetch）。
+    // 双链路串行兜底不会双写：Worker 成功即返回，绝不回退 Direct 重试。
+    // addRebate RPC 是 void 函数（PostgREST 默认 204 + 空 body，v45-fix 在 directFetchAt 已处理）。
+    const r = await directFetchWrite('/rest/v1/rpc/admin_add_rebate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        p_admin_pw: pw,
+        p_model_code: b.modelCode || '',
+        p_model_mask: b.modelMask || '',
+        p_model_id: b.modelId || '',
+        p_order_no: b.orderNo || '',
+        p_item: b.item || '',
+        p_amount: Number(b.amount) || 0,
+        p_rebate_date: b.rebateDate || null,
+        p_expected_rebate_date: b.expectedDate || null,
+        p_status: b.status || '已返',
+        p_voucher_url: b.voucherUrl || null
+      })
     });
-    if (error) throw new Error(friendlyError(error, '添加返款失败'));
-    return data;
+    return r; // success=undefined/null（return=minimal），错误已抛到上层
   },
   async getRebatesByCode(code) {
     // v39：换 Api.rpcRace 双链路 fallback（之前 sb.rpc 走 Worker 域 CORS 失败，try/catch 被吞导致前端返款为空）
@@ -508,15 +513,24 @@ const Api = {
     return (await this.rpcRace('get_my_rebates_by_model', { p_model_id: modelId })) || [];
   },
   async uploadRebateVoucher(file) {
+    // v45-fix：改走 directFetchWrite（修 Supabase Storage SDK 在手机/部分网络 Failed to fetch）。
+    // Storage REST 等价 SDK：POST /storage/v1/object/<bucket>/<encoded-path> + binary body + Content-Type
+    // （不走 multipart，Supabase REST 直接收 binary）。
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `voucher/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { data: upData, error: upError } = await sb.storage.from('rebate-vouchers').upload(path, file, {
-      contentType: file.type,
-      upsert: true
+    const encPath = path.split('/').map(encodeURIComponent).join('/');
+    await directFetchWrite('/storage/v1/object/rebate-vouchers/' + encPath, {
+      method: 'POST',
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream',
+        'x-upsert': 'true'
+      },
+      body: file
     });
-    if (upError) throw new Error(upError.message);
-    const { data: urlData } = sb.storage.from('rebate-vouchers').getPublicUrl(path);
-    return urlData.publicUrl;
+    // 公开 URL 用 supabase 直连域名拼接（getPublicUrl SDK 不发请求，纯本地拼接；为避免依赖 sb 加载，
+    // 这里直接手拼，浏览器 GET 公网资源不受 frontend 的 Worker 代理约束）。
+    const base = (window.SB_DIRECT || 'https://ecvsamlwjbxovqaziyww.supabase.co').replace(/\/$/, '');
+    return `${base}/storage/v1/object/public/rebate-vouchers/${path}`;
   },
   // 返款公示页数据
   async rebatePublicStats() {

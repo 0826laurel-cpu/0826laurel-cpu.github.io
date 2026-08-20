@@ -919,7 +919,7 @@ async function saveRebate() {
     REBATE_PREFILL = null;
     REBATE_TAB = 'paid';
     renderRebate();
-  } catch (e) { toast(e.message || '提交失败', { err: true }); }
+  } catch (e) { toast(friendlyError(e, '提交返款'), { err: true }); }
 }
 
 function renderRebateRows(rows, type) {
