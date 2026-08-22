@@ -219,10 +219,8 @@
   async function load() {
     if (!TOKEN) { showErr('链接无效', '链接里没有 token。请使用完整的专属链接（应形如 ' + (window.APP_ORIGIN || location.origin) + '/me.html?t=...）。'); return; }
     if (TOKEN === 'TOKEN' || !/^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(TOKEN)) { showErr('链接无效', '链接里的 token 不正确（看到了占位符 "TOKEN" 或格式不对）。请使用你收到的<b>真实</b>专属链接，<b>不要手动修改链接</b>。'); return; }
-    if (typeof window.sb === 'undefined' || !window.sb || typeof window.sb.rpc !== 'function') {
-      showErr('客户端加载失败', 'Supabase 客户端没有初始化成功，通常是脚本加载被浏览器拦截或网络不稳定。请检查网络、关闭广告拦截插件后重试。', 'window.sb=' + (typeof window.sb) + ' window.sb.rpc=' + (window.sb && typeof window.sb.rpc));
-      return;
-    }
+    // v41：移除 v38 之前对 window.sb 的存在性检查 —— 全仓库已迁到 Api.rpcRace（裸 fetch 双链路），
+    //      无需依赖 supabase-js SDK，删掉避免在 SDK 缺失/被广告拦截时报"客户端加载失败"假错误。
     try {
       // ① 先读本地缓存，命中则瞬时渲染（模特反复打开自己页 ≈ 0 延迟）
       const cached = readCache(TOKEN);
@@ -487,7 +485,7 @@
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap iframe-lazy" id="welfare-wrap">
           <div class="iframe-skeleton" id="welfare-skel"><div class="sk-spinner"></div><div class="sk-text">互动福利中心加载中…</div></div>
-          <iframe id="welfare-frame" data-src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=11" title="互动福利中心" allow="clipboard-write" scrolling="no"></iframe>
+          <iframe id="welfare-frame" data-src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=12" title="互动福利中心" allow="clipboard-write" scrolling="no"></iframe>
         </div>
       </div>`;
   }
