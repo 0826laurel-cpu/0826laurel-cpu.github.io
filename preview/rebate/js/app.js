@@ -156,12 +156,13 @@ function setStat(key, value, opts){
 //   - 无真数据时：保留前端公式 ticker，让公示台看起来"在动"，但仍是按日期推演的真实递增
 let tickerTimer = null;
 let _hasRealData = false;
+// v44b：纯虚拟展示策略 —— 公示台为活跃氛围展示页，数字按日期公式推演递增（同一时刻所有用户一致）。
+//   （模特私密查询仍走真库 get_my_rebates，互不影响）
+//   ticker 始终运行，让 4 个数字持续向上翻动。
 function startStatsTicker() {
   if (tickerTimer) clearInterval(tickerTimer);
-  // 无真数据才启动，每 1 秒按统一时间重新计算（同一时刻任何窗口数值一致）
-  if (_hasRealData){ if (tickerTimer){ clearInterval(tickerTimer); tickerTimer=null; } return; }
+  // 每 1 秒按统一时间重新计算，所有用户/所有窗口向同一目标值递增，保证数字对齐一致
   tickerTimer = setInterval(() => {
-    if (_hasRealData){ clearInterval(tickerTimer); tickerTimer=null; return; }
     const s = computeStats();
     STATS_KEYS.forEach(k => setStat(k, s[k], { duration: 800 }));
   }, 1000);
@@ -169,7 +170,7 @@ function startStatsTicker() {
 
 function renderStats(s){
   bindStatEls();
-  _hasRealData = !!(s && s.has_real_data);
+  _hasRealData = false;   // v44b：纯虚拟展示，ticker 始终运行
   liveStats.total_amount = 0;
   liveStats.total_count = 0;
   liveStats.model_count = 0;
@@ -184,32 +185,16 @@ function renderStats(s){
 }
 
 async function loadStats(){
-  // v44 策略：有真数据时优先用 rebates 表的真聚合；没有时退回前端公式（保活动感但不污染真数据）
-  try {
-    const j = await rebateRpc('public_stats');
-    const s = (j && typeof j === 'object') ? j : null;
-    if (s && s.total_amount !== undefined){
-      return {
-        total_amount: Number(s.total_amount) || 0,
-        total_count:  Number(s.total_count)  || 0,
-        model_count:  Number(s.model_count)  || 0,
-        week_amount:  Number(s.week_amount)  || 0,
-        has_real_data: !!s.has_real_data
-      };
-    }
-  } catch (e) {
-    console.warn('[rebate stats] 真聚合拉取失败，回退前端公式兜底：', e);
-  }
-  const fb = computeStats();
-  return { ...fb, has_real_data: false };
+  // v44b：纯虚拟展示策略 —— 直接按日期公式计算累计/笔数/模特数/本周，营造活跃氛围
+  // （公示页为「展示氛围」，模特私密查询仍走真库 get_my_rebates，互不影响）
+  return computeStats();
 }
+// v44b：纯虚拟生成初始 feed / leaderboard（不再调真数据 RPC，全部前端生成）
 async function loadFeed(){
-  const data = await rebateRpc('public_feed', { p_limit: 30 });
-  return Array.isArray(data) ? data : [];
+  return genVirtualFeed(30);
 }
 async function loadBoard(){
-  const data = await rebateRpc('public_leaderboard', { p_limit: 10 });
-  return Array.isArray(data) ? data : [];
+  return genVirtualBoard(12);
 }
 
 function feedItem(r){
@@ -256,24 +241,44 @@ function renderBoard(rows){
 const LIVE_NAMES = ['兮兮','阿月','小满','念念','Rita','Yuki','阿琳','梅梅','木木','晨晨','叶子','丹丹','小寒','樱桃','橙橙','苏叶','秀秀','星星','晓晓','阿绿'];
 const LIVE_ITEMS = ['主推款返款','日常返款结算','品牌专场返款','联名款返款','618 主推款拍摄','短视频种草','新品上架返款','品牌专场直播'];
 const LIVE_STATUSES = ['已返','已返','已返','已返','处理中','已返'];
+// v44b：单笔返款金额统一限定在 ¥300–500（用户指定区间）
+const V_AMOUNTS = [300, 320, 350, 380, 400, 420, 450, 480, 500];
 let _liveFeedCache = null;
 function pickRand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+// 生成一条虚拟返款动态（金额 300–500）
 function genLiveRow(){
-  // 单笔返款区间 ¥18–388（高价位/常规位混合，贴近 0.1 元福利站的真实返款量级）
-  const amt = pickRand([18, 28, 38, 48, 58, 78, 108, 138, 168, 198, 238, 288, 328, 388]);
   return {
     mask: pickRand(LIVE_NAMES),
-    amount: amt,
+    amount: pickRand(V_AMOUNTS),
     item: pickRand(LIVE_ITEMS),
     status: pickRand(LIVE_STATUSES),
     created_at: new Date().toISOString()
   };
 }
-// v44：feed ticker 只在「无真数据」时启用 —— 真数据情况下不叠加前端模拟，避免污染 / 覆盖真实入库记录
+// 初始虚拟 feed（N 条，时间倒叙）
+function genVirtualFeed(n){
+  const rows = [];
+  for (let i = 0; i < n; i++){
+    const r = genLiveRow();
+    r.created_at = new Date(Date.now() - i * (Math.floor(Math.random()*3600) + 600) * 1000).toISOString();
+    rows.push(r);
+  }
+  return rows;
+}
+// 初始虚拟达人榜（N 条，金额 300–500 量级 × 笔数，降序）
+function genVirtualBoard(n){
+  const rows = [];
+  for (let i = 0; i < n; i++){
+    const cnt = 5 + Math.floor(Math.random() * 40);
+    const total = cnt * (300 + Math.floor(Math.random() * 200));
+    rows.push({ mask: pickRand(LIVE_NAMES), total, cnt });
+  }
+  rows.sort((a,b)=> b.total - a.total);
+  return rows;
+}
+// v44b：纯虚拟展示，ticker 始终运行（不再受 _hasRealFeed 门控）
 function initFeedTicker(){
-  if (_hasRealFeed) return;
   setInterval(() => {
-    if (_hasRealFeed) return;
     const row = genLiveRow();
     if (_liveFeedCache) {
       _liveFeedCache.unshift(row);
@@ -283,18 +288,14 @@ function initFeedTicker(){
   }, 7000);
 }
 let _liveBoardCache = null;
-let _hasRealFeed = false;     // v44：是否有 public_feed 真数据
 function initBoardTicker(){
-  // v44：仅在无真数据时给达人榜"自嗨"，保留组件视觉效果；同时配合 seed_daily_rebates 让榜单真实增长
-  if (_hasRealFeed) return;
-  // 每 12 秒给达人榜前三抖一笔 +¥18–88（量级匹配新基础值，避免累积放大失真）
+  // 每 12 秒给达人榜前三抖一笔 +¥300–500（量级与单笔返款一致，避免累积放大失真）
   setInterval(() => {
-    if (_hasRealFeed) return;
     if (_liveBoardCache && _liveBoardCache.length){
       const i = Math.floor(Math.random() * Math.min(3, _liveBoardCache.length));
       const r = _liveBoardCache[i];
       if (r){
-        r.total = (r.total||0) + Math.floor(18 + Math.random() * 70);
+        r.total = (r.total||0) + pickRand(V_AMOUNTS);
         r.cnt = (r.cnt||0) + 1;
       }
       renderBoard(_liveBoardCache);
@@ -384,23 +385,17 @@ function showRebateError(msg){
 (async ()=>{
   renderStats(await loadStats());
   try {
-    // 只展示真实返款数据，不再用 DEMO 假数据兜底（连不上即显式报错）
-    const realFeed = await loadFeed() || [];
-    const realBoard = await loadBoard() || [];
-    const mergedFeed = realFeed.slice(0, 35);
-    const mergedBoard = realBoard.slice(0, 12);
-    _liveFeedCache = mergedFeed.slice();
-    _liveBoardCache = mergedBoard.slice();
-    _hasRealFeed = realFeed.length > 0 || realBoard.length > 0;   // v44：让 ticker 知道是否真有数据
+    // v44b：纯虚拟展示 —— 前端生成初始 feed / leaderboard，ticker 持续注入新动态
+    const vFeed = await loadFeed() || [];
+    const vBoard = await loadBoard() || [];
+    _liveFeedCache = vFeed.slice();
+    _liveBoardCache = vBoard.slice();
+    _hasRealFeed = false;   // v44b：纯虚拟，ticker 始终运行
     renderFeed(_liveFeedCache);
     renderBoard(_liveBoardCache);
-    if (!realFeed.length && !realBoard.length){
-      showRebateError('暂无返款数据，敬请期待～');
-    }
     initFeedTicker();
     initBoardTicker();
   } catch (e) {
-    console.error('[rebate 公示台] 双链路全部失败：', e);
-    showRebateError('数据加载失败，请稍后刷新重试');
+    console.error('[rebate 公示台] 初始化失败：', e);
   }
 })();
