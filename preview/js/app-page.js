@@ -268,6 +268,11 @@
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
     const viewport = document.getElementById('viewport');
     if (viewport) viewport.scrollTop = 0;
+    // 首次切到 rebate tab 时把 data-src 写到 src（避免主站初次加载就把 iframe 资源拉过来）
+    if (name === 'rebate') {
+      const rf = document.getElementById('rebate-frame');
+      if (rf && rf.dataset.src && !rf.getAttribute('src')) rf.src = rf.dataset.src;
+    }
     // 切回首页时实时刷新返款进度（后台改了状态，模特立刻能看到）
     if (name === 'home') {
       loadRebatesForModel().then(() => { renderHome(); bindEvents(); });
@@ -472,7 +477,7 @@
     document.getElementById('view-rebate').innerHTML = `
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap" id="rebate-wrap">
-          <iframe id="rebate-frame" src="rebate/?v=28" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
+          <iframe id="rebate-frame" loading="lazy" data-src="rebate/?v=28" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
         </div>
       </div>`;
   }
