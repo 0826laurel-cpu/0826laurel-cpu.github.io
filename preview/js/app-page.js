@@ -268,6 +268,8 @@
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
     const viewport = document.getElementById('viewport');
     if (viewport) viewport.scrollTop = 0;
+    // v30：返款 / 福利 tab 都改懒加载，首次激活才发请求，避免主页打开时两 iframe 互相抢资源
+    if (name === 'rebate' || name === 'welfare') activateLazyFrame(name);
     // 切回首页时实时刷新返款进度（后台改了状态，模特立刻能看到）
     if (name === 'home') {
       loadRebatesForModel().then(() => { renderHome(); bindEvents(); });
@@ -469,21 +471,38 @@
   }
 
   function renderRebate() {
+    // v30：懒加载骨架——避免和福利 iframe 同时抢 6 并发资源，导致切 tab 等待几秒-十几秒
     document.getElementById('view-rebate').innerHTML = `
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
-        <div class="iframe-wrap" id="rebate-wrap">
-          <iframe id="rebate-frame" src="rebate/?v=29" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
+        <div class="iframe-wrap iframe-lazy" id="rebate-wrap">
+          <div class="iframe-skeleton" id="rebate-skel"><div class="sk-spinner"></div><div class="sk-text">返款公示台加载中…</div></div>
+          <iframe id="rebate-frame" data-src="rebate/?v=30" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
         </div>
       </div>`;
   }
 
   function renderWelfare() {
+    // v30：福利 iframe 同样改懒加载（280KB+，不再拖累首屏）
     document.getElementById('view-welfare').innerHTML = `
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
-        <div class="iframe-wrap" id="welfare-wrap">
-          <iframe id="welfare-frame" src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=11" title="互动福利中心" allow="clipboard-write" scrolling="no"></iframe>
+        <div class="iframe-wrap iframe-lazy" id="welfare-wrap">
+          <div class="iframe-skeleton" id="welfare-skel"><div class="sk-spinner"></div><div class="sk-text">互动福利中心加载中…</div></div>
+          <iframe id="welfare-frame" data-src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=11" title="互动福利中心" allow="clipboard-write" scrolling="no"></iframe>
         </div>
       </div>`;
+  }
+
+  // v30：首次激活某 tab 时把该 iframe 的 data-src 写到 src；加载完成后移除骨架（保留通用，福利/返款都复用）
+  function activateLazyFrame(name){
+    const frame = document.getElementById(name + '-frame');
+    if (!frame || !frame.dataset.src || frame.getAttribute('src')) return;
+    frame.src = frame.dataset.src;
+    const skel = document.getElementById(name + '-skel');
+    frame.addEventListener('load', () => {
+      if (skel) skel.style.display = 'none';
+      // 容错：万一 load 事件丢失（罕见），20s 后兜底移除骨架
+      setTimeout(() => { if (skel && skel.style.display !== 'none') skel.style.display = 'none'; }, 20000);
+    }, { once: true });
   }
 
   function bindEvents() {
@@ -684,7 +703,23 @@
   }
 
   // Tab 切换
-  document.getElementById('tabbar').addEventListener('click', e => {
+  // v30：touchstart 时立即预加载目标 tab 的 iframe，让手指按下就开始下载（相比 click 早 ~100-300ms），
+  //        等到 click 触发 switchTab 时资源往往已经到本地，切 tab 体感秒开
+  const tabbar = document.getElementById('tabbar');
+  tabbar.addEventListener('touchstart', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    const name = tab.dataset.tab;
+    if (name === 'rebate' || name === 'welfare') activateLazyFrame(name);
+  }, { passive: true });
+  // mouseover 也算桌面端体验（hover 预加载）
+  tabbar.addEventListener('mouseover', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    const name = tab.dataset.tab;
+    if (name === 'rebate' || name === 'welfare') activateLazyFrame(name);
+  });
+  tabbar.addEventListener('click', e => {
     const tab = e.target.closest('.tab');
     if (!tab) return;
     switchTab(tab.dataset.tab);
