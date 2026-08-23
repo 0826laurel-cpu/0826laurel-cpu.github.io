@@ -45,3 +45,45 @@ window.rebateRpc = async function (fn, params, timeoutMs = 12000) {
   const errs = results.map(r => (r.reason && r.reason.message) || '').filter(Boolean).join(' | ');
   throw new Error('[rebateRpc.AllFailed] ' + (errs || '网络异常，请检查网络后重试'));
 };
+
+// 返款凭证图上传：裸 REST 直传 Storage（替代已废弃的 supabase-js SDK sb.storage 写路径）。
+// 与 rebateRpc 同双链路策略（Worker 代理首选 + 直连兜底），每条 10s AbortController 超时；
+// 串行兜底避免双写（Worker 成功即返回）。公开 URL 手拼（getPublicUrl SDK 不发请求，纯本地拼接）。
+window.rebateUploadVoucher = async function (file) {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `voucher/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const encPath = path.split('/').map(encodeURIComponent).join('/');
+  const headers = {
+    'apikey': window.SB_ANON,
+    'Authorization': 'Bearer ' + window.SB_ANON,
+    'Content-Type': file.type || 'application/octet-stream',
+    'x-upsert': 'true'
+  };
+  const paths = [window.SB_PROXY_URL, window.SB_DIRECT];
+  let lastErr = '';
+  for (const base of paths) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);
+    try {
+      const res = await fetch(base + '/storage/v1/object/rebate-vouchers/' + encPath, {
+        method: 'POST',
+        headers,
+        body: file,
+        signal: ctrl.signal
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        throw new Error('HTTP ' + res.status + ': ' + t.slice(0, 200));
+      }
+      // 公开 URL 用 supra 直连域名拼接（不走代理，公网资源不受 frontend Worker 约束）
+      const host = (window.SB_DIRECT || 'https://ecvsamlwjbxovqaziyww.supabase.co').replace(/\/$/, '');
+      return `${host}/storage/v1/object/public/rebate-vouchers/${path}`;
+    } catch (e) {
+      const m = String(e && e.message || e);
+      if (!/AbortError|aborted/i.test(m)) lastErr = m.slice(0, 120);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw new Error('[rebateUploadVoucher.AllFailed] ' + (lastErr || '凭证上传失败，请检查网络后重试'));
+};
