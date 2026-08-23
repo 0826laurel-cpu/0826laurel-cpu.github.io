@@ -158,13 +158,20 @@ async function directFetchAt(baseUrl, path, init, timeoutMs) {
 }
 // 链路顺序：Worker 优先（国内手机/电脑最稳，v32–v35 实证），直连兜底；成功过的链路会被「钉住」
 const PATH_PIN_KEY = 'admin_path_pin';
+// 是否正式站（github.io）。Worker 代理（wgbproxy）把 CORS Access-Control-Allow-Origin 锁死为
+// https://0826laurel-cpu.github.io，非正式域（CloudStudio 测试域 *.bj4.agentos-app.net）走 Worker
+// 会被浏览器 CORS 拦截；而 Supabase 直连 CORS 是 *（允许所有 origin）→ 测试域必须直连优先。
+function isOfficialOrigin() {
+  try { return /0826laurel-cpu\.github\.io/.test(location.origin || ''); } catch (_) { return true; }
+}
 function orderedPaths() {
   const direct = window.SB_DIRECT || 'https://ecvsamlwjbxovqaziyww.supabase.co';
   const worker = window.SB_PROXY_URL;
   let pinned = null;
   try { pinned = localStorage.getItem(PATH_PIN_KEY); } catch (_) {}
   const arr = [];
-  if (pinned === 'direct') {
+  if (pinned === 'direct' || !isOfficialOrigin()) {
+    // 显式钉住直连，或非正式域（CloudStudio 测试域）→ 直连优先（其 CORS 是 *）
     arr.push({ url: direct, label: 'Direct' });
     if (worker) arr.push({ url: worker, label: 'Worker' });
   } else {
