@@ -284,7 +284,7 @@
   }
 
   function buildShipsHtml() {
-    return SHIPS.length ? SHIPS.map(s => {
+    const renderShipItem = s => {
       const logs = (s.logs || []).map(l => `<div class="it"><div class="dot" style="background:${SHIP_COLOR[l.status] || '#FF6B5C'}"></div>
         <div><div class="tt">${esc(l.desc)}</div><div class="ta">${SHIP_STATUS[l.status] || ''} · ${fmtTime(l.time)}</div></div></div>`).join('') || '<div style="color:#9AA0AD;font-size:13px">暂无轨迹</div>';
       const trackNo = s.trackingNo || '';
@@ -315,7 +315,12 @@
         ${s.productLink ? `<a class="product-link" href="${esc(s.productLink)}" target="_blank" rel="noopener">🔗 查看拼多多商品</a>` : ''}
         <div class="tl${collapseCls}">${logs}</div>
       </div>`;
-    }).join('') : '<div style="text-align:center;color:#9AA0AD;font-size:13px;padding:14px">还没有收到礼品发货～</div>';
+    };
+    const topHtml = SHIPS.slice(0, 3).map(renderShipItem).join('');
+    const extrasArr = SHIPS.slice(3);
+    const extrasHtml = extrasArr.map(renderShipItem).join('');
+    const main = SHIPS.length ? topHtml : '<div style="text-align:center;color:#9AA0AD;font-size:13px;padding:14px">还没有收到礼品发货～</div>';
+    return `${main}${extrasArr.length ? `<div class="ship-extras" id="ship-extras" hidden>${extrasHtml}</div>` : ''}`;
   }
 
   const signedSet = new Set(['signed', 'delivered']);
@@ -345,7 +350,7 @@
       </div>`;
     }
     const total = REBATES.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-    const items = REBATES.map(r => {
+    const renderItem = r => {
       const st = r.status || '待返';
       const step = st === '已返' ? 3 : (st === '处理中' ? 2 : 1);
       const color = step === 3 ? '#2BB673' : (step === 2 ? '#5B7CFA' : '#FF6B5C');
@@ -370,10 +375,15 @@
         ${r.expected_rebate_date || r.rebate_date ? `<div style="font-size:11px;color:#9AA0AD;margin-top:8px">${r.expected_rebate_date ? `预计返款日期：${esc(r.expected_rebate_date)}` : `返款日期：${esc(r.rebate_date)}`}</div>` : ''}
         ${r.voucher_url ? `<a href="${esc(r.voucher_url)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:12px;color:#5B7CFA;text-decoration:none">🧾 查看返款凭证</a>` : ''}
       </div>`;
-    }).join('');
+    };
+    const topHtml = REBATES.slice(0, 3).map(renderItem).join('');
+    const extrasArr = REBATES.slice(3);
+    const extrasHtml = extrasArr.map(renderItem).join('');
     return `<div class="me-card">
       <div class="block-title">💰 我的返款进度 <span style="font-size:12px;color:#9AA0AD;font-weight:normal;margin-left:6px">共 ${REBATES.length} 笔 · 累计 ${money(total)}</span></div>
-      ${items}
+      ${topHtml}
+      ${extrasArr.length ? `<div class="rp-extras" id="rp-extras" hidden>${extrasHtml}</div>
+        <div class="rp-toggle-wrap" id="rp-toggle-wrap"><span class="rp-toggle-more" id="rp-toggle-more">展开 ${extrasArr.length} 笔更多 ▼</span></div>` : ''}
     </div>`;
   }
 
@@ -429,7 +439,7 @@
       <div class="me-card">
         <div class="ship-head-row" id="ship-head-row">
           <div class="block-title">🚚 我的礼品与物流 <span style="font-size:12px;color:#9AA0AD;font-weight:normal;margin-left:6px">共 ${SHIPS.length} 件</span></div>
-          <span class="ship-fold-btn" id="ship-fold-btn">收起</span>
+          ${SHIPS.length > 3 ? `<span class="ship-fold-btn" id="ship-fold-btn">展开 ${SHIPS.length - 3} 条更多 ▼</span>` : ''}
         </div>
         <div class="ship-list" id="ship-list">${buildShipsHtml()}</div>
       </div>
@@ -543,15 +553,27 @@
 
     // 注：旧的「复制专属链接」按钮已下线（同设备自动登录，不需要手动复制保存链接）
 
-    // 整个礼品物流卡片一键折叠/展开
-    const shipHeadRow = document.getElementById('ship-head-row');
-    const shipList = document.getElementById('ship-list');
+    // 礼品物流：列表级折叠（默认显示前 3 条，更多可展开）
     const shipFoldBtn = document.getElementById('ship-fold-btn');
-    if (shipHeadRow && shipList && shipFoldBtn) {
-      shipHeadRow.addEventListener('click', () => {
-        shipList.classList.toggle('collapsed');
-        shipHeadRow.classList.toggle('collapsed');
-        shipFoldBtn.textContent = shipList.classList.contains('collapsed') ? '展开' : '收起';
+    const shipExtras = document.getElementById('ship-extras');
+    const shipHeadRow = document.getElementById('ship-head-row');
+    if (shipFoldBtn && shipExtras) {
+      shipFoldBtn.addEventListener('click', () => {
+        const expanded = shipExtras.classList.toggle('expanded');
+        if (shipHeadRow) shipHeadRow.classList.toggle('expanded', expanded);
+        shipFoldBtn.textContent = expanded ? '收起 ▲' : `展开 ${shipExtras.children.length} 条更多 ▼`;
+      });
+    }
+
+    // 返款进度：列表级折叠（默认显示前 3 笔，更多可展开）
+    const rpToggleMore = document.getElementById('rp-toggle-more');
+    const rpExtras = document.getElementById('rp-extras');
+    const rpToggleWrap = document.getElementById('rp-toggle-wrap');
+    if (rpToggleMore && rpExtras) {
+      rpToggleMore.addEventListener('click', () => {
+        const expanded = rpExtras.classList.toggle('expanded');
+        if (rpToggleWrap) rpToggleWrap.classList.toggle('expanded', expanded);
+        rpToggleMore.textContent = expanded ? '收起 ▲' : `展开 ${rpExtras.children.length} 笔更多 ▼`;
       });
     }
 
