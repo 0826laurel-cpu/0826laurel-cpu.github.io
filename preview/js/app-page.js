@@ -561,6 +561,8 @@
       shipFoldBtn.addEventListener('click', () => {
         const expanded = shipExtras.classList.toggle('expanded');
         if (shipHeadRow) shipHeadRow.classList.toggle('expanded', expanded);
+        // [hidden] 是浏览器 UA 级样式，必须配合 JS 移除 attribute 才能真正显示
+        shipExtras.hidden = !expanded;
         shipFoldBtn.textContent = expanded ? '收起 ▲' : `展开 ${shipExtras.children.length} 条更多 ▼`;
       });
     }
@@ -573,6 +575,7 @@
       rpToggleMore.addEventListener('click', () => {
         const expanded = rpExtras.classList.toggle('expanded');
         if (rpToggleWrap) rpToggleWrap.classList.toggle('expanded', expanded);
+        rpExtras.hidden = !expanded;
         rpToggleMore.textContent = expanded ? '收起 ▲' : `展开 ${rpExtras.children.length} 笔更多 ▼`;
       });
     }
