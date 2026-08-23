@@ -332,18 +332,35 @@
     .btn-guide:active { transform: scale(.97); }
 
     /* === 我的礼品与物流：列表级折叠（默认显示前 3 条） === */
-    .ship-head-row { display: flex; justify-content: space-between; align-items: center; user-select: none; margin-bottom: 14px; }
-    .ship-head-row .block-title { margin: 0; }
+    .ship-head-row {
+      display: flex; flex-wrap: nowrap; align-items: center;
+      gap: 10px; user-select: none;
+      margin: 22px 0 14px;
+    }
+    .ship-head-row .block-title {
+      flex: 1 1 auto; min-width: 0;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ship-head-row .block-title > span {
+      margin-left: 2px;
+    }
     .ship-fold-btn {
+      flex: 0 0 auto;
       display: inline-flex; align-items: center; gap: 4px;
       font-size: 12px; font-weight: 600; color: #FF4D7D;
       background: #FFF0EC; border: 1px solid #FFD9D2;
       border-radius: 999px; padding: 4px 10px;
-      cursor: pointer; transition: background .15s ease;
+      cursor: pointer; transition: background .15s ease, transform .15s ease;
     }
     .ship-fold-btn::after { content: '▼'; font-size: 9px; transition: transform .2s ease; }
     .ship-head-row.expanded .ship-fold-btn::after { transform: rotate(180deg); }
-    .ship-fold-btn:active { background: #FFE3DC; }
+    .ship-fold-btn:active { background: #FFE3DC; transform: scale(.97); }
+    @media (hover: hover) and (pointer: fine) {
+      .ship-fold-btn:hover { background: #FFE3DC; }
+    }
     .ship-extras[hidden] { display: none; }
 
     /* === 返款进度：列表级折叠（默认显示前 3 笔） === */
