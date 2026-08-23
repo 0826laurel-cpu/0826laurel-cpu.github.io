@@ -1,5 +1,5 @@
-// api.js — 数据层（直连 Supabase，替代原 Node 后端 /api）
-// 依赖：vendor/supabase.js（全局 supabase）、js/sb.js（全局 sb）、config.js
+// api.js — 数据层（裸 fetch 双链路直连 Supabase，替代原 Node 后端 /api 与 supabase-js SDK）
+// 依赖：config.js（提供 SB_URL / SB_ANON / SB_PROXY_URL / SB_DIRECT）。已不依赖 vendor/supabase.js / js/sb.js（见 directFetch / directFetchWrite / rpcRace）。
 
 // v41 友好错误：把 TypeError/NetworkError/timeout 等技术错误转成中文+可行动引导
 // 任何 catch 块统一用 friendlyError(e, ctx) 替代 '失败：' + e.message，避免给用户看原始堆栈

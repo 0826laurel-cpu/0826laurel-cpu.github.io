@@ -1,6 +1,5 @@
 // ============ 后台录入逻辑 ============
-let sb = null;
-try { sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY); } catch(e){}
+// 凭证上传已迁裸 REST（见 config.js rebateUploadVoucher），不再依赖 supabase-js SDK / window.sb。
 
 function toast(msg){
   const t = document.getElementById('toast');
@@ -69,8 +68,6 @@ function enterPanel(){
   document.getElementById('gate').style.display = 'none';
   document.getElementById('panel').style.display = 'block';
   setVal('f-date', new Date().toISOString().slice(0,10));
-  // v44：补种子按钮的默认日期 = 今天
-  setVal('seed-date-input', new Date().toISOString().slice(0,10));
   // 来自伙伴卡片的预填 → 锁字段，杜绝误覆盖
   if (URL_PREFILL.model){
     setVal('f-model-id', URL_PREFILL.model);
@@ -120,30 +117,6 @@ document.getElementById('logout').addEventListener('click', ()=>{
   document.getElementById('panel').style.display = 'none';
   document.getElementById('gate').style.display = 'block';
   setVal('pw', '');
-});
-
-// ========== v44：补今日种子按钮 ==========
-document.getElementById('seed-btn').addEventListener('click', async ()=>{
-  const cntRaw = parseInt(val('seed-count') || '6', 10);
-  const cnt = Math.max(1, Math.min(30, isNaN(cntRaw) ? 6 : cntRaw));
-  const dateStr = val('seed-date-input');
-  if (!dateStr){ toast('请选目标日期'); return; }
-
-  const btn = document.getElementById('seed-btn');
-  const oldText = btn.textContent;
-  btn.disabled = true; btn.textContent = '补种中…';
-
-  try {
-    const data = await rebateRpc('seed_daily_rebates', { p_target_date: dateStr, p_count: cnt });
-    if (!data || data.ok === false){ toast('补种失败：' + (data && data.error || 'RPC 异常')); btn.disabled = false; btn.textContent = oldText; return; }
-    toast('✅ 已为 ' + data.target_date + ' 补 ' + data.inserted + ' 条新动态');
-    btn.disabled = false; btn.textContent = oldText;
-    loadPending();
-    loadPaid();
-  } catch (e) {
-    toast('补种失败：' + (e && e.message || '网络异常'));
-    btn.disabled = false; btn.textContent = oldText;
-  }
 });
 
 // 凭证图片选择 + 预览
@@ -419,19 +392,14 @@ document.getElementById('submit-btn').addEventListener('click', async ()=>{
     }
   }
 
-  // 如果选了凭证图，先上传到 Supabase Storage
+  // 如果选了凭证图，先上传到 Supabase Storage（裸 REST 双链路，替代废弃的 sb.storage 写路径）
   if (file){
-    if (!sb){ toast('未连接数据库，无法上传图片'); return; }
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `voucher/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
     toast('正在上传凭证…');
-    const { data: upData, error: upError } = await sb.storage.from('rebate-vouchers').upload(path, file, {
-      contentType: file.type,
-      upsert: true
-    });
-    if (upError){ toast('凭证上传失败：' + upError.message); return; }
-    const { data: urlData } = sb.storage.from('rebate-vouchers').getPublicUrl(path);
-    voucherUrl = urlData.publicUrl;
+    try {
+      voucherUrl = await rebateUploadVoucher(file);
+    } catch(e){
+      toast('凭证上传失败：' + (e && e.message || '网络异常')); return;
+    }
   }
 
   const payload = {
@@ -450,7 +418,6 @@ document.getElementById('submit-btn').addEventListener('click', async ()=>{
   if (!payload.p_model_mask || !payload.p_order_no || !payload.p_item || !payload.p_amount){
     toast('请填全：昵称 / 订单号 / 事项 / 金额'); return;
   }
-  if (!sb){ toast('未连接数据库（演示环境无法写入）'); return; }
   try {
     const data = await rebateRpc('admin_add_rebate', payload);
     if (data && data.ok === false){ toast(data.error || '提交失败'); return; }
