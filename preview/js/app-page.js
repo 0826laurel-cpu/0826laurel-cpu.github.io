@@ -484,7 +484,7 @@
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap iframe-lazy" id="rebate-wrap">
           <div class="iframe-skeleton" id="rebate-skel"><div class="sk-spinner"></div><div class="sk-text">返款公示台加载中…</div></div>
-          <iframe id="rebate-frame" data-src="rebate/index.html?v=31" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
+          <iframe id="rebate-frame" data-src="rebate/index.html?v=32" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
         </div>
       </div>`;
   }

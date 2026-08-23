@@ -265,12 +265,13 @@ function genVirtualFeed(n){
   }
   return rows;
 }
-// 初始虚拟达人榜（N 条，金额 300–500 量级 × 笔数，降序）
+// 初始虚拟达人榜（N 条，单笔 300–500 × 克制笔数，降序）
+// v44c：收敛笔数到 3–15 笔，避免「笔数×单笔」累积出过万夸张金额
 function genVirtualBoard(n){
   const rows = [];
   for (let i = 0; i < n; i++){
-    const cnt = 5 + Math.floor(Math.random() * 40);
-    const total = cnt * (300 + Math.floor(Math.random() * 200));
+    const cnt = 3 + Math.floor(Math.random() * 13);            // 3–15 笔
+    const total = cnt * (300 + Math.floor(Math.random() * 200)); // 单笔 300–500，合计更克制
     rows.push({ mask: pickRand(LIVE_NAMES), total, cnt });
   }
   rows.sort((a,b)=> b.total - a.total);
@@ -289,14 +290,15 @@ function initFeedTicker(){
 }
 let _liveBoardCache = null;
 function initBoardTicker(){
-  // 每 12 秒给达人榜前三抖一笔 +¥300–500（量级与单笔返款一致，避免累积放大失真）
+  // 每 12 秒给达人榜前三抖一笔（量级与单笔返款一致），并限制在收敛区间内，避免久看累积放大
+  const CAP_TOTAL = 9000, CAP_CNT = 18;
   setInterval(() => {
     if (_liveBoardCache && _liveBoardCache.length){
       const i = Math.floor(Math.random() * Math.min(3, _liveBoardCache.length));
       const r = _liveBoardCache[i];
       if (r){
-        r.total = (r.total||0) + pickRand(V_AMOUNTS);
-        r.cnt = (r.cnt||0) + 1;
+        if ((r.total||0) < CAP_TOTAL) r.total = (r.total||0) + pickRand(V_AMOUNTS);
+        if ((r.cnt||0) < CAP_CNT) r.cnt = (r.cnt||0) + 1;
       }
       renderBoard(_liveBoardCache);
     }
