@@ -337,6 +337,24 @@
       -webkit-transform: translateZ(0); transform: translateZ(0);
     }
 
+    /* === v30 懒加载骨架（解决两 iframe 并发抢资源导致切 tab 等待 10s+） === */
+    .iframe-lazy { position: relative; }
+    .iframe-skeleton {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: linear-gradient(160deg, #FFF7F4, #fff);
+      gap: 12px; z-index: 1; pointer-events: none;
+      border-radius: 18px;
+    }
+    .sk-spinner {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 3px solid #FFE3DC; border-top-color: #FF6B5C;
+      animation: skSpin 0.8s linear infinite;
+    }
+    .sk-text { font-size: 13px; color: #9AA0AD; font-weight: 500; }
+    @keyframes skSpin { to { transform: rotate(360deg); } }
+
     /* === 底部 Tab 导航 === */
     .tabbar {
       position: absolute; left: 0; right: 0; bottom: 0; height: 78px;
@@ -408,10 +426,8 @@
   </div>
 
 <script src="config.js?v=5"></script>
-<script src="vendor/supabase.js"></script>
-<script src="js/sb.js"></script>
   <script src="js/api.js?v=41"></script>
-  <script src="js/app-page.js?v=38"></script>
+  <script src="js/app-page.js?v=40"></script>
   <a class="me-logout" id="me-logout" href="#">退出</a>
   <script>
     (function () {
