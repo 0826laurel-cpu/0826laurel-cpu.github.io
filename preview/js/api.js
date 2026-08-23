@@ -599,7 +599,7 @@ const Api = {
   // 通用 RPC 双链路 fallback（v38）：替换 sb.rpc(...) 用于模特端 me.html
   // 解决 Supabase JS SDK 在浏览器里对 Worker 域名的 CORS preflight 兼容问题
   // （电脑端 sb.rpc → 'TypeError: Failed to fetch'，但裸 fetch 经 Worker + 直连双链路都能通）
-  async rpcRace(fnName, params) {
+  async rpcRace(fnName, params, opts) {
     const r = await directFetch('/rest/v1/rpc/' + fnName, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -608,6 +608,10 @@ const Api = {
     // 兼容两种返回：{ ok:true, partner } / { ok:false, error } / 直接数组
     if (r && typeof r === 'object' && 'ok' in r) {
       if (r.ok) return r; // 成功：返回完整对象（含 partner/shipments/payout_qr_url 等）
+      // 业务层 ok:false（查无 token / 密码错 / 无数据）≠ 网络异常。
+      // 默认仍抛错（给需要 try/catch 的调用方）；me.html 的 get_my_partner / my_shipments
+      // 需要拿到 {ok:false} 自行判断「链接无效」而非误报网络错误 → 传 opts.noThrowOnFalse。
+      if (opts && opts.noThrowOnFalse) return r;
       throw new Error(r.error || ('RPC ' + fnName + ' failed'));
     }
     return r; // 直接返回（如数组）

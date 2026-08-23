@@ -231,8 +231,8 @@
       // ② 主数据并行拉取：get_my_partner + my_shipments 同时发，省掉一次往返
       // v38：改用 Api.rpcRace 双链路 fallback（电脑端 sb.rpc 走 Worker 域失败 → 切直连）
       const [pd, sd] = await Promise.all([
-        Api.rpcRace('get_my_partner', { p_token: TOKEN }),
-        Api.rpcRace('my_shipments', { p_token: TOKEN })
+        Api.rpcRace('get_my_partner', { p_token: TOKEN }, { noThrowOnFalse: true }),
+        Api.rpcRace('my_shipments', { p_token: TOKEN }, { noThrowOnFalse: true })
       ]);
       // pd 形如 {ok:true, partner:{...}, token} / sd 形如 {ok:true, shipments:[...]}（或抛错）
       if (!pd || !pd.ok || !pd.partner) {
