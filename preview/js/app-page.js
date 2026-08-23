@@ -495,7 +495,7 @@
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap iframe-lazy" id="welfare-wrap">
           <div class="iframe-skeleton" id="welfare-skel"><div class="sk-spinner"></div><div class="sk-text">互动福利中心加载中…</div></div>
-          <iframe id="welfare-frame" data-src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=12" title="互动福利中心" allow="clipboard-write" scrolling="no"></iframe>
+          <iframe id="welfare-frame" data-src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=13" title="互动福利中心" allow="clipboard-write" scrolling="no"></iframe>
         </div>
       </div>`;
   }
