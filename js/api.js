@@ -158,13 +158,20 @@ async function directFetchAt(baseUrl, path, init, timeoutMs) {
 }
 // 链路顺序：Worker 优先（国内手机/电脑最稳，v32–v35 实证），直连兜底；成功过的链路会被「钉住」
 const PATH_PIN_KEY = 'admin_path_pin';
+// 是否正式站（github.io）。Worker 代理（wgbproxy）把 CORS Access-Control-Allow-Origin 锁死为
+// https://0826laurel-cpu.github.io，非正式域（CloudStudio 测试域 *.bj4.agentos-app.net）走 Worker
+// 会被浏览器 CORS 拦截；而 Supabase 直连 CORS 是 *（允许所有 origin）→ 测试域必须直连优先。
+function isOfficialOrigin() {
+  try { return /0826laurel-cpu\.github\.io/.test(location.origin || ''); } catch (_) { return true; }
+}
 function orderedPaths() {
   const direct = window.SB_DIRECT || 'https://ecvsamlwjbxovqaziyww.supabase.co';
   const worker = window.SB_PROXY_URL;
   let pinned = null;
   try { pinned = localStorage.getItem(PATH_PIN_KEY); } catch (_) {}
   const arr = [];
-  if (pinned === 'direct') {
+  if (pinned === 'direct' || !isOfficialOrigin()) {
+    // 显式钉住直连，或非正式域（CloudStudio 测试域）→ 直连优先（其 CORS 是 *）
     arr.push({ url: direct, label: 'Direct' });
     if (worker) arr.push({ url: worker, label: 'Worker' });
   } else {
@@ -599,7 +606,7 @@ const Api = {
   // 通用 RPC 双链路 fallback（v38）：替换 sb.rpc(...) 用于模特端 me.html
   // 解决 Supabase JS SDK 在浏览器里对 Worker 域名的 CORS preflight 兼容问题
   // （电脑端 sb.rpc → 'TypeError: Failed to fetch'，但裸 fetch 经 Worker + 直连双链路都能通）
-  async rpcRace(fnName, params) {
+  async rpcRace(fnName, params, opts) {
     const r = await directFetch('/rest/v1/rpc/' + fnName, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -608,6 +615,10 @@ const Api = {
     // 兼容两种返回：{ ok:true, partner } / { ok:false, error } / 直接数组
     if (r && typeof r === 'object' && 'ok' in r) {
       if (r.ok) return r; // 成功：返回完整对象（含 partner/shipments/payout_qr_url 等）
+      // 业务层 ok:false（查无 token / 密码错 / 无数据）≠ 网络异常。
+      // 默认仍抛错（给需要 try/catch 的调用方）；me.html 的 get_my_partner / my_shipments
+      // 需要拿到 {ok:false} 自行判断「链接无效」而非误报网络错误 → 传 opts.noThrowOnFalse。
+      if (opts && opts.noThrowOnFalse) return r;
       throw new Error(r.error || ('RPC ' + fnName + ' failed'));
     }
     return r; // 直接返回（如数组）

@@ -90,7 +90,7 @@
       <div class="me-card guide-entry">
         <div class="block-title">📖 网拍模特平台图鉴</div>
         <p class="guide-desc">8个主流平台一次看懂</p>
-        <a class="btn-guide" href="guide/?t=${TOKEN ? encodeURIComponent(TOKEN) : ''}">查看平台图鉴 →</a>
+        <a class="btn-guide" href="guide/index.html?t=${TOKEN ? encodeURIComponent(TOKEN) : ''}">查看平台图鉴 →</a>
       </div>`;
 
     document.getElementById('app').innerHTML = `

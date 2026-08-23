@@ -231,8 +231,8 @@
       // ② 主数据并行拉取：get_my_partner + my_shipments 同时发，省掉一次往返
       // v38：改用 Api.rpcRace 双链路 fallback（电脑端 sb.rpc 走 Worker 域失败 → 切直连）
       const [pd, sd] = await Promise.all([
-        Api.rpcRace('get_my_partner', { p_token: TOKEN }),
-        Api.rpcRace('my_shipments', { p_token: TOKEN })
+        Api.rpcRace('get_my_partner', { p_token: TOKEN }, { noThrowOnFalse: true }),
+        Api.rpcRace('my_shipments', { p_token: TOKEN }, { noThrowOnFalse: true })
       ]);
       // pd 形如 {ok:true, partner:{...}, token} / sd 形如 {ok:true, shipments:[...]}（或抛错）
       if (!pd || !pd.ok || !pd.partner) {
@@ -484,7 +484,7 @@
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap iframe-lazy" id="rebate-wrap">
           <div class="iframe-skeleton" id="rebate-skel"><div class="sk-spinner"></div><div class="sk-text">返款公示台加载中…</div></div>
-          <iframe id="rebate-frame" data-src="rebate/?v=30" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
+          <iframe id="rebate-frame" data-src="rebate/index.html?v=32" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
         </div>
       </div>`;
   }
@@ -495,7 +495,7 @@
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap iframe-lazy" id="welfare-wrap">
           <div class="iframe-skeleton" id="welfare-skel"><div class="sk-spinner"></div><div class="sk-text">互动福利中心加载中…</div></div>
-          <iframe id="welfare-frame" data-src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=12" title="互动福利中心" allow="clipboard-write" scrolling="no"></iframe>
+          <iframe id="welfare-frame" data-src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=13" title="互动福利中心" allow="clipboard-write" scrolling="no"></iframe>
         </div>
       </div>`;
   }
@@ -561,6 +561,8 @@
       shipFoldBtn.addEventListener('click', () => {
         const expanded = shipExtras.classList.toggle('expanded');
         if (shipHeadRow) shipHeadRow.classList.toggle('expanded', expanded);
+        // [hidden] 是浏览器 UA 级样式，必须配合 JS 移除 attribute 才能真正显示
+        shipExtras.hidden = !expanded;
         shipFoldBtn.textContent = expanded ? '收起 ▲' : `展开 ${shipExtras.children.length} 条更多 ▼`;
       });
     }
@@ -573,6 +575,7 @@
       rpToggleMore.addEventListener('click', () => {
         const expanded = rpExtras.classList.toggle('expanded');
         if (rpToggleWrap) rpToggleWrap.classList.toggle('expanded', expanded);
+        rpExtras.hidden = !expanded;
         rpToggleMore.textContent = expanded ? '收起 ▲' : `展开 ${rpExtras.children.length} 笔更多 ▼`;
       });
     }
