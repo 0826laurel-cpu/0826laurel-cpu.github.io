@@ -29,6 +29,18 @@
 
   function render() {
     const p = PARTNER;
+    const partnerName = p.name || '专属伙伴';
+
+    // 顶部 Hero（与 me/rebate 同语言 —— 已在 welfare.html 文档注：v17 加）
+    const heroHtml = `
+      <div class="hero">
+        <h1>${esc(partnerName)}的互动福利空间</h1>
+        <p>每日签到领积分</p>
+        <p>邀请好友拿福利</p>
+        <p>还有 8 大网拍平台图鉴</p>
+        <p>福利派送官陪你一起玩～</p>
+        <span class="live"><span class="dot"></span>福利官在线 · 积分实时到账</span>
+      </div>`;
 
     // 签到 + 积分商城
     const checkinHtml = `
@@ -77,7 +89,7 @@
     const inviteHtml = `
       <div class="me-card invite-card">
         <div class="block-title">🤝 邀请模特好友</div>
-        <p class="invite-desc">分享你的专属邀请码给想做网拍模特的朋友，TA 成功入驻后，你们各得 <b>10 积分</b>！</p>
+        <p class="invite-desc">分享你的专属邀请码给想做网拍模特的朋友，TA 成功入驻后，你们各得 <b style="color:#f5222d">10 积分</b>！</p>
         <div class="invite-code-box">
           <span class="ic-code">${esc(p.inviteCode || '—')}</span>
           <button class="btn-copy" id="btn-copy-invite">复制邀请链接</button>
@@ -89,11 +101,12 @@
     const guideHtml = `
       <div class="me-card guide-entry">
         <div class="block-title">📖 网拍模特平台图鉴</div>
-        <p class="guide-desc">8个主流平台一次看懂</p>
+        <p class="guide-desc">8 个主流平台一次看懂</p>
         <a class="btn-guide" href="guide/index.html?t=${TOKEN ? encodeURIComponent(TOKEN) : ''}">查看平台图鉴 →</a>
       </div>`;
 
     document.getElementById('app').innerHTML = `
+      ${heroHtml}
       ${checkinHtml}
       ${inviteHtml}
       ${guideHtml}

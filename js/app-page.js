@@ -400,15 +400,13 @@
 
     document.getElementById('view-home').innerHTML = `
       ${notifyHtml}
-      <div class="me-card">
-        <div class="hero">
-          <div class="hero-icon">🎁</div>
-          <div class="hero-body">
-            <h1>${esc(p.name)}模特专属后台</h1>
-            <div class="lead">这是你的私人福利空间 —— 填好收件地址，就能第一时间收到福利派送官亲自寄出的小礼物，并实时查看物流动态～</div>
-            <div class="hero-meta"><span class="pulse"></span>福利派送官亲自寄出 · 智能物流同步</div>
-          </div>
-        </div>
+      <div class="hero">
+        <h1>${esc(p.name)}的模特专属后台</h1>
+        <p>这是你的私人福利空间</p>
+        <p>填好收件地址</p>
+        <p>第一时间收到福利派送官亲自寄出的小礼物</p>
+        <p>实时查看物流动态～</p>
+        <span class="live"><span class="dot"></span>福利派送官亲自寄出 · 智能物流同步</span>
       </div>
       ${buildOverviewHtml()}
       ${buildRebateProgressHtml()}
@@ -484,7 +482,7 @@
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap iframe-lazy" id="rebate-wrap">
           <div class="iframe-skeleton" id="rebate-skel"><div class="sk-spinner"></div><div class="sk-text">返款公示台加载中…</div></div>
-          <iframe id="rebate-frame" data-src="rebate/index.html?v=32" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
+          <iframe id="rebate-frame" data-src="rebate/index.html?v=37" title="返款公示台" allow="clipboard-write" scrolling="no"></iframe>
         </div>
       </div>`;
   }
@@ -495,7 +493,7 @@
       <div class="me-card" style="padding:0;border:none;background:transparent;box-shadow:none;margin:0;border-radius:0;">
         <div class="iframe-wrap iframe-lazy" id="welfare-wrap">
           <div class="iframe-skeleton" id="welfare-skel"><div class="sk-spinner"></div><div class="sk-text">互动福利中心加载中…</div></div>
-          <iframe id="welfare-frame" data-src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=13" title="互动福利中心" allow="clipboard-write" scrolling="no"></iframe>
+          <iframe id="welfare-frame" data-src="welfare.html?t=${encodeURIComponent(TOKEN)}&v=18" title="互动福利中心" allow="clipboard-write" scrolling="no"></iframe>
         </div>
       </div>`;
   }
