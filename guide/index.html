@@ -424,11 +424,22 @@ sheet.addEventListener('touchend',e=>{
   if(sheet.scrollTop<=0&&e.changedTouches[0].clientY-sy>70)close();
 },{passive:true});
 
-// 返回福利页（携带 token 原路返回）
+// 返回福利页（优先 history.back 保留 token 上下文，避免跨页 location.href 触发 WebView token 校验）
 (function(){
   const btn=document.getElementById('backBtn');
-  const t=new URLSearchParams(location.search).get('t');
-  btn.addEventListener('click',()=>{ location.href = '../me.html' + (t ? ('?t='+encodeURIComponent(t)) : ''); });
+  btn.addEventListener('click',()=>{
+    // 优先 history.back：恢复进场前的页面 + token 上下文（join.html 演示模式 / me.html 第 4 tab）
+    if (document.referrer && /(join|me|index)\.html(?:[?#]|$)/.test(document.referrer)) {
+      history.back();
+      return;
+    }
+    // 直接打开或跨站进来 → 兜底回首页（index.html）
+    if (history.length > 1) {
+      history.back();
+    } else {
+      location.href = '../index.html';
+    }
+  });
 })();
 </script>
 </body>
