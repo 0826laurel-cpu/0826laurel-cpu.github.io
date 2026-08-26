@@ -134,6 +134,16 @@
     if (!a || (!a.name && !a.detail)) return '';
     return [a.name, a.phone, [a.province, a.city, a.district].filter(Boolean).join(''), a.detail, a.postal].filter(Boolean).join('\n');
   }
+  function addrOneLine(a) {
+    // v40：把收件信息合并成一行显示（首页地址卡 summary 用）
+    const reg = [a.province, a.city, a.district].filter(Boolean).join('');
+    const head = a.name ? (a.name + (a.phone ? ' · ' + a.phone + '' : '')) : '';
+    const tail = (reg || a.detail) ? [reg, a.detail].filter(Boolean).join(' · ') : '';
+    const parts = [];
+    if (head) parts.push(head);
+    if (tail) parts.push(tail);
+    return parts.join('  ·  ');
+  }
   function addrRowsMarkup(a) {
     const regParts = [a.province, a.city, a.district].filter(Boolean);
     const region = regParts.join(' · ');
@@ -262,6 +272,11 @@
   }
 
   function switchTab(name) {
+    // v40：平台 tab → 跳独立 guide 页（不在 iframe 里加载，整页更聚焦）
+    if (name === 'guide') {
+      window.location.href = 'guide/index.html';
+      return;
+    }
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
     const viewport = document.getElementById('viewport');
@@ -415,22 +430,24 @@
           <div class="addr-title">收件地址</div>
           ${addr ? '<span class="addr-badge set">✓ 已设置</span>' : '<span class="addr-badge unset">待完善</span>'}
         </div>
-        ${addr
-          ? `${addrRowsMarkup(a)}
-             <button class="btn-edit ghost" id="edit-addr">修改收件地址 <span class="arrow">→</span></button>`
-          : `<div class="addr-empty" style="background:linear-gradient(135deg,#FAFBFC,#F6F7F9);border:1px dashed #E5E7EB;border-radius:14px;padding:22px 14px;text-align:center;color:#9AA0AD;font-size:13px">还没填写收件地址<br><span style="color:#C7CAD3">填上后，我们就能给你寄礼物啦 🎀</span></div>
-             <button class="btn-edit" id="edit-addr" style="margin-top:12px">现在填写 <span class="arrow">→</span></button>`}
-        <div id="addr-form" style="display:none;margin-top:14px">
-          <div class="field"><label>收件人 *</label><input id="a-name" value="${esc(a.name || '')}" placeholder="你的姓名"></div>
-          <div class="field"><label>手机号 *</label><input id="a-phone" value="${esc(a.phone || '')}" placeholder="11 位手机号"></div>
-          <div class="row2">
-            <div class="field"><label>省</label><input id="a-prov" value="${esc(a.province || '')}" placeholder="如：浙江"></div>
-            <div class="field"><label>市</label><input id="a-city" value="${esc(a.city || '')}" placeholder="如：杭州"></div>
+        <div class="addr-inline-card" id="addr-inline-card">
+          <div class="addr-summary" id="addr-summary">
+            <span class="ico">📦</span>
+            <span class="summary-text ${addr ? '' : 'empty'}" id="summary-text">${addr ? esc(addrOneLine(a)) : '还没填写收件地址 · 点此填写 → 填完我们就寄出小礼物 🎀'}</span>
+            <span class="arrow">›</span>
           </div>
-          <div class="field"><label>区 / 县</label><input id="a-dist" value="${esc(a.district || '')}" placeholder="如：西湖区"></div>
-          <div class="field"><label>详细地址</label><input id="a-detail" value="${esc(a.detail || '')}" placeholder="街道 / 小区 / 门牌"></div>
-          <div class="field"><label>邮编（选填）</label><input id="a-postal" value="${esc(a.postal || '')}" placeholder="如：310000"></div>
-          <button class="btn" id="save-addr">保存地址</button>
+          <div class="addr-form" id="addr-form">
+            <div class="field" style="margin-top:14px"><label>收件人 *</label><input id="a-name" value="${esc(a.name || '')}" placeholder="你的姓名"></div>
+            <div class="field"><label>手机号 *</label><input id="a-phone" value="${esc(a.phone || '')}" placeholder="11 位手机号"></div>
+            <div class="row2">
+              <div class="field"><label>省</label><input id="a-prov" value="${esc(a.province || '')}" placeholder="如：浙江"></div>
+              <div class="field"><label>市</label><input id="a-city" value="${esc(a.city || '')}" placeholder="如：杭州"></div>
+            </div>
+            <div class="field"><label>区 / 县</label><input id="a-dist" value="${esc(a.district || '')}" placeholder="如：西湖区"></div>
+            <div class="field"><label>详细地址</label><input id="a-detail" value="${esc(a.detail || '')}" placeholder="街道 / 小区 / 门牌"></div>
+            <div class="field"><label>邮编（选填）</label><input id="a-postal" value="${esc(a.postal || '')}" placeholder="如：310000"></div>
+            <button class="btn" id="save-addr">保存地址</button>
+          </div>
         </div>
         ${payoutQrMarkup(addr)}
       </div>
@@ -512,12 +529,17 @@
   }
 
   function bindEvents() {
-    // 编辑地址
-    const editAddr = document.getElementById('edit-addr');
-    if (editAddr) {
-      editAddr.addEventListener('click', () => {
-        document.getElementById('addr-form').style.display = 'block';
-        editAddr.style.display = 'none';
+    // v40：首页收件地址 = 合并为 1 张可点开的卡
+    const addrCard = document.getElementById('addr-inline-card');
+    const addrSummary = document.getElementById('addr-summary');
+    if (addrCard && addrSummary) {
+      addrSummary.addEventListener('click', () => {
+        addrCard.classList.toggle('expanded');
+        // 展开后让姓名输入框自动聚焦
+        const nameInput = document.getElementById('a-name');
+        if (addrCard.classList.contains('expanded') && nameInput) {
+          setTimeout(() => { try { nameInput.focus({ preventScroll: true }); } catch (e) {} }, 60);
+        }
       });
     }
     // 保存地址
@@ -607,6 +629,10 @@
   }
 
   async function saveAddr() {
+    const expandedCard = document.getElementById('addr-inline-card');
+    const postSave = (ok) => {
+      if (ok && expandedCard) setTimeout(() => expandedCard.classList.remove('expanded'), 600);
+    };
     const name = document.getElementById('a-name').value.trim();
     const phone = document.getElementById('a-phone').value.trim();
     if (!name || !phone) { alert('请填写收件人和手机号'); return; }

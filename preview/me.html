@@ -21,7 +21,7 @@
         linear-gradient(180deg, #FFF7F4 0%, #FCFCFE 52%, #F5F6FA 100%);
       background-attachment: fixed; }
     .me-wrap { max-width: 430px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
-    .viewport { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 24px 20px 110px; }
+    .viewport { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 24px 20px 130px; }
     .view { display: none; }
     .view.active { display: block; animation: fadeIn .25s ease; }
     #view-rebate, #view-welfare { margin-left: -20px; margin-right: -20px; }
@@ -189,6 +189,58 @@
     .addr-row.full { align-items: flex-start; }
     .addr-row.full .ico { margin-top: 1px; }
     .addr-row.full .text { line-height: 1.55; }
+
+    /* === 首页收件地址：合并为 1 张可点开的卡（v40） === */
+    .addr-inline-card {
+      background: linear-gradient(135deg,#FAFBFC,#F6F7F9);
+      border: 1.5px solid #F0F1F4;
+      border-radius: 16px;
+      margin-bottom: 12px;
+      transition: border-color .2s ease, box-shadow .25s ease, background .25s ease;
+      overflow: hidden;
+    }
+    .addr-inline-card.expanded {
+      background: #fff;
+      border-color: rgba(255,77,125,.30);
+      box-shadow: 0 8px 22px rgba(255,77,125,.10);
+    }
+    .addr-summary {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 16px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .addr-summary:active { transform: scale(.995); }
+    .addr-summary .ico {
+      width: 38px; height: 38px; border-radius: 12px;
+      background: linear-gradient(135deg,#FFE9DC,#FFD0DB);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex: 0 0 auto;
+      box-shadow: 0 2px 8px rgba(255,77,125,.16);
+    }
+    .addr-summary .summary-text {
+      flex: 1; min-width: 0; font-size: 14px; color: #20232E; font-weight: 600;
+      line-height: 1.5;
+      overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .addr-summary .summary-text.empty { color: #9AA0AD; font-weight: 500; }
+    .addr-summary .arrow {
+      font-size: 22px; color: #C7CAD3; flex: 0 0 auto;
+      transition: transform .25s ease, color .2s ease;
+    }
+    .addr-inline-card.expanded .addr-summary .arrow { transform: rotate(90deg); color: #FF4D7D; }
+    .addr-form {
+      display: none;
+      padding: 4px 16px 16px;
+      border-top: 1px dashed #EDEDF0;
+      margin-top: 0;
+    }
+    .addr-inline-card.expanded .addr-form { display: block; animation: addrExpand .3s ease; }
+    @keyframes addrExpand { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+    .addr-form .field label { font-size: 12px; color: #6B7280; font-weight: 500; margin-bottom: 4px; }
+    .addr-form .field input { padding: 9px 12px; font-size: 13.5px; }
+    .addr-form .btn { margin-top: 12px; padding: 12px; font-size: 14px; box-shadow: 0 6px 14px rgba(255,77,125,.24); }
 
     /* === 收款码（支付宝）模块 === */
     .payout-qr {
@@ -425,32 +477,42 @@
     .sk-text { font-size: 13px; color: #9AA0AD; font-weight: 500; }
     @keyframes skSpin { to { transform: rotate(360deg); } }
 
-    /* === 底部 Tab 导航 === */
+    /* === 底部 Tab 导航（v40：4 tab + 更显眼：更高 pill + 大图标 + 粗字 + active 渐变填充） === */
     .tabbar {
-      position: absolute; left: 0; right: 0; bottom: 0; height: 78px;
-      background: rgba(255,255,255,.95); backdrop-filter: blur(10px);
+      position: absolute; left: 0; right: 0; bottom: 0; height: 92px;
+      background: rgba(255,255,255,.96); backdrop-filter: blur(14px);
       border-top: .5px solid rgba(20,20,30,.07);
       display: flex; align-items: center; justify-content: center;
-      padding: 0 21px 10px; z-index: 30;
+      padding: 0 12px 14px; z-index: 30;
     }
     .pill {
-      width: 100%; height: 54px; border-radius: 28px;
-      border: .5px solid rgba(20,20,30,.06); display: flex;
-      background: rgba(255,255,255,.9); box-shadow: 0 -4px 20px rgba(16,24,40,.06);
+      width: 100%; height: 68px; border-radius: 34px;
+      border: 1px solid rgba(20,20,30,.08); display: flex;
+      background: rgba(255,255,255,.94);
+      box-shadow: 0 -6px 24px rgba(16,24,40,.08), inset 0 1px 0 rgba(255,255,255,.6);
+      padding: 4px; gap: 2px;
     }
     .tab {
-      flex: 1; border-radius: 24px;
+      flex: 1; border-radius: 28px;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 3px; color: #9AA0AD; cursor: pointer;
-      transition: all .15s ease;
+      gap: 4px; color: #9AA0AD; cursor: pointer;
+      transition: background .25s cubic-bezier(.2,.7,.3,1), color .2s ease, transform .2s ease, box-shadow .25s ease;
+      position: relative;
     }
     .tab.on {
-      background: rgba(255,77,125,.12);
-      color: #FF4D7D; box-shadow: none;
+      background: linear-gradient(135deg,#FF8A5B,#FF4D7D);
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(255,77,125,.36), inset 0 1px 0 rgba(255,255,255,.18);
+      animation: tabPop .35s cubic-bezier(.2,.7,.3,1.2);
     }
-    .tab .ti { width: 22px; height: 22px; line-height: 1; }
-    .tab .tl { font-size: 10px; font-weight: 500; margin-top: 1px; }
-    .tab.on .tl { font-weight: 700; }
+    @keyframes tabPop {
+      from { transform: scale(.92); }
+      to { transform: scale(1); }
+    }
+    .tab .ti { width: 26px; height: 26px; line-height: 1; }
+    .tab .tl { font-size: 11.5px; font-weight: 600; margin-top: 0; letter-spacing: .2px; }
+    .tab.on .tl { font-weight: 800; color: #fff; }
+    .tab.on .ti { filter: drop-shadow(0 1px 1px rgba(255,77,125,.28)); }
 
     /* === 悬停感应（仅支持指针悬停的设备；手机/touch 不触发，避免乱跳） === */
     @media (hover: hover) and (pointer: fine) {
@@ -496,16 +558,20 @@
     <nav class="tabbar" id="tabbar" style="display:none">
       <div class="pill">
         <div class="tab on" data-tab="home">
-          <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           <span class="tl">首页</span>
         </div>
         <div class="tab" data-tab="rebate">
-          <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="7" cy="13" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="13" r="1.5" fill="currentColor" stroke="none"/></svg>
+          <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="7" cy="13" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="13" r="1.5" fill="currentColor" stroke="none"/></svg>
           <span class="tl">返款</span>
         </div>
         <div class="tab" data-tab="welfare">
-          <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><line x1="12" y1="8" x2="12" y2="21"/><path d="M7 8v-2a2 2 0 0 1 4 0v2"/><path d="M17 8v-2a2 2 0 0 0-4 0v2"/></svg>
+          <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><line x1="12" y1="8" x2="12" y2="21"/><path d="M7 8v-2a2 2 0 0 1 4 0v2"/><path d="M17 8v-2a2 2 0 0 0-4 0v2"/></svg>
           <span class="tl">福利</span>
+        </div>
+        <div class="tab" data-tab="guide">
+          <svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h7a3 3 0 0 1 3 3v13"/><path d="M22 4h-7a3 3 0 0 0-3 3v13"/><path d="M2 4v16h7"/><path d="M22 4v16h-7"/></svg>
+          <span class="tl">平台</span>
         </div>
       </div>
     </nav>
@@ -513,7 +579,7 @@
 
 <script src="config.js?v=5"></script>
   <script src="js/api.js?v=43"></script>
-  <script src="js/app-page.js?v=46"></script>
+  <script src="js/app-page.js?v=47"></script>
   <a class="me-logout" id="me-logout" href="#">退出</a>
   <script>
     (function () {
